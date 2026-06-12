@@ -5,10 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-fraunces), 'Fraunces Fallback', serif;
-  --font-heading: var(--font-fraunces), 'Fraunces Fallback', serif;
-  --font-serif: var(--font-fraunces), 'Fraunces Fallback', serif;
-  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono Fallback', monospace;
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-geist-sans), 'Geist Fallback';
+  --font-mono: var(--font-geist-mono), 'Geist Mono Fallback';
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,80 +48,73 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/*
-  Spiral Inward palette:
-  - background: deep night sky (#0a0b14)
-  - foreground: soft off-white (#ece8df)
-  - primary/accent: warm gold (#d9b96a)
-*/
 :root {
-  --background: oklch(0.13 0.018 270);
-  --foreground: oklch(0.92 0.012 85);
-  --card: oklch(0.17 0.02 268);
-  --card-foreground: oklch(0.92 0.012 85);
-  --popover: oklch(0.16 0.02 268);
-  --popover-foreground: oklch(0.92 0.012 85);
-  --primary: oklch(0.79 0.1 85);
-  --primary-foreground: oklch(0.16 0.02 268);
-  --secondary: oklch(0.22 0.022 268);
-  --secondary-foreground: oklch(0.92 0.012 85);
-  --muted: oklch(0.2 0.02 268);
-  --muted-foreground: oklch(0.66 0.02 80);
-  --accent: oklch(0.79 0.1 85);
-  --accent-foreground: oklch(0.16 0.02 268);
-  --destructive: oklch(0.62 0.2 25);
-  --border: oklch(0.3 0.02 270);
-  --input: oklch(0.26 0.02 270);
-  --ring: oklch(0.79 0.1 85);
-  --chart-1: oklch(0.79 0.1 85);
-  --chart-2: oklch(0.7 0.08 60);
-  --chart-3: oklch(0.6 0.05 250);
-  --chart-4: oklch(0.5 0.04 270);
-  --chart-5: oklch(0.4 0.03 270);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.15 0.02 268);
-  --sidebar-foreground: oklch(0.92 0.012 85);
-  --sidebar-primary: oklch(0.79 0.1 85);
-  --sidebar-primary-foreground: oklch(0.16 0.02 268);
-  --sidebar-accent: oklch(0.22 0.022 268);
-  --sidebar-accent-foreground: oklch(0.92 0.012 85);
-  --sidebar-border: oklch(0.3 0.02 270);
-  --sidebar-ring: oklch(0.79 0.1 85);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* The app is dark by default; mirror the values so .dark matches :root. */
 .dark {
-  --background: oklch(0.13 0.018 270);
-  --foreground: oklch(0.92 0.012 85);
-  --card: oklch(0.17 0.02 268);
-  --card-foreground: oklch(0.92 0.012 85);
-  --popover: oklch(0.16 0.02 268);
-  --popover-foreground: oklch(0.92 0.012 85);
-  --primary: oklch(0.79 0.1 85);
-  --primary-foreground: oklch(0.16 0.02 268);
-  --secondary: oklch(0.22 0.022 268);
-  --secondary-foreground: oklch(0.92 0.012 85);
-  --muted: oklch(0.2 0.02 268);
-  --muted-foreground: oklch(0.66 0.02 80);
-  --accent: oklch(0.79 0.1 85);
-  --accent-foreground: oklch(0.16 0.02 268);
-  --destructive: oklch(0.62 0.2 25);
-  --border: oklch(0.3 0.02 270);
-  --input: oklch(0.26 0.02 270);
-  --ring: oklch(0.79 0.1 85);
-  --chart-1: oklch(0.79 0.1 85);
-  --chart-2: oklch(0.7 0.08 60);
-  --chart-3: oklch(0.6 0.05 250);
-  --chart-4: oklch(0.5 0.04 270);
-  --chart-5: oklch(0.4 0.03 270);
-  --sidebar: oklch(0.15 0.02 268);
-  --sidebar-foreground: oklch(0.92 0.012 85);
-  --sidebar-primary: oklch(0.79 0.1 85);
-  --sidebar-primary-foreground: oklch(0.16 0.02 268);
-  --sidebar-accent: oklch(0.22 0.022 268);
-  --sidebar-accent-foreground: oklch(0.92 0.012 85);
-  --sidebar-border: oklch(0.3 0.02 270);
-  --sidebar-ring: oklch(0.79 0.1 85);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
@@ -134,27 +126,5 @@
   }
   html {
     @apply font-sans;
-  }
-}
-
-/* A slow, gentle twinkle for background stars. */
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
-/* A soft pulse for the gold star nodes in the constellation. */
-@keyframes star-glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 2px var(--primary));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px var(--primary));
   }
 }
