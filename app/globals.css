@@ -144,6 +144,17 @@
     animation: twinkle var(--twinkle-duration, 4s) ease-in-out infinite;
   }
 
+  /* Subtle drift motion for the starfield */
+  @keyframes drift {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(2px, -1px); }
+    50% { transform: translate(-1px, 2px); }
+    75% { transform: translate(1px, -2px); }
+  }
+  .animate-drift {
+    animation: drift 20s ease-in-out infinite;
+  }
+
   /* Soft pulse halo around constellation stars */
   @keyframes star-glow {
     0%, 100% { opacity: 0.5; transform: scale(1); }

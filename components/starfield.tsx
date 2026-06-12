@@ -36,7 +36,7 @@ export function Starfield({ count = 80 }: { count?: number }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 overflow-hidden"
+      className="pointer-events-none fixed inset-0 overflow-hidden animate-drift"
     >
       {/* Subtle radial deepening toward the edges */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,oklch(0.12_0.02_275)_100%)]" />
