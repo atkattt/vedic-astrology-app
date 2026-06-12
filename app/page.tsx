@@ -15,13 +15,13 @@ export default async function WelcomePage() {
       <Starfield count={110} />
 
       <div className="relative z-10 flex flex-col items-center text-center">
-        <p className="animate-fade-in-up mb-6 font-mono text-xs uppercase tracking-[0.4em] text-muted-foreground">
+        <p className="animate-fade-in-up mb-6 font-mono text-[9px] uppercase tracking-[0.4em]" style={{ color: '#868686' }}>
           A constellation of those you love
         </p>
 
         <h1
-          className="animate-fade-in-up text-balance font-serif text-5xl font-light leading-tight text-foreground sm:text-6xl"
-          style={{ animationDelay: "0.1s" }}
+          className="animate-fade-in-up text-balance text-5xl font-light text-foreground sm:text-6xl"
+          style={{ fontFamily: '"Lato", sans-serif', lineHeight: '1', animationDelay: "0.1s" }}
         >
           Spiral
           <br />
@@ -29,8 +29,8 @@ export default async function WelcomePage() {
         </h1>
 
         <p
-          className="animate-fade-in-up mt-6 max-w-xs text-pretty font-serif text-base leading-relaxed text-muted-foreground"
-          style={{ animationDelay: "0.2s" }}
+          className="animate-fade-in-up mt-6 max-w-xs text-pretty text-base text-muted-foreground"
+          style={{ fontFamily: '"Lato", sans-serif', lineHeight: '1', animationDelay: "0.2s" }}
         >
           Map the people in your life among the stars, and trace the bonds that
           hold them close.

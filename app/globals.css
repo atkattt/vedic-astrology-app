@@ -7,6 +7,7 @@
 @theme inline {
   --font-heading: var(--font-fraunces), 'Fraunces Fallback', serif;
   --font-serif: var(--font-fraunces), 'Fraunces Fallback', serif;
+  --font-lato: var(--font-lato), 'Lato', sans-serif;
   --font-sans: var(--font-fraunces), 'Fraunces Fallback', serif;
   --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono Fallback', monospace;
   --color-sidebar-ring: var(--sidebar-ring);

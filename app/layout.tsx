@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Fraunces, JetBrains_Mono } from 'next/font/google'
+import { Fraunces, JetBrains_Mono, Lato, Inter, Roboto, Open_Sans, Poppins, Nunito } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -11,6 +11,39 @@ const fraunces = Fraunces({
 })
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
+  subsets: ['latin'],
+  display: 'swap',
+})
+const lato = Lato({
+  variable: '--font-lato',
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+})
+const inter = Inter({
+  variable: '--font-inter',
+  subsets: ['latin'],
+  display: 'swap',
+})
+const roboto = Roboto({
+  variable: '--font-roboto',
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+})
+const openSans = Open_Sans({
+  variable: '--font-open-sans',
+  subsets: ['latin'],
+  display: 'swap',
+})
+const poppins = Poppins({
+  variable: '--font-poppins',
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+})
+const nunito = Nunito({
+  variable: '--font-nunito',
   subsets: ['latin'],
   display: 'swap',
 })
@@ -53,7 +86,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${fraunces.variable} ${jetbrainsMono.variable} bg-background`}
+      className={`dark ${fraunces.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         {children}
