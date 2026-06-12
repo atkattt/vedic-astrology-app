@@ -60,7 +60,7 @@ export async function addPerson(input: AddPersonInput) {
     })
     .returning()
 
-  revalidatePath("/")
+  revalidatePath("/circle")
   return created
 }
 
@@ -77,7 +77,7 @@ export async function updatePerson(id: number, input: AddPersonInput) {
     })
     .where(and(eq(people.id, id), eq(people.userId, userId)))
 
-  revalidatePath("/")
+  revalidatePath("/circle")
 }
 
 export async function deletePerson(id: number) {
@@ -100,7 +100,7 @@ export async function deletePerson(id: number) {
     .delete(people)
     .where(and(eq(people.id, id), eq(people.userId, userId)))
 
-  revalidatePath("/")
+  revalidatePath("/circle")
 }
 
 export async function addRelationship(
@@ -128,7 +128,7 @@ export async function addRelationship(
     .values({ userId, fromPersonId, toPersonId, kind })
     .returning()
 
-  revalidatePath("/")
+  revalidatePath("/circle")
   return created
 }
 
@@ -138,5 +138,5 @@ export async function deleteRelationship(id: number) {
     .delete(relationships)
     .where(and(eq(relationships.id, id), eq(relationships.userId, userId)))
 
-  revalidatePath("/")
+  revalidatePath("/circle")
 }

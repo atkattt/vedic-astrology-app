@@ -99,7 +99,7 @@ export function CircleView({
         {people.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
-          <div className="relative h-full w-full">
+          <div className="absolute inset-0">
             {/* Relationship lines */}
             <svg
               className="pointer-events-none absolute inset-0 h-full w-full"
