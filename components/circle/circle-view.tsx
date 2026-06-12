@@ -113,7 +113,7 @@ export function CircleView({
                   y1={`${line.from.posY}%`}
                   x2={`${line.to.posX}%`}
                   y2={`${line.to.posY}%`}
-                  stroke="oklch(0.78 0.09 85)"
+                  stroke="oklch(0.97 0 0)"
                   strokeWidth={1}
                   strokeOpacity={0.35}
                   strokeDasharray="2 4"
@@ -132,7 +132,7 @@ export function CircleView({
               >
                 <span className="relative flex items-center justify-center">
                   <span className="animate-star-glow absolute size-8 rounded-full bg-primary/20 blur-md" />
-                  <span className="relative size-3 rounded-full bg-primary shadow-[0_0_12px_2px_oklch(0.78_0.09_85_/_60%)] transition-transform group-hover:scale-125" />
+                  <span className="relative size-3 rounded-full bg-primary shadow-[0_0_12px_2px_oklch(0.97_0_0_/_60%)] transition-transform group-hover:scale-125" />
                 </span>
                 <span className="max-w-24 truncate font-serif text-sm text-foreground/90 transition-colors group-hover:text-foreground">
                   {p.name}
