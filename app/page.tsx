@@ -3,7 +3,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Starfield } from "@/components/starfield"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export default async function WelcomePage() {
@@ -15,10 +15,6 @@ export default async function WelcomePage() {
       <Starfield count={110} />
 
       <div className="relative z-10 flex flex-col items-center text-center">
-        <p className="animate-fade-in-up mb-6 font-mono text-[9px] uppercase tracking-[0.4em]" style={{ color: '#868686' }}>
-          A constellation of those you love
-        </p>
-
         <h1
           className="animate-fade-in-up text-balance text-5xl font-light text-foreground sm:text-6xl"
           style={{ fontFamily: '"Lato", sans-serif', lineHeight: '1', animationDelay: "0.1s" }}
@@ -55,12 +51,14 @@ export default async function WelcomePage() {
           >
             I already have a chart
           </Link>
-          <Link
-            href="/guest"
-            className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 underline-offset-4 transition-colors hover:text-foreground"
+          <Button
+            onClick={() => (window.location.href = "/guest")}
+            variant="ghost"
+            size="sm"
+            className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 transition-colors hover:text-foreground"
           >
             Just look around
-          </Link>
+          </Button>
         </div>
       </div>
     </main>
