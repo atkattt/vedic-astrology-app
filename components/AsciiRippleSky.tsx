@@ -20,7 +20,10 @@ export default function AsciiRippleSky() {
 
     // Sparse -> dense glyph ramp. Spaces keep the sky mostly empty/black.
     // ꩜ (spiral) replaces the round "o/O" glyphs as a nod to "Spiral Inward".
+    // The first ꩜ is rendered small and the second large, mirroring how the
+    // old o/O pair gave the gradient two density steps.
     const ramp = "  ...,:;+*=꩜꩜#꩜"
+    const SMALL_SPIRAL_IDX = 11 // the lower-density spiral, drawn smaller
     const cell = 14 // px per glyph cell
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -84,7 +87,18 @@ export default function AsciiRippleSky() {
           const GREY_MAX = 150
           const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX)
           ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
-          ctx.fillText(ch, c * cell, r * cell)
+
+          if (idx === SMALL_SPIRAL_IDX) {
+            // Draw the lower-density spiral at a smaller size, centered in its
+            // cell, so the gradient steps up smoothly from small to large ꩜.
+            const small = Math.round(cell * 0.65)
+            ctx.font = `${small}px "JetBrains Mono", ui-monospace, monospace`
+            const off = (cell - small) / 2
+            ctx.fillText(ch, c * cell + off, r * cell + off)
+            ctx.font = `${cell}px "JetBrains Mono", ui-monospace, monospace`
+          } else {
+            ctx.fillText(ch, c * cell, r * cell)
+          }
         }
       }
 
