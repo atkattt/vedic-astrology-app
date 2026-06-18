@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Starfield } from "@/components/starfield"
+import AsciiRippleSky from "@/components/AsciiRippleSky"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,7 +12,7 @@ export default async function WelcomePage() {
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 py-16">
-      <Starfield count={110} />
+      <AsciiRippleSky />
 
       <div className="relative z-10 flex flex-col items-center text-center">
         <h1
@@ -53,6 +53,7 @@ export default async function WelcomePage() {
           </Link>
           <Button
             render={<Link href="/guest" />}
+            nativeButton={false}
             variant="ghost"
             size="sm"
             className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 transition-colors hover:text-foreground"
