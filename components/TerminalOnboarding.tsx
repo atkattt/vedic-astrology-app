@@ -84,7 +84,10 @@ export default function TerminalOnboarding({
   const stepRef = useRef(0);
   const logRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const cancelled = useRef(false);
+  // Monotonic token identifying the active run. Each effect invocation bumps
+  // it; any in-flight async loop bails the moment it no longer matches. This
+  // prevents React StrictMode's double-invoked effect from typing lines twice.
+  const runIdRef = useRef(0);
 
   const reduceMotion =
     typeof window !== "undefined" &&
@@ -101,8 +104,8 @@ export default function TerminalOnboarding({
 
   // type one system line, char by char
   const typeLine = useCallback(
-    async (text: string) => {
-      if (cancelled.current) return;
+    async (text: string, runId: number) => {
+      if (runId !== runIdRef.current) return;
       if (text === "") {
         setLines((l) => [...l, { text: "", cls: "sys" }]);
         return;
@@ -116,7 +119,7 @@ export default function TerminalOnboarding({
       await wait(START_DELAY);
       let acc = "";
       for (let i = 0; i < text.length; i++) {
-        if (cancelled.current) return;
+        if (runId !== runIdRef.current) return;
         acc += text[i];
         setTyping(acc);
         scrollDown();
@@ -131,44 +134,55 @@ export default function TerminalOnboarding({
     [reduceMotion]
   );
 
-  const runStep = useCallback(async () => {
-    const s = STEPS[stepRef.current];
-    if (!s) return;
-    setShowField(false);
-    setActiveField(null);
-    setValue("");
-    setTimeUnknown(false);
+  const runStep = useCallback(
+    async (runId: number) => {
+      if (runId !== runIdRef.current) return;
+      const s = STEPS[stepRef.current];
+      if (!s) return;
+      setShowField(false);
+      setActiveField(null);
+      setValue("");
+      setTimeUnknown(false);
 
-    for (const line of s.say) {
-      // eslint-disable-next-line no-await-in-loop
-      await typeLine(line);
-      // eslint-disable-next-line no-await-in-loop
+      for (const line of s.say) {
+        // eslint-disable-next-line no-await-in-loop
+        await typeLine(line, runId);
+        if (runId !== runIdRef.current) return;
+        // eslint-disable-next-line no-await-in-loop
+        await wait(LINE_PAUSE);
+      }
+      if (runId !== runIdRef.current) return;
+
+      if (s.final) {
+        setIsFinal(true);
+        return;
+      }
+      if (s.field) {
+        setActiveField(s.field);
+        setShowField(true);
+        setTimeout(() => inputRef.current?.focus(), 80);
+        return;
+      }
+      // Interstitial step (no field, not final): auto-advance to the next step
+      // after a short beat so the intro flows into the first question.
       await wait(LINE_PAUSE);
-    }
-
-    if (s.final) {
-      setIsFinal(true);
-      return;
-    }
-    if (s.field) {
-      setActiveField(s.field);
-      setShowField(true);
-      setTimeout(() => inputRef.current?.focus(), 80);
-      return;
-    }
-    // Interstitial step (no field, not final): auto-advance to the next step
-    // after a short beat so the intro flows into the first question.
-    await wait(LINE_PAUSE);
-    if (cancelled.current) return;
-    stepRef.current += 1;
-    runStep();
-  }, [typeLine]);
+      if (runId !== runIdRef.current) return;
+      stepRef.current += 1;
+      runStep(runId);
+    },
+    [typeLine]
+  );
 
   useEffect(() => {
-    cancelled.current = false;
-    runStep();
+    const runId = runIdRef.current + 1;
+    runIdRef.current = runId;
+    stepRef.current = 0;
+    setLines([]);
+    setTyping("");
+    runStep(runId);
     return () => {
-      cancelled.current = true;
+      // Invalidate this run so any in-flight async loop stops immediately.
+      runIdRef.current += 1;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -189,7 +203,7 @@ export default function TerminalOnboarding({
     setValue("");
     await wait(300);
     stepRef.current += 1;
-    runStep();
+    runStep(runIdRef.current);
   };
 
   const finish = () => {
