@@ -10,6 +10,8 @@ import { Starfield } from "@/components/starfield"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
+import { SpiralConstellation } from "@/components/circle/spiral-constellation"
+import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
 import { ReadStack } from "@/components/spiral/read-stack"
 import { Button } from "@/components/ui/button"
@@ -28,17 +30,8 @@ export function CircleView({ userName }: { userName: string }) {
     return map
   }, [people])
 
-  // Lines to draw between connected stars.
-  const lines = useMemo(() => {
-    return relationships
-      .map((r) => {
-        const from = peopleById.get(r.fromPersonId)
-        const to = peopleById.get(r.toPersonId)
-        if (!from || !to) return null
-        return { id: r.id, from, to }
-      })
-      .filter((x): x is { id: number; from: Person; to: Person } => x !== null)
-  }, [relationships, peopleById])
+  // Stable per-person accent color, assigned in the order people were added.
+  const colorById = useMemo(() => buildColorMap(people), [people])
 
   // Bonds for the currently selected person.
   const selectedBonds = useMemo<Bond[]>(() => {
@@ -119,52 +112,17 @@ export function CircleView({ userName }: { userName: string }) {
         />
       </nav>
 
-      {/* Constellation canvas */}
+      {/* Constellation canvas — a drawn spiral with "You" at its center */}
       <div className="relative z-10 flex-1">
         {people.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
-          <div className="absolute inset-0">
-            {/* Relationship lines */}
-            <svg
-              className="pointer-events-none absolute inset-0 h-full w-full"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              {lines.map((line) => (
-                <line
-                  key={line.id}
-                  x1={`${line.from.posX}%`}
-                  y1={`${line.from.posY}%`}
-                  x2={`${line.to.posX}%`}
-                  y2={`${line.to.posY}%`}
-                  stroke="oklch(0.97 0 0)"
-                  strokeWidth={1}
-                  strokeOpacity={0.35}
-                  strokeDasharray="2 4"
-                />
-              ))}
-            </svg>
-
-            {/* Stars */}
-            {people.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelected(p)}
-                className="group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
-                style={{ left: `${p.posX}%`, top: `${p.posY}%` }}
-                aria-label={`View ${p.name}`}
-              >
-                <span className="relative flex items-center justify-center">
-                  <span className="animate-star-glow absolute size-8 rounded-full bg-primary/20 blur-md" />
-                  <span className="relative size-3 rounded-full bg-primary shadow-[0_0_12px_2px_oklch(0.97_0_0_/_60%)] transition-transform group-hover:scale-125" />
-                </span>
-                <span className="max-w-24 truncate font-serif text-sm text-foreground/90 transition-colors group-hover:text-foreground">
-                  {p.name}
-                </span>
-              </button>
-            ))}
-          </div>
+          <SpiralConstellation
+            people={people}
+            relationships={relationships}
+            colorById={colorById}
+            onSelect={setSelected}
+          />
         )}
       </div>
 
@@ -177,6 +135,7 @@ export function CircleView({ userName }: { userName: string }) {
       <PersonDetail
         person={selected}
         bonds={selectedBonds}
+        accentColor={selected ? colorById.get(selected.id) : undefined}
         onClose={() => setSelected(null)}
         onConnect={(p) => {
           setSelected(null)

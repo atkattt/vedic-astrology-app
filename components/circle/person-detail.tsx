@@ -46,11 +46,13 @@ type Bond = {
 export function PersonDetail({
   person,
   bonds,
+  accentColor,
   onClose,
   onConnect,
 }: {
   person: Person | null
   bonds: Bond[]
+  accentColor?: string
   onClose: () => void
   onConnect: (person: Person) => void
 }) {
@@ -108,8 +110,15 @@ export function PersonDetail({
           <>
             <DialogHeader>
               <div className="mb-2 flex items-center justify-between">
-                <span className="flex size-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-                  <Star className="size-5 fill-primary" />
+                <span
+                  className="flex size-10 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: accentColor ? `${accentColor}26` : undefined,
+                    color: accentColor,
+                    boxShadow: accentColor ? `0 0 16px 0 ${accentColor}55` : undefined,
+                  }}
+                >
+                  <Star className="size-5" style={{ fill: accentColor }} />
                 </span>
                 <button
                   onClick={onClose}
