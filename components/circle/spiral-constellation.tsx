@@ -85,7 +85,11 @@ export function SpiralConstellation({
       // Glyphs grow toward the outer edge; brightness peaks mid-arm and eases
       // off far out so the infinite tail fades into the dark.
       const size = 7 + Math.min(t, 1.4) * 9
-      const glyphMax = 0.16 + Math.min(t, 1) * 0.34
+      // Gradient the arm OUT toward the center: glyphs near the avatar fade to
+      // nothing, so the spiral seamlessly dissolves into the middle instead of
+      // needing a hard backdrop to hide it.
+      const centerFade = Math.min(1, Math.max(0, (t - 0.06) / 0.5))
+      const glyphMax = (0.16 + Math.min(t, 1) * 0.34) * centerFade
       // Negative, staggered delay makes a band of brightness travel outward.
       const delay = -((i * 0.07) % 3.2)
       glyphs.push({ x, y, char, size, glyphMax, delay })
@@ -134,7 +138,7 @@ export function SpiralConstellation({
               // busy trail, then their colored, gently glowing marker on top.
               return (
                 <g key={i}>
-                  <circle cx={g.x} cy={g.y} r={11} fill="var(--background)" opacity={0.85} />
+                  <circle cx={g.x} cy={g.y} r={12} fill="var(--background)" opacity={0.7} />
                   <text
                     x={g.x}
                     y={g.y}
@@ -142,7 +146,7 @@ export function SpiralConstellation({
                     dominantBaseline="central"
                     fill={owner.color}
                     style={{
-                      fontSize: 22,
+                      fontSize: 28,
                       fontFamily: "var(--font-space-mono), ui-monospace, monospace",
                       filter: `drop-shadow(0 0 5px ${owner.color}) drop-shadow(0 0 10px ${owner.color})`,
                     }}
@@ -159,7 +163,7 @@ export function SpiralConstellation({
                 y={g.y}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fill="oklch(0.97 0 0)"
+                fill="oklch(0.62 0 0)"
                 className="animate-glyph-pulse"
                 style={{
                   fontSize: g.size,
@@ -214,17 +218,9 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
       className="pointer-events-none absolute z-[2]"
       style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
     >
-      {/* Circular backdrop: punches a calm "hole" in the busy field behind the
-          avatar so it reads cleanly. Sits above the spiral (z-2). */}
-      <div
-        className="absolute left-1/2 top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          width: 234,
-          height: 234,
-          background:
-            "radial-gradient(circle, var(--background) 55%, color-mix(in oklch, var(--background) 60%, transparent) 78%, transparent 100%)",
-        }}
-      />
+      {/* No hard backdrop: the spiral glyphs gradient out toward the center
+          (see centerFade), so the avatar already sits in a naturally clear
+          space without a black circle covering the names. */}
       {/* The avatar, constrained to a fixed 195x195 box so it can never sprawl
           into the surrounding ring. Sits on top of everything (z-3). */}
       <div
