@@ -104,22 +104,14 @@ export function SpiralConstellation({
   }, [relationships, placedById])
 
   return (
-    <div className="flex h-full items-center justify-center px-6">
-      <div className="relative aspect-square w-full max-w-[20rem]">
-        {/* Spiral arm + bond lines */}
+    <div className="flex h-full items-center justify-center px-4">
+      <div className="relative aspect-square w-full max-w-[26rem]">
+        {/* Spiral arm (ASCII glyphs) + bond lines */}
         <svg
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           className="absolute inset-0 h-full w-full overflow-visible"
           aria-hidden="true"
         >
-          <path
-            d={spiralPath}
-            fill="none"
-            stroke="oklch(0.97 0 0)"
-            strokeOpacity={0.12}
-            strokeWidth={1}
-            strokeLinecap="round"
-          />
           {bonds.map((b) => (
             <line
               key={b.id}
@@ -134,6 +126,23 @@ export function SpiralConstellation({
               className="animate-bond-in"
               style={{ ["--bond-opacity" as string]: "0.45", opacity: 0.45 }}
             />
+          ))}
+          {spiralGlyphs.map((g, i) => (
+            <text
+              key={i}
+              x={g.x}
+              y={g.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="oklch(0.97 0 0)"
+              fillOpacity={g.opacity}
+              style={{
+                fontSize: g.size,
+                fontFamily: "var(--font-space-mono), ui-monospace, monospace",
+              }}
+            >
+              {g.char}
+            </text>
           ))}
         </svg>
 
@@ -151,12 +160,12 @@ export function SpiralConstellation({
           >
             <span className="relative flex items-center justify-center">
               <span
-                className="absolute size-8 rounded-full blur-md transition-opacity group-hover:opacity-90"
-                style={{ backgroundColor: color, opacity: 0.45 }}
+                className="absolute size-9 rounded-full blur-md transition-opacity group-hover:opacity-90"
+                style={{ backgroundColor: color, opacity: 0.4 }}
               />
-              <span
-                className="relative size-3 rounded-full transition-transform group-hover:scale-125"
-                style={{ backgroundColor: color, boxShadow: `0 0 12px 2px ${color}` }}
+              <Star
+                className="relative size-5 transition-transform group-hover:scale-125"
+                style={{ color, fill: color, filter: `drop-shadow(0 0 6px ${color})` }}
               />
             </span>
             <span className="max-w-24 truncate font-serif text-sm text-foreground/90 transition-colors group-hover:text-foreground">
@@ -175,14 +184,9 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
       className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
       style={{ left: "50%", top: "50%" }}
     >
-      <span className="relative flex size-20 items-center justify-center">
-        {/* Soft glow behind the avatar */}
-        <span
-          className="animate-star-glow absolute size-16 rounded-full blur-xl"
-          style={{ backgroundColor: YOU_COLOR, opacity: 0.4 }}
-        />
+      <span className="relative flex size-36 items-center justify-center">
         {/* The expressive ASCII "you", driven by the current mood */}
-        <SelfAvatar mood={mood} growth={growth} size={80} />
+        <SelfAvatar mood={mood} growth={growth} size={140} />
       </span>
       <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-foreground/80">
         You
