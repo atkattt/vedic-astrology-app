@@ -20,10 +20,15 @@ export default function AsciiRippleSky() {
 
     // Sparse -> dense glyph ramp. Spaces keep the sky mostly empty/black.
     // ꩜ (spiral) replaces the round "o/O" glyphs as a nod to "Spiral Inward".
-    // The first ꩜ is rendered small and the second large, mirroring how the
-    // old o/O pair gave the gradient two density steps.
-    const ramp = "  ...,:;+*=꩜꩜#꩜"
-    const SMALL_SPIRAL_IDX = 11 // the lower-density spiral, drawn smaller
+    // The three densest steps are all spirals, drawn small -> medium -> large
+    // so the gradient ramps up smoothly toward the brightest ripple peaks.
+    const ramp = "  ...,:;+*=꩜꩜꩜"
+    // Per-index scale factor (of the cell size) for the spiral glyphs.
+    const SPIRAL_SCALE: Record<number, number> = {
+      11: 0.55, // small spiral
+      12: 0.78, // medium spiral
+      13: 1.0, // large spiral
+    }
     const cell = 14 // px per glyph cell
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -88,12 +93,13 @@ export default function AsciiRippleSky() {
           const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX)
           ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
 
-          if (idx === SMALL_SPIRAL_IDX) {
-            // Draw the lower-density spiral at a smaller size, centered in its
-            // cell, so the gradient steps up smoothly from small to large ꩜.
-            const small = Math.round(cell * 0.65)
-            ctx.font = `${small}px "JetBrains Mono", ui-monospace, monospace`
-            const off = (cell - small) / 2
+          const scale = SPIRAL_SCALE[idx]
+          if (scale && scale < 1) {
+            // Draw smaller spirals centered in their cell so the gradient steps
+            // up smoothly from small -> medium -> large ꩜.
+            const size = Math.round(cell * scale)
+            ctx.font = `${size}px "JetBrains Mono", ui-monospace, monospace`
+            const off = (cell - size) / 2
             ctx.fillText(ch, c * cell + off, r * cell + off)
             ctx.font = `${cell}px "JetBrains Mono", ui-monospace, monospace`
           } else {
