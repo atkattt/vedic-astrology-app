@@ -19,8 +19,8 @@ export default function AsciiRippleSky() {
     if (!ctx) return
 
     // Sparse -> dense glyph ramp. Spaces keep the sky mostly empty/black.
-    // ꩜ (spiral) appears among the denser peaks as a nod to "Spiral Inward".
-    const ramp = "  ...,:;+*=oO#꩜"
+    // ꩜ (spiral) replaces the round "o/O" glyphs as a nod to "Spiral Inward".
+    const ramp = "  ...,:;+*=꩜꩜#꩜"
     const cell = 14 // px per glyph cell
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
