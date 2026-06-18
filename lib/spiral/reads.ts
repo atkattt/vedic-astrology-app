@@ -45,7 +45,7 @@ export type Truth = {
 // --- Seed reads about the user (the "About you" spiral) ---------------------
 
 export const SEED_SELF_READS: Read[] = [
-  { id: "self-1", category: "about-you", text: "You build safety from what you can hold." },
+  { id: "self-1", category: "about-you", text: "You build safety fromwhat you can hold." },
   { id: "self-2", category: "about-you", text: "You give more than you ask for, and quietly call it fairness." },
   { id: "self-3", category: "about-you", text: "Rest feels like something you have to earn before you're allowed it." },
   { id: "self-4", category: "about-you", text: "You read a room before you let yourself enter it." },
