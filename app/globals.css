@@ -55,7 +55,7 @@
   Deep near-black background, white accent, soft off-white text.
 */
 :root {
-  --background: oklch(0.16 0.02 275);
+  --background: oklch(0 0 0);
   --foreground: oklch(0.92 0.015 85);
   --card: oklch(0.21 0.025 275);
   --card-foreground: oklch(0.92 0.015 85);
@@ -90,7 +90,7 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.02 275);
+  --background: oklch(0 0 0);
   --foreground: oklch(0.92 0.015 85);
   --card: oklch(0.21 0.025 275);
   --card-foreground: oklch(0.92 0.015 85);
