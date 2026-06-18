@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import { Star } from "lucide-react"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { YOU_COLOR } from "@/lib/circle/colors"
 import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
@@ -10,9 +11,9 @@ import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
 // nodes layered on top (x / VIEW * 100).
 const VIEW = 400
 const CENTER = VIEW / 2
-const MAX_R = 168 // outermost radius, leaves room for labels
-const TURNS = 2.6 // how many revolutions the arm makes
-const MIN_T = 0.24 // first person sits a little out from the center
+const MAX_R = 178 // outermost radius, leaves room for labels
+const TURNS = 3.1 // how many revolutions the arm makes
+const MIN_T = 0.34 // first person sits clear of the central avatar
 const MAX_T = 1
 
 // A point on an Archimedean spiral (r grows linearly with angle) for t in 0..1.
@@ -49,15 +50,28 @@ export function SpiralConstellation({
   onSelect: (person: Person) => void
   mood?: Mood
 }) {
-  // The faint spiral arm, sampled into a single SVG path.
-  const spiralPath = useMemo(() => {
-    const steps = 240
-    let d = ""
+  // The spiral arm, drawn as a trail of ASCII characters + glyphs placed along
+  // the curve. Sampling starts a little out from the center so the glyphs never
+  // collide with the avatar. Characters and sizes vary along the arm to give it
+  // texture, with occasional ꩜ spirals and ✦ stars among the faint dots.
+  const spiralGlyphs = useMemo(() => {
+    const steps = 150
+    const start = 0.14 // skip the dense center where the avatar sits
+    const glyphs: { x: number; y: number; char: string; size: number; opacity: number }[] = []
     for (let i = 0; i <= steps; i++) {
-      const { x, y } = spiralPoint(i / steps)
-      d += i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`
+      const t = start + (1 - start) * (i / steps)
+      const { x, y } = spiralPoint(t)
+      let char = "·"
+      if (i % 11 === 0) char = "꩜"
+      else if (i % 7 === 0) char = "✦"
+      else if (i % 3 === 0) char = "*"
+      else if (i % 2 === 0) char = "+"
+      // Glyphs grow and brighten slightly toward the outer edge.
+      const size = 7 + t * 12
+      const opacity = 0.22 + t * 0.3
+      glyphs.push({ x, y, char, size, opacity })
     }
-    return d
+    return glyphs
   }, [])
 
   // Distribute people along the arm: closer to center = smaller t.
