@@ -55,7 +55,7 @@ export function SpiralConstellation({
   // straight out of the avatar. Sizes vary along the arm to give it texture.
   const spiralGlyphs = useMemo(() => {
     const steps = 170
-    const start = 0.04 // begin right at the avatar so the spiral emerges from it
+    const start = 0.16 // begin just outside the avatar's clearing
     const chars = ["+", "*", "✦"]
     const glyphs: { x: number; y: number; char: string; size: number; opacity: number }[] = []
     for (let i = 0; i <= steps; i++) {
@@ -102,10 +102,10 @@ export function SpiralConstellation({
   return (
     <div className="flex h-full items-center justify-center px-2">
       <div className="relative aspect-square w-full max-w-[34rem]">
-        {/* Spiral arm (ASCII glyphs) + bond lines */}
+        {/* Spiral arm (ASCII glyphs) + bond lines — sits above the starfield */}
         <svg
           viewBox={`0 0 ${VIEW} ${VIEW}`}
-          className="absolute inset-0 h-full w-full overflow-visible"
+          className="absolute inset-0 z-[1] h-full w-full overflow-visible"
           aria-hidden="true"
         >
           {bonds.map((b) => (
@@ -177,13 +177,28 @@ export function SpiralConstellation({
 function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
   return (
     <div
-      className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-      style={{ left: "50%", top: "50%" }}
+      className="pointer-events-none absolute z-[2]"
+      style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
     >
-      <span className="relative flex size-48 items-center justify-center">
-        {/* The expressive ASCII "you", driven by the current mood */}
-        <SelfAvatar mood={mood} growth={growth} size={190} />
-      </span>
+      {/* Circular backdrop: punches a calm "hole" in the busy field behind the
+          avatar so it reads cleanly. Sits above the spiral (z-2). */}
+      <div
+        className="absolute left-1/2 top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: 96,
+          height: 96,
+          background:
+            "radial-gradient(circle, var(--background) 55%, color-mix(in oklch, var(--background) 60%, transparent) 75%, transparent 100%)",
+        }}
+      />
+      {/* The avatar, constrained to a fixed 76x76 box so it can never sprawl
+          into the surrounding glyphs. Sits on top of everything (z-3). */}
+      <div
+        className="relative z-[3] flex items-center justify-center overflow-hidden"
+        style={{ width: 76, height: 76 }}
+      >
+        <SelfAvatar mood={mood} growth={growth} size={76} />
+      </div>
     </div>
   )
 }
