@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo } from "react"
-import { Star } from "lucide-react"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { YOU_COLOR } from "@/lib/circle/colors"
 import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
@@ -16,8 +15,16 @@ const TURNS = 2.6 // how many revolutions the arm makes
 // People live in the ring OUTSIDE the central avatar (whose 195px box +
 // backdrop occupy the inner ~120px radius). These t bounds keep every node
 // clear of the enlarged avatar.
-const MIN_T = 0.72
-const MAX_T = 0.97
+const MIN_T = 0.55
+const MAX_T = 0.7
+
+// Glyph-trail sampling. Shared by the arm and the person placement so each
+// person can claim an exact glyph index on the curve.
+const GLYPH_STEPS = 230
+const GLYPH_T_START = 0.04
+const GLYPH_T_END = 1.85
+// Marker glyph used for a person's claimed spot on the arm.
+const PERSON_GLYPH = "✦"
 
 // A point on an Archimedean spiral (r grows linearly with angle) for t in 0..1.
 function spiralPoint(t: number) {
@@ -38,6 +45,7 @@ type PlacedPerson = {
   x: number
   y: number
   color: string
+  glyphIndex: number
 }
 
 export function SpiralConstellation({
@@ -58,9 +66,9 @@ export function SpiralConstellation({
   // seamlessly emerges from the avatar, and runs past t=1 so the spiral spills
   // beyond the container edges — reading as if it goes on infinitely.
   const spiralGlyphs = useMemo(() => {
-    const steps = 230
-    const start = 0.04
-    const end = 1.85
+    const steps = GLYPH_STEPS
+    const start = GLYPH_T_START
+    const end = GLYPH_T_END
     const chars = ["+", "*", "✦"]
     const glyphs: {
       x: number
@@ -85,15 +93,29 @@ export function SpiralConstellation({
     return glyphs
   }, [])
 
-  // Distribute people along the arm: closer to center = smaller t.
+  // Distribute people along the arm by claiming a glyph index on the trail:
+  // closer to center = smaller t. Each person's marker IS the spiral glyph at
+  // that index, recolored to their color. Snapping the HTML name overlay to the
+  // glyph's exact index position keeps the label aligned with the glow.
   const placed = useMemo<PlacedPerson[]>(() => {
     const n = people.length
     return people.map((person, i) => {
-      const t = n === 1 ? 0.78 : MIN_T + (MAX_T - MIN_T) * (i / (n - 1))
-      const { x, y } = spiralPoint(t)
-      return { person, x, y, color: colorById.get(person.id) ?? YOU_COLOR }
+      const t = n === 1 ? 0.58 : MIN_T + (MAX_T - MIN_T) * (i / (n - 1))
+      const glyphIndex = Math.round(
+        ((t - GLYPH_T_START) / (GLYPH_T_END - GLYPH_T_START)) * GLYPH_STEPS,
+      )
+      const tt = GLYPH_T_START + (GLYPH_T_END - GLYPH_T_START) * (glyphIndex / GLYPH_STEPS)
+      const { x, y } = spiralPoint(tt)
+      return { person, x, y, color: colorById.get(person.id) ?? YOU_COLOR, glyphIndex }
     })
   }, [people, colorById])
+
+  // Glyph index -> person/color, so the trail can recolor claimed glyphs.
+  const personByGlyph = useMemo(() => {
+    const map = new Map<number, { person: Person; color: string }>()
+    for (const p of placed) map.set(p.glyphIndex, { person: p.person, color: p.color })
+    return map
+  }, [placed])
 
   return (
     <div className="flex h-full items-center justify-center px-2">
@@ -105,51 +127,79 @@ export function SpiralConstellation({
           className="absolute inset-0 z-[1] h-full w-full overflow-visible"
           aria-hidden="true"
         >
-          {spiralGlyphs.map((g, i) => (
-            <text
-              key={i}
-              x={g.x}
-              y={g.y}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="oklch(0.97 0 0)"
-              className="animate-glyph-pulse"
-              style={{
-                fontSize: g.size,
-                fontFamily: "var(--font-space-mono), ui-monospace, monospace",
-                ["--glyph-max" as string]: g.glyphMax,
-                animationDelay: `${g.delay}s`,
-              }}
-            >
-              {g.char}
-            </text>
-          ))}
+          {spiralGlyphs.map((g, i) => {
+            const owner = personByGlyph.get(i)
+            if (owner) {
+              // This glyph belongs to a person: a dark halo lifts it off the
+              // busy trail, then their colored, gently glowing marker on top.
+              return (
+                <g key={i}>
+                  <circle cx={g.x} cy={g.y} r={11} fill="var(--background)" opacity={0.85} />
+                  <text
+                    x={g.x}
+                    y={g.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill={owner.color}
+                    style={{
+                      fontSize: 22,
+                      fontFamily: "var(--font-space-mono), ui-monospace, monospace",
+                      filter: `drop-shadow(0 0 5px ${owner.color}) drop-shadow(0 0 10px ${owner.color})`,
+                    }}
+                  >
+                    {PERSON_GLYPH}
+                  </text>
+                </g>
+              )
+            }
+            return (
+              <text
+                key={i}
+                x={g.x}
+                y={g.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="oklch(0.97 0 0)"
+                className="animate-glyph-pulse"
+                style={{
+                  fontSize: g.size,
+                  fontFamily: "var(--font-space-mono), ui-monospace, monospace",
+                  ["--glyph-max" as string]: g.glyphMax,
+                  animationDelay: `${g.delay}s`,
+                }}
+              >
+                {g.char}
+              </text>
+            )
+          })}
         </svg>
 
-        {/* People nodes, placed ON the spiral curve in the outer ring (z-1) */}
-        {placed.map(({ person, x, y, color }) => (
-          <button
-            key={person.id}
-            onClick={() => onSelect(person)}
-            className="group absolute z-[1] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
-            style={{ left: pct(x), top: pct(y) }}
-            aria-label={`View ${person.name}`}
-          >
-            <span className="relative flex items-center justify-center">
+        {/* People: the colored glyph itself (rendered in the SVG) is the marker.
+            Here we overlay a click target on that glyph and the person's name
+            beside it, flipped to whichever side faces away from the center. */}
+        {placed.map(({ person, x, y }) => {
+          const onRight = x >= CENTER
+          return (
+            <button
+              key={person.id}
+              onClick={() => onSelect(person)}
+              className="group absolute z-[2] -translate-x-1/2 -translate-y-1/2"
+              style={{ left: pct(x), top: pct(y) }}
+              aria-label={`View ${person.name}`}
+            >
+              {/* Hit area centered on the glyph */}
+              <span className="block size-7 rounded-full" />
+              {/* Name beside the glyph, on the outward-facing side */}
               <span
-                className="absolute size-6 rounded-full blur-md transition-opacity group-hover:opacity-90"
-                style={{ backgroundColor: color, opacity: 0.4 }}
-              />
-              <Star
-                className="relative size-3 transition-transform group-hover:scale-125"
-                style={{ color, fill: color, filter: `drop-shadow(0 0 5px ${color})` }}
-              />
-            </span>
-            <span className="max-w-20 truncate font-serif text-xs text-foreground/90 transition-colors group-hover:text-foreground">
-              {person.name}
-            </span>
-          </button>
-        ))}
+                className={`pointer-events-none absolute top-1/2 max-w-24 -translate-y-1/2 truncate font-serif text-xs text-foreground/85 transition-colors group-hover:text-foreground ${
+                  onRight ? "left-full ml-1 text-left" : "right-full mr-1 text-right"
+                }`}
+              >
+                {person.name}
+              </span>
+            </button>
+          )
+        })}
 
         {/* Center: the expressive ASCII "you", large and on top of the spiral */}
         <YouNode mood={mood} growth={Math.min(1, 0.35 + people.length * 0.1)} />
