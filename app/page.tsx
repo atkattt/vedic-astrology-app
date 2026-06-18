@@ -16,25 +16,28 @@ export default async function WelcomePage() {
 
       <div className="relative z-10 flex flex-col items-center text-center">
         <h1
-          className="animate-fade-in-up text-balance text-5xl font-light text-foreground sm:text-6xl"
-          style={{ fontFamily: '"Lato", sans-serif', lineHeight: '1', animationDelay: "0.1s" }}
+          className="animate-fade-in-up text-balance text-foreground"
+          style={{
+            fontFamily: '"Space Grotesk", sans-serif',
+            fontWeight: '900',
+            textTransform: 'lowercase',
+            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+            letterSpacing: '-0.03em',
+            lineHeight: '0.9em',
+            fontSize: '81px',
+            paddingBottom: '0',
+            marginBottom: '-30px',
+            animationDelay: "0.1s"
+          }}
         >
-          Spiral
+          spiral
           <br />
-          <span className="italic text-primary">Inward</span>
+          <span className="text-primary">inward</span>
         </h1>
-
-        <p
-          className="animate-fade-in-up mt-6 max-w-xs text-pretty text-base text-muted-foreground"
-          style={{ fontFamily: '"Lato", sans-serif', lineHeight: '1', animationDelay: "0.2s" }}
-        >
-          Map the people in your life among the stars, and trace the bonds that
-          hold them close.
-        </p>
 
         <div
           className="animate-fade-in-up mt-10 flex flex-col items-center gap-4"
-          style={{ animationDelay: "0.3s" }}
+          style={{ animationDelay: "0.2s" }}
         >
           <Link
             href="/sign-up"
