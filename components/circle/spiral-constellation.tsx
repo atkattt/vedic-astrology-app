@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { YOU_COLOR } from "@/lib/circle/colors"
+import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
 
 // Spiral geometry, expressed in a 400x400 SVG viewBox. Because the container is
 // kept square, viewBox coordinates map 1:1 to percentage offsets for the HTML
@@ -40,11 +41,13 @@ export function SpiralConstellation({
   relationships,
   colorById,
   onSelect,
+  mood = "idle",
 }: {
   people: Person[]
   relationships: Relationship[]
   colorById: Map<number, string>
   onSelect: (person: Person) => void
+  mood?: Mood
 }) {
   // The faint spiral arm, sampled into a single SVG path.
   const spiralPath = useMemo(() => {
@@ -120,8 +123,8 @@ export function SpiralConstellation({
           ))}
         </svg>
 
-        {/* Center: "You" */}
-        <YouNode />
+        {/* Center: "You" — an expressive ASCII avatar layered over the glow */}
+        <YouNode mood={mood} growth={Math.min(1, 0.35 + people.length * 0.1)} />
 
         {/* People along the arm */}
         {placed.map(({ person, x, y, color }) => (
@@ -152,21 +155,20 @@ export function SpiralConstellation({
   )
 }
 
-function YouNode() {
+function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
   return (
     <div
-      className="animate-breathe absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
+      className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
       style={{ left: "50%", top: "50%" }}
     >
-      <span className="relative flex items-center justify-center">
+      <span className="relative flex size-20 items-center justify-center">
+        {/* Soft glow behind the avatar */}
         <span
-          className="animate-star-glow absolute size-10 rounded-full blur-md"
-          style={{ backgroundColor: YOU_COLOR, opacity: 0.5 }}
+          className="animate-star-glow absolute size-16 rounded-full blur-xl"
+          style={{ backgroundColor: YOU_COLOR, opacity: 0.4 }}
         />
-        <span
-          className="relative size-4 rounded-full"
-          style={{ backgroundColor: YOU_COLOR, boxShadow: `0 0 16px 3px ${YOU_COLOR}` }}
-        />
+        {/* The expressive ASCII "you", driven by the current mood */}
+        <SelfAvatar mood={mood} growth={growth} size={80} />
       </span>
       <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-foreground/80">
         You
