@@ -41,13 +41,13 @@ const STEPS: Step[] = [
   { say: ["a shape was set the moment you arrived.", "let's find it."] },
   {
     say: ["when did you arrive?"],
-    field: { type: "date", placeholder: "YYYY / MM / DD", key: "date" },
+    field: { type: "date", placeholder: "MM / DD / YYYY", key: "date" },
   },
   {
     say: ["the hour matters more than you'd think."],
     field: {
       type: "time",
-      placeholder: "— : —",
+      placeholder: "HH : MM",
       key: "time",
       toggle: "i don't know the time",
     },
@@ -64,6 +64,26 @@ const TYPE_MS = 26; // per character
 const DOT_PAUSE = 90; // extra pause after a period
 const LINE_PAUSE = 420; // beat between lines
 const START_DELAY = 120;
+
+// auto-insert separators as digits are typed
+function formatDate(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 8); // MMDDYYYY
+  let out = "";
+  for (let i = 0; i < d.length; i++) {
+    out += d[i];
+    if (i === 1 || i === 3) out += " / ";
+  }
+  return out;
+}
+function formatTime(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 4); // HHMM
+  let out = "";
+  for (let i = 0; i < d.length; i++) {
+    out += d[i];
+    if (i === 1) out += " : ";
+  }
+  return out;
+}
 
 type LogLine = { text: string; cls: "sys" | "me" };
 
@@ -293,28 +313,74 @@ export default function TerminalOnboarding({
         {/* answer zone */}
         {showField && activeField && (
           <div style={{ marginTop: 6 }}>
-            <input
-              ref={inputRef}
-              value={value}
-              disabled={timeUnknown}
-              placeholder={activeField.placeholder}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submit();
-              }}
-              style={{
-                width: "100%",
-                background: "transparent",
-                border: "none",
-                borderBottom: "1px solid #2a2a2a",
-                color: "#fff",
-                fontFamily: "inherit",
-                fontSize: 16,
-                letterSpacing: 1,
-                padding: "9px 2px",
-                outline: "none",
-              }}
-            />
+            {(() => {
+              const isMasked =
+                activeField.type === "date" || activeField.type === "time";
+              const mask = activeField.placeholder; // "MM / DD / YYYY" or "HH : MM"
+              const nbsp = (s: string) => s.replace(/ /g, "\u00A0");
+              const typed = value; // already formatted on change
+              const remaining = mask.slice(typed.length);
+              return (
+                <div
+                  style={{
+                    position: "relative",
+                    borderBottom: "1px solid #2a2a2a",
+                    padding: "9px 2px",
+                  }}
+                >
+                  {/* ghost watermark: typed part transparent, remaining grey */}
+                  {isMasked && !timeUnknown && (
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        left: 2,
+                        top: 9,
+                        fontSize: 16,
+                        letterSpacing: 1,
+                        color: "#4a4a4a",
+                        pointerEvents: "none",
+                        whiteSpace: "pre",
+                      }}
+                    >
+                      <span style={{ color: "transparent" }}>{nbsp(typed)}</span>
+                      {nbsp(remaining)}
+                    </div>
+                  )}
+                  {/* plain placeholder for free-text fields */}
+                  <input
+                    ref={inputRef}
+                    value={value}
+                    disabled={timeUnknown}
+                    inputMode={isMasked ? "numeric" : "text"}
+                    placeholder={isMasked ? "" : activeField.placeholder}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (activeField.type === "date") setValue(formatDate(v));
+                      else if (activeField.type === "time")
+                        setValue(formatTime(v));
+                      else setValue(v);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submit();
+                    }}
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      background: "transparent",
+                      border: "none",
+                      color: "#fff",
+                      fontFamily: "inherit",
+                      fontSize: 16,
+                      letterSpacing: 1,
+                      padding: 0,
+                      outline: "none",
+                      caretColor: "#cfcbc1",
+                    }}
+                  />
+                </div>
+              );
+            })()}
             {activeField.toggle && (
               <div
                 onClick={() => {
