@@ -1,12 +1,13 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Fraunces, JetBrains_Mono, Lato, Inter, Roboto, Open_Sans, Poppins, Nunito } from 'next/font/google'
+import { IBM_Plex_Sans, JetBrains_Mono, Lato, Inter, Roboto, Open_Sans, Poppins, Nunito } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { SpiralProvider } from '@/components/spiral/spiral-provider'
 import './globals.css'
 
-const fraunces = Fraunces({
-  variable: '--font-fraunces',
+const ibmPlexSans = IBM_Plex_Sans({
+  variable: '--font-ibm-plex-sans',
+  weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
   display: 'swap',
 })
@@ -87,7 +88,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${fraunces.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} bg-background`}
+      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <SpiralProvider>{children}</SpiralProvider>
