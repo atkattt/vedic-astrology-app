@@ -98,6 +98,7 @@ export default function TerminalOnboarding({
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [value, setValue] = useState("");
   const [timeUnknown, setTimeUnknown] = useState(false);
+  const [meridiem, setMeridiem] = useState<"AM" | "PM">("AM");
   const [isFinal, setIsFinal] = useState(false);
 
   const answers = useRef<Answers>({});
@@ -163,6 +164,7 @@ export default function TerminalOnboarding({
       setActiveField(null);
       setValue("");
       setTimeUnknown(false);
+      setMeridiem("AM");
 
       for (const line of s.say) {
         // eslint-disable-next-line no-await-in-loop
@@ -210,7 +212,11 @@ export default function TerminalOnboarding({
   const submit = async () => {
     const f = activeField;
     if (!f) return;
-    const val = timeUnknown ? "(time unknown)" : value.trim();
+    const base = value.trim();
+    // For the time field, append the chosen AM/PM marker to the value.
+    const composed =
+      f.type === "time" && base ? `${base} ${meridiem}` : base;
+    const val = timeUnknown ? "(time unknown)" : composed;
     if (!val) return;
 
     answers.current[f.key] = timeUnknown ? "" : val;
@@ -381,6 +387,36 @@ export default function TerminalOnboarding({
                 </div>
               );
             })()}
+            {activeField.type === "time" && !timeUnknown && (
+              <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                {(["AM", "PM"] as const).map((m) => {
+                  const selected = meridiem === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setMeridiem(m);
+                        setTimeout(() => inputRef.current?.focus(), 30);
+                      }}
+                      style={{
+                        background: selected ? "#e8e4da" : "transparent",
+                        border: `1px solid ${selected ? "#e8e4da" : "#3a3a3a"}`,
+                        color: selected ? "#000" : "#9a958a",
+                        fontFamily: "inherit",
+                        fontSize: 11,
+                        letterSpacing: 2,
+                        padding: "8px 16px",
+                        borderRadius: 30,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {activeField.toggle && (
               <div
                 onClick={() => {
