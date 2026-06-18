@@ -11,10 +11,12 @@ import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
 // nodes layered on top (x / VIEW * 100).
 const VIEW = 400
 const CENTER = VIEW / 2
-const MAX_R = 178 // outermost radius, leaves room for labels
-const TURNS = 3.1 // how many revolutions the arm makes
-const MIN_T = 0.34 // first person sits clear of the central avatar
-const MAX_T = 1
+const MAX_R = 190 // outermost radius, leaves room for labels
+const TURNS = 2.6 // how many revolutions the arm makes
+// People live in the ring OUTSIDE the central avatar (which occupies the inner
+// ~90px radius). These t bounds keep every node clear of the avatar backdrop.
+const MIN_T = 0.6
+const MAX_T = 0.95
 
 // A point on an Archimedean spiral (r grows linearly with angle) for t in 0..1.
 function spiralPoint(t: number) {
@@ -50,31 +52,26 @@ export function SpiralConstellation({
   onSelect: (person: Person) => void
   mood?: Mood
 }) {
-  // The spiral arm, drawn as a trail of glyphs (only + * ✦) placed along the
-  // curve. Sampling starts very close to the center so the arm appears to grow
-  // straight out of the avatar. Sizes vary along the arm to give it texture.
-  const spiralGlyphs = useMemo(() => {
-    const steps = 170
-    const start = 0.16 // begin just outside the avatar's clearing
-    const chars = ["+", "*", "✦"]
-    const glyphs: { x: number; y: number; char: string; size: number; opacity: number }[] = []
+  // The spiral arm as ONE continuous, thin, luminous SVG path winding outward.
+  // It starts near the center (hidden behind the avatar backdrop) and spirals
+  // out through the ring where the people sit.
+  const spiralPath = useMemo(() => {
+    const steps = 280
+    const start = 0.05
+    let d = ""
     for (let i = 0; i <= steps; i++) {
       const t = start + (1 - start) * (i / steps)
       const { x, y } = spiralPoint(t)
-      const char = chars[i % chars.length]
-      // Glyphs grow and brighten slightly toward the outer edge.
-      const size = 7 + t * 12
-      const opacity = 0.22 + t * 0.3
-      glyphs.push({ x, y, char, size, opacity })
+      d += i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : ` L ${x.toFixed(2)} ${y.toFixed(2)}`
     }
-    return glyphs
+    return d
   }, [])
 
   // Distribute people along the arm: closer to center = smaller t.
   const placed = useMemo<PlacedPerson[]>(() => {
     const n = people.length
     return people.map((person, i) => {
-      const t = n === 1 ? 0.55 : MIN_T + (MAX_T - MIN_T) * (i / (n - 1))
+      const t = n === 1 ? 0.78 : MIN_T + (MAX_T - MIN_T) * (i / (n - 1))
       const { x, y } = spiralPoint(t)
       return { person, x, y, color: colorById.get(person.id) ?? YOU_COLOR }
     })
@@ -101,8 +98,9 @@ export function SpiralConstellation({
 
   return (
     <div className="flex h-full items-center justify-center px-2">
-      <div className="relative aspect-square w-full max-w-[34rem]">
-        {/* Spiral arm (ASCII glyphs) + bond lines — sits above the starfield */}
+      <div className="relative aspect-square w-full max-w-[22rem]">
+        {/* Spiral arm (one continuous luminous line) + bond lines.
+            Sits just above the starfield (z-1), beneath the avatar. */}
         <svg
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           className="absolute inset-0 z-[1] h-full w-full overflow-visible"
@@ -123,34 +121,23 @@ export function SpiralConstellation({
               style={{ ["--bond-opacity" as string]: "0.45", opacity: 0.45 }}
             />
           ))}
-          {spiralGlyphs.map((g, i) => (
-            <text
-              key={i}
-              x={g.x}
-              y={g.y}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="oklch(0.97 0 0)"
-              fillOpacity={g.opacity}
-              style={{
-                fontSize: g.size,
-                fontFamily: "var(--font-space-mono), ui-monospace, monospace",
-              }}
-            >
-              {g.char}
-            </text>
-          ))}
+          <path
+            d={spiralPath}
+            fill="none"
+            stroke="oklch(0.97 0 0)"
+            strokeOpacity={0.28}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            style={{ filter: "drop-shadow(0 0 3px oklch(0.97 0 0 / 0.35))" }}
+          />
         </svg>
 
-        {/* Center: "You" — an expressive ASCII avatar layered over the glow */}
-        <YouNode mood={mood} growth={Math.min(1, 0.35 + people.length * 0.1)} />
-
-        {/* People along the arm */}
+        {/* People nodes, placed ON the spiral curve in the outer ring (z-1) */}
         {placed.map(({ person, x, y, color }) => (
           <button
             key={person.id}
             onClick={() => onSelect(person)}
-            className="group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
+            className="group absolute z-[1] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
             style={{ left: pct(x), top: pct(y) }}
             aria-label={`View ${person.name}`}
           >
@@ -169,6 +156,9 @@ export function SpiralConstellation({
             </span>
           </button>
         ))}
+
+        {/* Center: the expressive ASCII "you", large and on top of the spiral */}
+        <YouNode mood={mood} growth={Math.min(1, 0.35 + people.length * 0.1)} />
       </div>
     </div>
   )
@@ -185,19 +175,19 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
       <div
         className="absolute left-1/2 top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          width: 96,
-          height: 96,
+          width: 180,
+          height: 180,
           background:
-            "radial-gradient(circle, var(--background) 55%, color-mix(in oklch, var(--background) 60%, transparent) 75%, transparent 100%)",
+            "radial-gradient(circle, var(--background) 55%, color-mix(in oklch, var(--background) 60%, transparent) 78%, transparent 100%)",
         }}
       />
-      {/* The avatar, constrained to a fixed 76x76 box so it can never sprawl
-          into the surrounding glyphs. Sits on top of everything (z-3). */}
+      {/* The avatar, constrained to a fixed 150x150 box so it can never sprawl
+          into the surrounding ring. Sits on top of everything (z-3). */}
       <div
         className="relative z-[3] flex items-center justify-center overflow-hidden"
-        style={{ width: 76, height: 76 }}
+        style={{ width: 150, height: 150 }}
       >
-        <SelfAvatar mood={mood} growth={growth} size={76} />
+        <SelfAvatar mood={mood} growth={growth} size={150} />
       </div>
     </div>
   )
