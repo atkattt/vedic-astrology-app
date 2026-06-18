@@ -49,18 +49,13 @@ export default async function WelcomePage() {
           >
             Begin
           </Link>
-          <Link
-            href="/sign-in"
-            className="font-mono text-xs uppercase tracking-widest text-muted-foreground underline-offset-4 transition-colors hover:text-foreground"
-          >
-            I already have a chart
-          </Link>
           <Button
             render={<Link href="/guest" />}
             nativeButton={false}
             variant="ghost"
             size="sm"
             className="text-muted-foreground/70 transition-colors hover:text-foreground"
+            style={{ paddingBottom: "25px" }}
           >
             <Eye className="size-5" />
           </Button>
