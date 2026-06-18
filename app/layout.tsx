@@ -31,6 +31,7 @@ import {
   Crimson_Text,
   Lora,
   PT_Sans,
+  Space_Mono,
 } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { SpiralProvider } from '@/components/spiral/spiral-provider'
@@ -194,6 +195,12 @@ const ptSans = PT_Sans({
   subsets: ['latin'],
   display: 'swap',
 })
+const spaceMono = Space_Mono({
+  variable: '--font-space-mono',
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Spiral Inward',
@@ -233,7 +240,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} bg-background`}
+      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <SpiralProvider>{children}</SpiralProvider>

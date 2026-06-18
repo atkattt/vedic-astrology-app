@@ -40,7 +40,7 @@ export default async function WelcomePage() {
           style={{ animationDelay: "0.2s" }}
         >
           <Link
-            href="/sign-up"
+            href="/onboarding"
             className={cn(
               buttonVariants({ size: "lg" }),
               "h-11 rounded-full px-10 font-mono text-sm uppercase tracking-widest",
