@@ -172,4 +172,22 @@
   .animate-fade-in-up {
     animation: fade-in-up 0.5s ease-out both;
   }
+
+  /* Brief green affirmation when a read is agreed and filed */
+  @keyframes agree-glow {
+    0% { box-shadow: 0 0 0 0 oklch(0.72 0.14 155 / 0); }
+    30% { box-shadow: 0 0 28px 4px oklch(0.72 0.14 155 / 0.45); }
+    100% { box-shadow: 0 0 0 0 oklch(0.72 0.14 155 / 0); }
+  }
+  .animate-agree-glow {
+    animation: agree-glow 0.85s ease-out;
+  }
+
+  /* Card filing away on disagree / restore */
+  @keyframes card-fade-out {
+    to { opacity: 0; transform: translateY(10px) scale(0.97); }
+  }
+  .animate-card-fade-out {
+    animation: card-fade-out 0.4s ease-out forwards;
+  }
 }

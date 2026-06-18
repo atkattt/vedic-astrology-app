@@ -11,7 +11,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Star, MapPin, Calendar, Clock, Link2, Trash2, X } from "lucide-react"
+import { Star, MapPin, Calendar, Clock, Link2, Trash2, X, ChevronRight } from "lucide-react"
+import { ReadCard } from "@/components/spiral/read-card"
+import { useSpiral } from "@/components/spiral/spiral-provider"
+import { makeBondRead, makePersonRead } from "@/lib/spiral/reads"
 
 function formatDate(value: string | null) {
   if (!value) return "Unknown"
@@ -53,6 +56,8 @@ export function PersonDetail({
 }) {
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [openBondId, setOpenBondId] = useState<number | null>(null)
+  const { hasActed } = useSpiral()
 
   const open = person !== null
 
@@ -89,11 +94,15 @@ export function PersonDetail({
       onOpenChange={(o) => {
         if (!o) {
           setConfirmDelete(false)
+          setOpenBondId(null)
           onClose()
         }
       }}
     >
-      <DialogContent className="max-w-sm border-border bg-popover" showCloseButton={false}>
+      <DialogContent
+        className="max-h-[85vh] max-w-sm overflow-y-auto border-border bg-popover"
+        showCloseButton={false}
+      >
         {person && (
           <>
             <DialogHeader>
@@ -136,6 +145,26 @@ export function PersonDetail({
               />
             </dl>
 
+            {/* "You are here" — a read about this person, same agree/disagree loop */}
+            <div className="border-t border-border pt-4">
+              {(() => {
+                const personRead = makePersonRead(person.id, person.name)
+                if (hasActed(personRead.id)) {
+                  return (
+                    <div className="rounded-2xl border border-border bg-secondary/30 p-4">
+                      <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                        You are here · filed
+                      </p>
+                      <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/80">
+                        {personRead.text}
+                      </p>
+                    </div>
+                  )
+                }
+                return <ReadCard read={personRead} label="You are here" />
+              })()}
+            </div>
+
             <div className="border-t border-border pt-4">
               <p className="mb-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
                 Bonds
@@ -146,28 +175,62 @@ export function PersonDetail({
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {bonds.map((b) => (
-                    <li
-                      key={b.relationship.id}
-                      className="flex items-center justify-between gap-2 rounded-md bg-secondary/50 px-3 py-2"
-                    >
-                      <span className="font-serif text-sm text-foreground">
-                        {b.label}
-                        <span className="text-muted-foreground"> · </span>
-                        {b.other.name}
-                      </span>
-                      <button
-                        onClick={() =>
-                          handleRemoveBond(b.relationship.id, b.label)
-                        }
-                        disabled={isPending}
-                        className="text-muted-foreground transition-colors hover:text-destructive"
-                        aria-label={`Remove bond with ${b.other.name}`}
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </li>
-                  ))}
+                  {bonds.map((b) => {
+                    const isOpen = openBondId === b.relationship.id
+                    const bondRead = makeBondRead(b.relationship.id, b.other.name)
+                    return (
+                      <li key={b.relationship.id} className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2 rounded-md bg-secondary/50 px-3 py-2">
+                          <button
+                            onClick={() =>
+                              setOpenBondId(isOpen ? null : b.relationship.id)
+                            }
+                            className="flex flex-1 items-center gap-2 text-left font-serif text-sm text-foreground"
+                          >
+                            <ChevronRight
+                              className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${
+                                isOpen ? "rotate-90" : ""
+                              }`}
+                            />
+                            <span>
+                              {b.other.name}
+                              <span className="text-muted-foreground"> × </span>
+                              You
+                              <span className="text-muted-foreground"> · {b.label}</span>
+                            </span>
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleRemoveBond(b.relationship.id, b.label)
+                            }
+                            disabled={isPending}
+                            className="text-muted-foreground transition-colors hover:text-destructive"
+                            aria-label={`Remove bond with ${b.other.name}`}
+                          >
+                            <X className="size-4" />
+                          </button>
+                        </div>
+
+                        {isOpen &&
+                          (hasActed(bondRead.id) ? (
+                            <div className="rounded-2xl border border-border bg-secondary/30 p-4">
+                              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                                A bond read · filed
+                              </p>
+                              <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/80">
+                                {bondRead.text}
+                              </p>
+                            </div>
+                          ) : (
+                            <ReadCard
+                              read={bondRead}
+                              label={`${b.other.name} × You`}
+                              onResolved={() => setOpenBondId(null)}
+                            />
+                          ))}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

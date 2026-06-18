@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Fraunces, JetBrains_Mono, Lato, Inter, Roboto, Open_Sans, Poppins, Nunito } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { SpiralProvider } from '@/components/spiral/spiral-provider'
 import './globals.css'
 
 const fraunces = Fraunces({
@@ -89,7 +90,7 @@ export default function RootLayout({
       className={`dark ${fraunces.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} bg-background`}
     >
       <body className="font-sans antialiased">
-        {children}
+        <SpiralProvider>{children}</SpiralProvider>
         <Toaster />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

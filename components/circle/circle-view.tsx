@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { authClient } from "@/lib/auth-client"
@@ -9,8 +10,9 @@ import { Starfield } from "@/components/starfield"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
+import { ReadStack } from "@/components/spiral/read-stack"
 import { Button } from "@/components/ui/button"
-import { Plus, LogOut, Sparkles } from "lucide-react"
+import { Plus, LogOut, Sparkles, Clock, PenLine } from "lucide-react"
 
 export function CircleView({
   people,
@@ -94,6 +96,25 @@ export function CircleView({
         </button>
       </header>
 
+      {/* Entry points: add a person, history, what you know about yourself */}
+      <nav className="relative z-20 mt-5 flex items-center justify-center gap-2 px-5">
+        <ToolbarButton
+          icon={<Plus className="size-4" />}
+          label="Add person"
+          onClick={() => setAddOpen(true)}
+        />
+        <ToolbarButton
+          icon={<Clock className="size-4" />}
+          label="History"
+          href="/history"
+        />
+        <ToolbarButton
+          icon={<PenLine className="size-4" />}
+          label="What you know"
+          href="/self"
+        />
+      </nav>
+
       {/* Constellation canvas */}
       <div className="relative z-10 flex-1">
         {people.length === 0 ? (
@@ -143,16 +164,9 @@ export function CircleView({
         )}
       </div>
 
-      {/* Add button */}
-      <div className="pointer-events-none relative z-20 flex justify-center pb-8 pt-4">
-        <Button
-          onClick={() => setAddOpen(true)}
-          size="lg"
-          className="pointer-events-auto rounded-full px-8 font-mono text-sm uppercase tracking-widest shadow-lg"
-        >
-          <Plus className="size-4" />
-          Add a person
-        </Button>
+      {/* Core loop: a read about you, surfaced over the constellation */}
+      <div className="relative z-20 mx-auto w-full max-w-md px-5 pb-8 pt-4">
+        <ReadStack />
       </div>
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
@@ -171,6 +185,36 @@ export function CircleView({
         onClose={() => setConnectFrom(null)}
       />
     </main>
+  )
+}
+
+function ToolbarButton({
+  icon,
+  label,
+  onClick,
+  href,
+}: {
+  icon: React.ReactNode
+  label: string
+  onClick?: () => void
+  href?: string
+}) {
+  const className =
+    "flex items-center gap-1.5 rounded-full border border-border bg-popover/50 px-3.5 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur-sm transition-colors hover:border-foreground/40 hover:text-foreground"
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {icon}
+        {label}
+      </Link>
+    )
+  }
+  return (
+    <button onClick={onClick} className={className}>
+      {icon}
+      {label}
+    </button>
   )
 }
 
