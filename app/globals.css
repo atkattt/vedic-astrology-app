@@ -190,15 +190,4 @@
   .animate-card-fade-out {
     animation: card-fade-out 0.4s ease-out forwards;
   }
-
-  /* 3D spiral rotation for constellation */
-  @keyframes spiral-rotate {
-    from { transform: rotateX(45deg) rotateY(0deg); }
-    to { transform: rotateX(45deg) rotateY(360deg); }
-  }
-  .animate-spiral {
-    animation: spiral-rotate 30s linear infinite;
-    transform-style: preserve-3d;
-    perspective: 1000px;
-  }
 }

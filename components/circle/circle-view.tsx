@@ -28,35 +28,6 @@ export function CircleView({ userName }: { userName: string }) {
     return map
   }, [people])
 
-  // Calculate spiral position for each person based on their index
-  const spiralPositions = useMemo(() => {
-    const positions = new Map<number, { x: number; y: number }>()
-    const totalPeople = people.length
-    
-    people.forEach((p, index) => {
-      // Normalize index to 0-1 range for spiral calculation
-      const t = totalPeople > 1 ? index / (totalPeople - 1) : 0
-      
-      // Create a spiral path that moves through 3D space
-      // Horizontal spiral: moves around a circle as it goes up
-      const spiralAngle = t * Math.PI * 4 // 2 full rotations
-      const radius = 35 + t * 10 // Radius grows slightly from 35 to 45
-      const xOffset = Math.cos(spiralAngle) * radius
-      const yOffset = Math.sin(spiralAngle) * radius
-      
-      // Vertical positioning spreads people from top to bottom
-      const ySpread = 20 + t * 60
-      
-      // Convert to percentages (50% is center)
-      const x = 50 + xOffset
-      const y = 20 + ySpread
-      
-      positions.set(p.id, { x, y })
-    })
-    
-    return positions
-  }, [people])
-
   // Lines to draw between connected stars.
   const lines = useMemo(() => {
     return relationships
@@ -67,7 +38,7 @@ export function CircleView({ userName }: { userName: string }) {
         return { id: r.id, from, to }
       })
       .filter((x): x is { id: number; from: Person; to: Person } => x !== null)
-  }, [relationships, peopleById, spiralPositions])
+  }, [relationships, peopleById])
 
   // Bonds for the currently selected person.
   const selectedBonds = useMemo<Bond[]>(() => {
@@ -153,55 +124,46 @@ export function CircleView({ userName }: { userName: string }) {
         {people.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
-          <div className="absolute inset-0 animate-spiral">
+          <div className="absolute inset-0">
             {/* Relationship lines */}
             <svg
               className="pointer-events-none absolute inset-0 h-full w-full"
               preserveAspectRatio="none"
               aria-hidden="true"
             >
-              {lines.map((line) => {
-                const fromPos = spiralPositions.get(line.from.id)
-                const toPos = spiralPositions.get(line.to.id)
-                if (!fromPos || !toPos) return null
-                return (
-                  <line
-                    key={line.id}
-                    x1={`${fromPos.x}%`}
-                    y1={`${fromPos.y}%`}
-                    x2={`${toPos.x}%`}
-                    y2={`${toPos.y}%`}
-                    stroke="oklch(0.97 0 0)"
-                    strokeWidth={1}
-                    strokeOpacity={0.35}
-                    strokeDasharray="2 4"
-                  />
-                )
-              })}
+              {lines.map((line) => (
+                <line
+                  key={line.id}
+                  x1={`${line.from.posX}%`}
+                  y1={`${line.from.posY}%`}
+                  x2={`${line.to.posX}%`}
+                  y2={`${line.to.posY}%`}
+                  stroke="oklch(0.97 0 0)"
+                  strokeWidth={1}
+                  strokeOpacity={0.35}
+                  strokeDasharray="2 4"
+                />
+              ))}
             </svg>
 
             {/* Stars */}
-            {people.map((p) => {
-              const pos = spiralPositions.get(p.id)
-              if (!pos) return null
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelected(p)}
-                  className="group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
-                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  aria-label={`View ${p.name}`}
-                >
-                  <span className="relative flex items-center justify-center">
-                    <span className="animate-star-glow absolute size-8 rounded-full bg-primary/20 blur-md" />
-                    <span className="relative size-3 rounded-full bg-primary shadow-[0_0_12px_2px_oklch(0.97_0_0_/_60%)] transition-transform group-hover:scale-125" />
-                  </span>
-                  <span className="max-w-24 truncate font-serif text-sm text-foreground/90 transition-colors group-hover:text-foreground">
-                    {p.name}
-                  </span>
-                </button>
-              )
-            })}
+            {people.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelected(p)}
+                className="group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
+                style={{ left: `${p.posX}%`, top: `${p.posY}%` }}
+                aria-label={`View ${p.name}`}
+              >
+                <span className="relative flex items-center justify-center">
+                  <span className="animate-star-glow absolute size-8 rounded-full bg-primary/20 blur-md" />
+                  <span className="relative size-3 rounded-full bg-primary shadow-[0_0_12px_2px_oklch(0.97_0_0_/_60%)] transition-transform group-hover:scale-125" />
+                </span>
+                <span className="max-w-24 truncate font-serif text-sm text-foreground/90 transition-colors group-hover:text-foreground">
+                  {p.name}
+                </span>
+              </button>
+            ))}
           </div>
         )}
       </div>
