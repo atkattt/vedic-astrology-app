@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { addPerson } from "@/app/actions/circle"
+import { useCircleData } from "@/components/circle/circle-data-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,6 +29,7 @@ export function AddPersonDialog({
   const [timeUnknown, setTimeUnknown] = useState(false)
   const [birthPlace, setBirthPlace] = useState("")
   const [isPending, startTransition] = useTransition()
+  const { addPerson } = useCircleData()
 
   function reset() {
     setName("")

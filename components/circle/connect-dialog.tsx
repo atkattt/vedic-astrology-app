@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import type { Person } from "@/lib/db/schema"
-import { addRelationship } from "@/app/actions/circle"
+import { useCircleData } from "@/components/circle/circle-data-provider"
 import {
   RELATIONSHIP_KINDS,
   RELATIONSHIP_LABELS,
@@ -38,6 +38,7 @@ export function ConnectDialog({
   const [toId, setToId] = useState<string>("")
   const [kind, setKind] = useState<RelationshipKind | "">("")
   const [isPending, startTransition] = useTransition()
+  const { addRelationship } = useCircleData()
 
   const open = from !== null
   const others = people.filter((p) => p.id !== from?.id)

@@ -55,6 +55,12 @@ export default async function WelcomePage() {
           >
             I already have a chart
           </Link>
+          <Link
+            href="/guest"
+            className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 underline-offset-4 transition-colors hover:text-foreground"
+          >
+            Just look around
+          </Link>
         </div>
       </div>
     </main>

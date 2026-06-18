@@ -3,27 +3,21 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import type { Person, Relationship } from "@/lib/db/schema"
+import type { Person } from "@/lib/db/schema"
 import { authClient } from "@/lib/auth-client"
 import { RELATIONSHIP_LABELS, type RelationshipKind } from "@/lib/relationships"
 import { Starfield } from "@/components/starfield"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
+import { useCircleData } from "@/components/circle/circle-data-provider"
 import { ReadStack } from "@/components/spiral/read-stack"
 import { Button } from "@/components/ui/button"
 import { Plus, LogOut, Sparkles, Clock, PenLine } from "lucide-react"
 
-export function CircleView({
-  people,
-  relationships,
-  userName,
-}: {
-  people: Person[]
-  relationships: Relationship[]
-  userName: string
-}) {
+export function CircleView({ userName }: { userName: string }) {
   const router = useRouter()
+  const { guest, people, relationships } = useCircleData()
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
@@ -68,6 +62,12 @@ export function CircleView({
   }, [selected, relationships, peopleById])
 
   async function handleSignOut() {
+    if (guest) {
+      document.cookie = "spiral_guest=; Max-Age=0; path=/"
+      router.push("/")
+      router.refresh()
+      return
+    }
     await authClient.signOut()
     router.push("/")
     router.refresh()
@@ -84,7 +84,11 @@ export function CircleView({
             Spiral <span className="italic text-primary">Inward</span>
           </h1>
           <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            {userName ? `${userName}'s circle` : "Your circle"}
+            {guest
+              ? "Exploring as a guest"
+              : userName
+                ? `${userName}'s circle`
+                : "Your circle"}
           </p>
         </div>
         <button
@@ -92,7 +96,7 @@ export function CircleView({
           className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
         >
           <LogOut className="size-3.5" />
-          Leave
+          {guest ? "Exit" : "Leave"}
         </button>
       </header>
 

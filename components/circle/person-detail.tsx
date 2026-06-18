@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import type { Person, Relationship } from "@/lib/db/schema"
-import { deletePerson, deleteRelationship } from "@/app/actions/circle"
+import { useCircleData } from "@/components/circle/circle-data-provider"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -58,6 +58,7 @@ export function PersonDetail({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [openBondId, setOpenBondId] = useState<number | null>(null)
   const { hasActed } = useSpiral()
+  const { deletePerson, deleteRelationship } = useCircleData()
 
   const open = person !== null
 
