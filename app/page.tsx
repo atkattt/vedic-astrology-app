@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { Eye } from "lucide-react"
 import AsciiRippleSky from "@/components/AsciiRippleSky"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -59,9 +60,9 @@ export default async function WelcomePage() {
             nativeButton={false}
             variant="ghost"
             size="sm"
-            className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 transition-colors hover:text-foreground"
+            className="text-muted-foreground/70 transition-colors hover:text-foreground"
           >
-            Just look around
+            <Eye className="size-5" />
           </Button>
         </div>
       </div>
