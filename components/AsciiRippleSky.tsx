@@ -5,9 +5,9 @@ import { useEffect, useRef } from "react"
 /**
  * A full-screen, infinitely animating ASCII "ripple sky" rendered to a canvas.
  * Concentric sine ripples drift across a grid of monospace glyphs on pure black,
- * each glyph shaded along a grayscale gradient that glows white at the ripple
- * peaks and fades to black in the troughs. Sits behind all content (fixed,
- * pointer-events-none) and respects reduced-motion preferences.
+ * each glyph shaded along a grayscale gradient that fades from black up to a
+ * soft grey at the ripple peaks (never full white). Sits behind all content
+ * (fixed, pointer-events-none) and respects reduced-motion preferences.
  */
 export default function AsciiRippleSky() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -19,7 +19,8 @@ export default function AsciiRippleSky() {
     if (!ctx) return
 
     // Sparse -> dense glyph ramp. Spaces keep the sky mostly empty/black.
-    const ramp = "  ...,:;+*=oO#"
+    // ꩜ (spiral) appears among the denser peaks as a nod to "Spiral Inward".
+    const ramp = "  ...,:;+*=oO#꩜"
     const cell = 14 // px per glyph cell
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -77,10 +78,11 @@ export default function AsciiRippleSky() {
           const ch = ramp[idx]
           if (ch === " ") continue
 
-          // Grayscale gradient: glowing white at the peaks fading down to black.
-          // Brightness follows the ripple value so high points glow and low
-          // points sink into the black sky.
-          const lum = Math.round(Math.pow(n, 1.5) * 255)
+          // Grayscale gradient that fades from black up to grey (never full
+          // white). Brightness follows the ripple value, capped at GREY_MAX so
+          // the peaks settle into a soft grey rather than glowing white.
+          const GREY_MAX = 150
+          const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX)
           ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
           ctx.fillText(ch, c * cell, r * cell)
         }
