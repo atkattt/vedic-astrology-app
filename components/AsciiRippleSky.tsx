@@ -4,9 +4,10 @@ import { useEffect, useRef } from "react"
 
 /**
  * A full-screen, infinitely animating ASCII "ripple sky" rendered to a canvas.
- * Concentric sine ripples drift across a grid of monospace glyphs on true black,
- * with occasional warm-gold accents for the brightest peaks. Sits behind all
- * content (fixed, pointer-events-none) and respects reduced-motion preferences.
+ * Concentric sine ripples drift across a grid of monospace glyphs on pure black,
+ * each glyph shaded along a grayscale gradient that glows white at the ripple
+ * peaks and fades to black in the troughs. Sits behind all content (fixed,
+ * pointer-events-none) and respects reduced-motion preferences.
  */
 export default function AsciiRippleSky() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -76,12 +77,11 @@ export default function AsciiRippleSky() {
           const ch = ramp[idx]
           if (ch === " ") continue
 
-          // Brightest peaks get a warm-gold tint; the rest are faint white.
-          if (n > 0.9) {
-            ctx.fillStyle = `rgba(217, 185, 106, ${0.35 + (n - 0.9) * 3})`
-          } else {
-            ctx.fillStyle = `rgba(232, 230, 223, ${0.06 + n * 0.22})`
-          }
+          // Grayscale gradient: glowing white at the peaks fading down to black.
+          // Brightness follows the ripple value so high points glow and low
+          // points sink into the black sky.
+          const lum = Math.round(Math.pow(n, 1.5) * 255)
+          ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
           ctx.fillText(ch, c * cell, r * cell)
         }
       }
@@ -103,7 +103,8 @@ export default function AsciiRippleSky() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 bg-background"
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{ backgroundColor: "#000000" }}
     />
   )
 }
