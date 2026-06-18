@@ -40,7 +40,7 @@ export function HistoryView() {
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
       <Starfield count={70} />
 
-      <header className="relative z-20 px-5 pt-6">
+      <header className="relative z-20 mx-auto w-full max-w-md px-5 pt-6">
         <Link
           href="/circle"
           className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
@@ -48,8 +48,8 @@ export function HistoryView() {
           <ArrowLeft className="size-3.5" />
           Spiral
         </Link>
-        <h1 className="mt-4 font-serif text-3xl font-light">History</h1>
-        <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground">
+        <h1 className="mt-4 font-serif text-3xl font-light md:text-4xl">History</h1>
+        <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground md:max-w-md md:text-base">
           A portrait in negative space — everything you said no to. Nothing here
           is deleted, only filed.
         </p>
@@ -76,7 +76,7 @@ export function HistoryView() {
       {/* List */}
       <div className="relative z-10 flex-1 px-5 py-6">
         {filtered.length === 0 ? (
-          <p className="mt-10 text-center font-serif text-sm italic text-muted-foreground">
+          <p className="mx-auto mt-10 max-w-xs text-pretty text-center font-serif text-sm italic text-muted-foreground">
             Nothing filed here yet. What you disagree with will gather in this
             place.
           </p>

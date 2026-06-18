@@ -171,7 +171,7 @@ export function PersonDetail({
                 Bonds
               </p>
               {bonds.length === 0 ? (
-                <p className="font-serif text-sm italic text-muted-foreground">
+                <p className="text-pretty font-serif text-sm italic text-muted-foreground">
                   No bonds yet — connect {person.name} to someone in your circle.
                 </p>
               ) : (
@@ -247,7 +247,7 @@ export function PersonDetail({
 
               {confirmDelete ? (
                 <div className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
-                  <p className="text-center font-serif text-sm text-muted-foreground">
+                  <p className="text-pretty text-center font-serif text-sm text-muted-foreground">
                     Remove {person.name} and all their bonds?
                   </p>
                   <div className="flex gap-2">

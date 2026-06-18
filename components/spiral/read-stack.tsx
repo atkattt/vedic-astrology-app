@@ -13,7 +13,7 @@ export function ReadStack() {
         <span className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Sparkles className="size-5" />
         </span>
-        <p className="text-balance font-serif text-base italic leading-relaxed text-muted-foreground">
+        <p className="text-pretty font-serif text-base italic leading-relaxed text-muted-foreground">
           You&apos;ve read everything the sky has for now. Add a truth of your
           own, or revisit your history.
         </p>

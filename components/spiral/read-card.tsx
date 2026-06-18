@@ -66,7 +66,7 @@ export function ReadCard({
 
       <p
         className={cn(
-          "text-balance font-serif text-xl font-light italic leading-relaxed text-foreground transition-opacity",
+          "text-pretty font-serif text-xl font-light italic leading-relaxed text-foreground transition-opacity md:text-2xl",
           phase === "reasons" && "opacity-40",
         )}
       >

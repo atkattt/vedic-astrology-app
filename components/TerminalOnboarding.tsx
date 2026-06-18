@@ -279,6 +279,7 @@ export default function TerminalOnboarding({
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
+                textWrap: "pretty",
                 color: l.cls === "me" ? "#e8e4da" : "#9a958a",
               }}
             >
@@ -297,6 +298,7 @@ export default function TerminalOnboarding({
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
+                textWrap: "pretty",
                 color: "#9a958a",
               }}
             >

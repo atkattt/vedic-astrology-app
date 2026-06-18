@@ -44,7 +44,7 @@ export function SelfView() {
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
       <Starfield count={70} />
 
-      <header className="relative z-20 px-5 pt-6">
+      <header className="relative z-20 mx-auto w-full max-w-md px-5 pt-6">
         <Link
           href="/circle"
           className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
@@ -52,10 +52,10 @@ export function SelfView() {
           <ArrowLeft className="size-3.5" />
           Spiral
         </Link>
-        <h1 className="mt-4 text-balance font-serif text-3xl font-light">
+        <h1 className="mt-4 text-balance font-serif text-3xl font-light md:text-4xl">
           What you know about yourself
         </h1>
-        <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground md:max-w-md md:text-base">
           Your own words, unprompted. You are always the authority here — the
           sky listens, it never argues.
         </p>
