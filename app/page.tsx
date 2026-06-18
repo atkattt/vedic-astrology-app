@@ -52,7 +52,7 @@ export default async function WelcomePage() {
             I already have a chart
           </Link>
           <Button
-            onClick={() => (window.location.href = "/guest")}
+            render={<Link href="/guest" />}
             variant="ghost"
             size="sm"
             className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 transition-colors hover:text-foreground"
