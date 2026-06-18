@@ -50,22 +50,18 @@ export function SpiralConstellation({
   onSelect: (person: Person) => void
   mood?: Mood
 }) {
-  // The spiral arm, drawn as a trail of ASCII characters + glyphs placed along
-  // the curve. Sampling starts a little out from the center so the glyphs never
-  // collide with the avatar. Characters and sizes vary along the arm to give it
-  // texture, with occasional ꩜ spirals and ✦ stars among the faint dots.
+  // The spiral arm, drawn as a trail of glyphs (only + * ✦) placed along the
+  // curve. Sampling starts very close to the center so the arm appears to grow
+  // straight out of the avatar. Sizes vary along the arm to give it texture.
   const spiralGlyphs = useMemo(() => {
-    const steps = 150
-    const start = 0.14 // skip the dense center where the avatar sits
+    const steps = 170
+    const start = 0.04 // begin right at the avatar so the spiral emerges from it
+    const chars = ["+", "*", "✦"]
     const glyphs: { x: number; y: number; char: string; size: number; opacity: number }[] = []
     for (let i = 0; i <= steps; i++) {
       const t = start + (1 - start) * (i / steps)
       const { x, y } = spiralPoint(t)
-      let char = "·"
-      if (i % 11 === 0) char = "꩜"
-      else if (i % 7 === 0) char = "✦"
-      else if (i % 3 === 0) char = "*"
-      else if (i % 2 === 0) char = "+"
+      const char = chars[i % chars.length]
       // Glyphs grow and brighten slightly toward the outer edge.
       const size = 7 + t * 12
       const opacity = 0.22 + t * 0.3
@@ -104,8 +100,8 @@ export function SpiralConstellation({
   }, [relationships, placedById])
 
   return (
-    <div className="flex h-full items-center justify-center px-4">
-      <div className="relative aspect-square w-full max-w-[26rem]">
+    <div className="flex h-full items-center justify-center px-2">
+      <div className="relative aspect-square w-full max-w-[34rem]">
         {/* Spiral arm (ASCII glyphs) + bond lines */}
         <svg
           viewBox={`0 0 ${VIEW} ${VIEW}`}
@@ -160,15 +156,15 @@ export function SpiralConstellation({
           >
             <span className="relative flex items-center justify-center">
               <span
-                className="absolute size-9 rounded-full blur-md transition-opacity group-hover:opacity-90"
+                className="absolute size-6 rounded-full blur-md transition-opacity group-hover:opacity-90"
                 style={{ backgroundColor: color, opacity: 0.4 }}
               />
               <Star
-                className="relative size-5 transition-transform group-hover:scale-125"
-                style={{ color, fill: color, filter: `drop-shadow(0 0 6px ${color})` }}
+                className="relative size-3 transition-transform group-hover:scale-125"
+                style={{ color, fill: color, filter: `drop-shadow(0 0 5px ${color})` }}
               />
             </span>
-            <span className="max-w-24 truncate font-serif text-sm text-foreground/90 transition-colors group-hover:text-foreground">
+            <span className="max-w-20 truncate font-serif text-xs text-foreground/90 transition-colors group-hover:text-foreground">
               {person.name}
             </span>
           </button>
@@ -181,15 +177,12 @@ export function SpiralConstellation({
 function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
   return (
     <div
-      className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
+      className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
       style={{ left: "50%", top: "50%" }}
     >
-      <span className="relative flex size-36 items-center justify-center">
+      <span className="relative flex size-48 items-center justify-center">
         {/* The expressive ASCII "you", driven by the current mood */}
-        <SelfAvatar mood={mood} growth={growth} size={140} />
-      </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-foreground/80">
-        You
+        <SelfAvatar mood={mood} growth={growth} size={190} />
       </span>
     </div>
   )
