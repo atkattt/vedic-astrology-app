@@ -223,21 +223,10 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
           (see centerFade), so the avatar already sits in a naturally clear
           space without a black circle covering the names. */}
       {/* The avatar, constrained to a fixed 195x195 box so it can never sprawl
-          into the surrounding ring. Sits on top of everything (z-3).
-          A radial mask keeps the very center black (transparent → shows the
-          dark page), then fades the ASCII in toward the box edge — which lands
-          right around the innermost person (Mara), so the center reads black
-          and gradually turns grey just as it reaches her. */}
+          into the surrounding ring. Sits on top of everything (z-3). */}
       <div
         className="relative z-[3] flex items-center justify-center overflow-hidden"
-        style={{
-          width: 195,
-          height: 195,
-          maskImage:
-            "radial-gradient(circle, transparent 6%, rgba(0,0,0,0.45) 42%, black 92%)",
-          WebkitMaskImage:
-            "radial-gradient(circle, transparent 6%, rgba(0,0,0,0.45) 42%, black 92%)",
-        }}
+        style={{ width: 195, height: 195 }}
       >
         <SelfAvatar mood={mood} growth={growth} size={195} />
       </div>
