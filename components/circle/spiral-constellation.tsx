@@ -15,8 +15,8 @@ const TURNS = 2.6 // how many revolutions the arm makes
 // Hard empty zone for the avatar: no spiral glyph is ever drawn within this
 // radius (in viewBox units), carving a true circular hole where the face lives.
 // Just outside it, glyphs fade in over FADE_BAND so the edge isn't a hard ring.
-const AVATAR_CLEAR_RADIUS = 112
-const FADE_BAND = 40
+const AVATAR_CLEAR_RADIUS = 104
+const FADE_BAND = 78
 // People live in the ring OUTSIDE the clear zone. These t bounds keep every
 // node (including the innermost, Mara) beyond AVATAR_CLEAR_RADIUS.
 const MIN_T = 0.72
@@ -96,8 +96,10 @@ export function SpiralConstellation({
       // off far out so the infinite tail fades into the dark.
       const size = 7 + Math.min(t, 1.4) * 9
       // Just outside the clear zone, ramp opacity 0 → full over FADE_BAND so
-      // the arm fades IN as it leaves the hole instead of starting abruptly.
-      const edgeFade = Math.min(1, (dist - AVATAR_CLEAR_RADIUS) / FADE_BAND)
+      // the arm fades IN as it leaves the hole. A smoothstep curve feathers the
+      // edge (ease in/out) instead of a linear ring.
+      const rawEdge = Math.min(1, Math.max(0, (dist - AVATAR_CLEAR_RADIUS) / FADE_BAND))
+      const edgeFade = rawEdge * rawEdge * (3 - 2 * rawEdge)
       const glyphMax = (0.16 + Math.min(t, 1) * 0.34) * edgeFade
       // Negative, staggered delay makes a band of brightness travel outward.
       const delay = -((i * 0.07) % 3.2)
@@ -234,10 +236,10 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
       <div
         className="absolute left-1/2 top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          width: 210,
-          height: 210,
+          width: 230,
+          height: 230,
           background:
-            "radial-gradient(circle, var(--background) 52%, color-mix(in oklch, var(--background) 55%, transparent) 76%, transparent 100%)",
+            "radial-gradient(circle, var(--background) 30%, color-mix(in oklch, var(--background) 70%, transparent) 58%, color-mix(in oklch, var(--background) 35%, transparent) 78%, transparent 100%)",
         }}
       />
       {/* The avatar, constrained to a fixed 195x195 box so it can never sprawl
