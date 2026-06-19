@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Person } from "@/lib/db/schema"
@@ -11,18 +11,47 @@ import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
 import { SpiralConstellation } from "@/components/circle/spiral-constellation"
+import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
-import { ReadStack } from "@/components/spiral/read-stack"
+import { useSpiral } from "@/components/spiral/spiral-provider"
+import ReadHub from "@/components/spiral/read-hub"
+import { type ReasonTag } from "@/lib/spiral/reads"
 import { Button } from "@/components/ui/button"
 import { Plus, LogOut, Sparkles, Clock, PenLine } from "lucide-react"
 
 export function CircleView({ userName }: { userName: string }) {
   const router = useRouter()
   const { guest, people, relationships } = useCircleData()
+  const { currentRead, queue, agree, disagree } = useSpiral()
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
+
+  // The central avatar's expression. Agree/disagree flash a transient mood that
+  // auto-returns to "idle" so it can be re-triggered on the next read.
+  const [mood, setMood] = useState<Mood>("idle")
+  const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flashMood = useCallback((m: Mood) => {
+    if (moodTimer.current) clearTimeout(moodTimer.current)
+    setMood(m)
+    moodTimer.current = setTimeout(() => setMood("idle"), 850)
+  }, [])
+
+  const handleAgree = useCallback(() => {
+    if (!currentRead) return
+    flashMood("agree")
+    agree(currentRead)
+  }, [currentRead, agree, flashMood])
+
+  const handleDisagree = useCallback(
+    (reason?: string) => {
+      if (!currentRead) return
+      flashMood("disagree")
+      disagree(currentRead, (reason ?? "skip") as ReasonTag)
+    },
+    [currentRead, disagree, flashMood],
+  )
 
   const peopleById = useMemo(() => {
     const map = new Map<number, Person>()
@@ -119,13 +148,31 @@ export function CircleView({ userName }: { userName: string }) {
             relationships={relationships}
             colorById={colorById}
             onSelect={setSelected}
+            mood={mood}
           />
         )}
       </div>
 
       {/* Core loop: a read about you, surfaced over the constellation */}
-      <div className="relative z-20 mx-auto w-full max-w-md px-5 pb-8 pt-4">
-        <ReadStack />
+      <div className="relative z-20 mx-auto flex w-full max-w-md justify-center px-5 pb-8 pt-4">
+        {currentRead ? (
+          <ReadHub
+            read={currentRead.text}
+            remaining={queue.length}
+            onAgree={handleAgree}
+            onDisagree={handleDisagree}
+          />
+        ) : (
+          <div className="w-full rounded-2xl border border-border bg-popover/60 p-6 text-center backdrop-blur-sm">
+            <span className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Sparkles className="size-5" />
+            </span>
+            <p className="text-pretty font-serif text-base italic leading-relaxed text-muted-foreground">
+              You&apos;ve read everything the sky has for now. Add a truth of
+              your own, or revisit your history.
+            </p>
+          </div>
+        )}
       </div>
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
