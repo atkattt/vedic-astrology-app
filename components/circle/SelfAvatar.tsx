@@ -82,10 +82,12 @@ export default function SelfAvatar({
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // when mood prop changes, trigger it (transient moods get a decay timer)
+  // when mood prop changes, trigger it (transient moods get a decay timer).
+  // ~84 frames ≈ 1.4s so the agree/disagree expression is clearly readable
+  // before it eases back to idle.
   useEffect(() => {
     moodRef.current = mood;
-    reactT.current = TRANSIENT.includes(mood) ? 40 : 9999;
+    reactT.current = TRANSIENT.includes(mood) ? 84 : 9999;
   }, [mood]);
 
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function SelfAvatar({
       const e = EXPR[moodRef.current] || EXPR.idle;
       const g = growthRef.current;
       const breathe = Math.sin(t * 0.06 * e.breathe) * 0.5 + 0.5;
-      const react = reactT.current > 0 ? reactT.current / 40 : 0;
+      const react = reactT.current > 0 ? reactT.current / 84 : 0;
       const isBlink = blink > 0 && e.eye !== "closed";
       const bodyR = RX - 1.3 + breathe * 0.7;
       const tilt = e.tilt ? Math.sin(t * 0.05) * 1.2 : 0;

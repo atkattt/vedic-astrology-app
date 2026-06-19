@@ -34,8 +34,11 @@ export function CircleView({ userName }: { userName: string }) {
   const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flashMood = useCallback((m: Mood) => {
     if (moodTimer.current) clearTimeout(moodTimer.current)
-    setMood(m)
-    moodTimer.current = setTimeout(() => setMood("idle"), 850)
+    // Snap to idle first so re-picking the same answer twice in a row still
+    // re-triggers the expression (prop must actually change), then flash it.
+    setMood("idle")
+    requestAnimationFrame(() => setMood(m))
+    moodTimer.current = setTimeout(() => setMood("idle"), 1400)
   }, [])
 
   const handleAgree = useCallback(() => {
