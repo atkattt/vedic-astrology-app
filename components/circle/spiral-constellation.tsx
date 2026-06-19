@@ -148,7 +148,7 @@ export function SpiralConstellation({
               // This glyph belongs to a person: a dark halo lifts it off the
               // busy trail, then their colored, gently glowing marker on top.
               return (
-                <g key={g.index}>
+                <g key={`owner-${g.index}`}>
                   <circle cx={g.x} cy={g.y} r={12} fill="var(--background)" opacity={0.7} />
                   <text
                     x={g.x}
@@ -169,7 +169,7 @@ export function SpiralConstellation({
             }
             return (
               <text
-                key={g.index}
+                key={`glyph-${g.index}`}
                 x={g.x}
                 y={g.y}
                 textAnchor="middle"
