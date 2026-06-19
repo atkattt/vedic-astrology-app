@@ -85,11 +85,14 @@ export function SpiralConstellation({
       // Glyphs grow toward the outer edge; brightness peaks mid-arm and eases
       // off far out so the infinite tail fades into the dark.
       const size = 7 + Math.min(t, 1.4) * 9
-      // Gradient the arm OUT from the center: it stays fully black (invisible)
-      // through the whole avatar region, then ramps up to grey over a short
-      // band that completes right as it reaches the innermost person (Mara, at
-      // MIN_T) — so the spiral emerges out of darkness exactly where she sits.
-      const centerFade = Math.min(1, Math.max(0, (t - (MIN_T - 0.13)) / 0.13))
+      // Gradient the arm OUT from the center: fully black (invisible) at the
+      // very center, then gradually brightening to full grey right as it
+      // reaches the innermost person (Mara, at MIN_T). The ramp spans the whole
+      // inner region so the darkness dissolves smoothly into the spiral.
+      const centerFade = Math.min(
+        1,
+        Math.max(0, (t - GLYPH_T_START) / (MIN_T - GLYPH_T_START)),
+      )
       const glyphMax = (0.16 + Math.min(t, 1) * 0.34) * centerFade
       // Negative, staggered delay makes a band of brightness travel outward.
       const delay = -((i * 0.07) % 3.2)
