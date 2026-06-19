@@ -12,11 +12,15 @@ const VIEW = 400
 const CENTER = VIEW / 2
 const MAX_R = 190 // outermost radius, leaves room for labels
 const TURNS = 2.6 // how many revolutions the arm makes
-// People live in the ring OUTSIDE the central avatar (whose 195px box +
-// backdrop occupy the inner ~120px radius). These t bounds keep every node
-// clear of the enlarged avatar.
-const MIN_T = 0.55
-const MAX_T = 0.7
+// Hard empty zone for the avatar: no spiral glyph is ever drawn within this
+// radius (in viewBox units), carving a true circular hole where the face lives.
+// Just outside it, glyphs fade in over FADE_BAND so the edge isn't a hard ring.
+const AVATAR_CLEAR_RADIUS = 112
+const FADE_BAND = 40
+// People live in the ring OUTSIDE the clear zone. These t bounds keep every
+// node (including the innermost, Mara) beyond AVATAR_CLEAR_RADIUS.
+const MIN_T = 0.72
+const MAX_T = 0.9
 
 // Glyph-trail sampling. Shared by the arm and the person placement so each
 // person can claim an exact glyph index on the curve.
@@ -71,6 +75,7 @@ export function SpiralConstellation({
     const end = GLYPH_T_END
     const chars = ["+", "*", "✦"]
     const glyphs: {
+      index: number
       x: number
       y: number
       char: string
@@ -81,22 +86,22 @@ export function SpiralConstellation({
     for (let i = 0; i <= steps; i++) {
       const t = start + (end - start) * (i / steps)
       const { x, y } = spiralPoint(t)
+      // Distance of this glyph from the center (spiral radius is MAX_R * t).
+      const dist = Math.hypot(x - CENTER, y - CENTER)
+      // Hard cutoff: never draw a glyph inside the avatar's clear zone. This
+      // carves a real circular hole rather than just darkening the glyphs.
+      if (dist < AVATAR_CLEAR_RADIUS) continue
       const char = chars[i % chars.length]
       // Glyphs grow toward the outer edge; brightness peaks mid-arm and eases
       // off far out so the infinite tail fades into the dark.
       const size = 7 + Math.min(t, 1.4) * 9
-      // Gradient the arm OUT from the center: fully black (invisible) at the
-      // very center, then gradually brightening to full grey right as it
-      // reaches the innermost person (Mara, at MIN_T). The ramp spans the whole
-      // inner region so the darkness dissolves smoothly into the spiral.
-      const centerFade = Math.min(
-        1,
-        Math.max(0, (t - GLYPH_T_START) / (MIN_T - GLYPH_T_START)),
-      )
-      const glyphMax = (0.16 + Math.min(t, 1) * 0.34) * centerFade
+      // Just outside the clear zone, ramp opacity 0 → full over FADE_BAND so
+      // the arm fades IN as it leaves the hole instead of starting abruptly.
+      const edgeFade = Math.min(1, (dist - AVATAR_CLEAR_RADIUS) / FADE_BAND)
+      const glyphMax = (0.16 + Math.min(t, 1) * 0.34) * edgeFade
       // Negative, staggered delay makes a band of brightness travel outward.
       const delay = -((i * 0.07) % 3.2)
-      glyphs.push({ x, y, char, size, glyphMax, delay })
+      glyphs.push({ index: i, x, y, char, size, glyphMax, delay })
     }
     return glyphs
   }, [])
@@ -108,7 +113,7 @@ export function SpiralConstellation({
   const placed = useMemo<PlacedPerson[]>(() => {
     const n = people.length
     return people.map((person, i) => {
-      const t = n === 1 ? 0.58 : MIN_T + (MAX_T - MIN_T) * (i / (n - 1))
+      const t = n === 1 ? 0.78 : MIN_T + (MAX_T - MIN_T) * (i / (n - 1))
       const glyphIndex = Math.round(
         ((t - GLYPH_T_START) / (GLYPH_T_END - GLYPH_T_START)) * GLYPH_STEPS,
       )
@@ -135,13 +140,13 @@ export function SpiralConstellation({
           className="absolute inset-0 z-[1] h-full w-full overflow-visible"
           aria-hidden="true"
         >
-          {spiralGlyphs.map((g, i) => {
-            const owner = personByGlyph.get(i)
+          {spiralGlyphs.map((g) => {
+            const owner = personByGlyph.get(g.index)
             if (owner) {
               // This glyph belongs to a person: a dark halo lifts it off the
               // busy trail, then their colored, gently glowing marker on top.
               return (
-                <g key={i}>
+                <g key={g.index}>
                   <circle cx={g.x} cy={g.y} r={12} fill="var(--background)" opacity={0.7} />
                   <text
                     x={g.x}
@@ -162,7 +167,7 @@ export function SpiralConstellation({
             }
             return (
               <text
-                key={i}
+                key={g.index}
                 x={g.x}
                 y={g.y}
                 textAnchor="middle"
@@ -222,9 +227,19 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
       className="pointer-events-none absolute z-[2]"
       style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
     >
-      {/* No hard backdrop: the spiral glyphs gradient out toward the center
-          (see centerFade), so the avatar already sits in a naturally clear
-          space without a black circle covering the names. */}
+      {/* Soft circular backdrop so the face reads cleanly against the
+          starfield. Sized to sit just inside the spiral's clear zone
+          (AVATAR_CLEAR_RADIUS ≈ 112 viewBox units → ~206px in this 22rem box),
+          fading to transparent at its edge. Sits below the avatar (z-2). */}
+      <div
+        className="absolute left-1/2 top-1/2 z-[2] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: 210,
+          height: 210,
+          background:
+            "radial-gradient(circle, var(--background) 52%, color-mix(in oklch, var(--background) 55%, transparent) 76%, transparent 100%)",
+        }}
+      />
       {/* The avatar, constrained to a fixed 195x195 box so it can never sprawl
           into the surrounding ring. Sits on top of everything (z-3). */}
       <div
