@@ -133,7 +133,7 @@ export function SpiralConstellation({
   }, [placed])
 
   return (
-    <div className="flex h-full items-center justify-center px-2 pt-28">
+    <div className="flex h-full items-center justify-center px-2">
       <div className="relative aspect-square w-full max-w-[22rem]">
         {/* Spiral arm — a trail of pulsating ASCII glyphs winding outward.
             Sits just above the starfield (z-1), beneath the avatar. */}
