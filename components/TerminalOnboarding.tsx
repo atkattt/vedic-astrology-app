@@ -38,7 +38,7 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-  { say: ["a shape was set the moment you arrived.", "let's find it."] },
+  { say: ["a shape was set the moment you arrived...", "let's find it. "] },
   {
     say: ["when did you arrive?"],
     field: { type: "date", placeholder: "MM / DD / YYYY", key: "date" },
@@ -266,7 +266,7 @@ export default function TerminalOnboarding({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            gap: 18,
+            gap: 69,
             overflowY: "auto",
             paddingTop: 30,
           }}
@@ -275,7 +275,7 @@ export default function TerminalOnboarding({
             <div
               key={i}
               style={{
-                fontSize: 15,
+                fontSize: 19,
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
@@ -294,7 +294,7 @@ export default function TerminalOnboarding({
           {typing !== "" && (
             <div
               style={{
-                fontSize: 15,
+                fontSize: 19,
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
