@@ -203,13 +203,14 @@ export function SpiralConstellation({
               aria-label={`View ${person.name}`}
             >
               {/* Hit area centered on the glyph */}
-              <span className="block size-7 rounded-full" />
+              <span className="block size-6 rounded-full" />
               {/* Name beside the glyph, on the outward-facing side. A rounded
                   dark chip behind it keeps the name legible above the busy
-                  starfield/glyph background. */}
+                  starfield/glyph background. The tight margin locks it snugly
+                  against its colored glyph. */}
               <span
                 className={`pointer-events-none absolute top-1/2 max-w-24 -translate-y-1/2 truncate rounded-md bg-background/80 px-1.5 py-0.5 font-serif text-xs text-foreground/90 backdrop-blur-sm transition-colors group-hover:text-foreground ${
-                  onRight ? "left-full ml-1 text-left" : "right-full mr-1 text-right"
+                  onRight ? "left-full ml-0.5 text-left" : "right-full mr-0.5 text-right"
                 }`}
               >
                 {person.name}
