@@ -19,13 +19,13 @@ export default async function WelcomePage() {
         <h1
           className="animate-fade-in-up text-balance text-foreground"
           style={{
-            fontFamily: '"Space Grotesk", sans-serif',
-            fontWeight: '900',
+            fontFamily: '"JetBrains Mono", sans-serif',
+            fontWeight: '700',
             textTransform: 'lowercase',
             boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
             letterSpacing: '-0.03em',
             lineHeight: '0.9em',
-            fontSize: '81px',
+            fontSize: '39px',
             paddingBottom: '0',
             marginBottom: '-30px',
             animationDelay: "0.1s"
