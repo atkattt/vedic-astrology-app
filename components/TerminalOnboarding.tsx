@@ -56,7 +56,7 @@ const STEPS: Step[] = [
     say: ["and where?"],
     field: { type: "text", placeholder: "city, country", key: "place" },
   },
-  { say: ["…found you.", "the spiral is yours now."], final: true },
+  { say: ["…found you."], final: true },
 ];
 
 // timing knobs
