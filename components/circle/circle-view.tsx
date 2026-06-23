@@ -18,7 +18,7 @@ import { useSpiral } from "@/components/spiral/spiral-provider"
 import ReadHub from "@/components/spiral/read-hub"
 import { type ReasonTag } from "@/lib/spiral/reads"
 import { Button } from "@/components/ui/button"
-import { Plus, LogOut, Sparkles, Clock, PenLine } from "lucide-react"
+import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X } from "lucide-react"
 
 export function CircleView({ userName }: { userName: string }) {
   const router = useRouter()
@@ -27,6 +27,7 @@ export function CircleView({ userName }: { userName: string }) {
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // The central avatar's expression. Agree/disagree flash a transient mood that
   // auto-returns to "idle" so it can be re-triggered on the next read.
@@ -122,23 +123,57 @@ export function CircleView({ userName }: { userName: string }) {
         </button>
       </header>
 
-      {/* Entry points: add a person, history, what you know about yourself */}
-      <nav className="relative z-20 mt-5 flex items-center justify-center gap-2 px-5">
-        <ToolbarButton
-          icon={<Plus className="size-4" />}
-          label="Add person"
-          onClick={() => setAddOpen(true)}
-        />
-        <ToolbarButton
-          icon={<Clock className="size-4" />}
-          label="History"
-          href="/history"
-        />
-        <ToolbarButton
-          icon={<PenLine className="size-4" />}
-          label="What you know"
-          href="/self"
-        />
+      {/* Entry points collapsed into a burger menu that drops down */}
+      <nav className="relative z-30 mt-5 flex items-center justify-center px-5">
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="flex items-center gap-2 rounded-full border border-border bg-popover/50 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur-sm transition-colors hover:border-foreground/40 hover:text-foreground"
+          >
+            {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+            Menu
+          </button>
+
+          {menuOpen && (
+            <>
+              {/* Click-away layer so tapping outside closes the menu */}
+              <button
+                aria-hidden="true"
+                tabIndex={-1}
+                onClick={() => setMenuOpen(false)}
+                className="fixed inset-0 z-0 cursor-default"
+              />
+              <div
+                role="menu"
+                className="absolute left-1/2 top-full z-10 mt-2 flex w-52 -translate-x-1/2 flex-col gap-1 rounded-2xl border border-border bg-popover/90 p-2 shadow-xl backdrop-blur-md"
+              >
+                <MenuItem
+                  icon={<Plus className="size-4" />}
+                  label="Add person"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setAddOpen(true)
+                  }}
+                />
+                <MenuItem
+                  icon={<Clock className="size-4" />}
+                  label="History"
+                  href="/history"
+                  onNavigate={() => setMenuOpen(false)}
+                />
+                <MenuItem
+                  icon={<PenLine className="size-4" />}
+                  label="What you know"
+                  href="/self"
+                  onNavigate={() => setMenuOpen(false)}
+                />
+              </div>
+            </>
+          )}
+        </div>
       </nav>
 
       {/* Constellation canvas — a drawn spiral with "You" at its center */}
@@ -198,30 +233,37 @@ export function CircleView({ userName }: { userName: string }) {
   )
 }
 
-function ToolbarButton({
+function MenuItem({
   icon,
   label,
   onClick,
   href,
+  onNavigate,
 }: {
   icon: React.ReactNode
   label: string
   onClick?: () => void
   href?: string
+  onNavigate?: () => void
 }) {
   const className =
-    "flex items-center gap-1.5 rounded-full border border-border bg-popover/50 px-3.5 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur-sm transition-colors hover:border-foreground/40 hover:text-foreground"
+    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
 
   if (href) {
     return (
-      <Link href={href} className={className}>
+      <Link
+        role="menuitem"
+        href={href}
+        onClick={onNavigate}
+        className={className}
+      >
         {icon}
         {label}
       </Link>
     )
   }
   return (
-    <button onClick={onClick} className={className}>
+    <button role="menuitem" onClick={onClick} className={className}>
       {icon}
       {label}
     </button>
