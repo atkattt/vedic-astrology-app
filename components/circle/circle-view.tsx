@@ -105,15 +105,6 @@ export function CircleView({ userName }: { userName: string }) {
 
       {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-5 pt-6">
-        <div>
-          <p className="-mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            {guest
-              ? "Exploring as a guest"
-              : userName
-                ? `${userName}'s circle`
-                : "Your circle"}
-          </p>
-        </div>
         <button
           onClick={handleSignOut}
           className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
