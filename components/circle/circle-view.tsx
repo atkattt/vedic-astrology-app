@@ -103,8 +103,8 @@ export function CircleView({ userName }: { userName: string }) {
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
       <Starfield count={90} />
 
-      {/* Header */}
-      <header className="relative z-20 flex items-center justify-between px-5 pt-6">
+      {/* Header: exit on the left, burger menu on the top-right corner */}
+      <header className="relative z-30 flex items-center justify-between px-5 pt-6">
         <button
           onClick={handleSignOut}
           className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
@@ -112,19 +112,17 @@ export function CircleView({ userName }: { userName: string }) {
           <LogOut className="size-3.5" />
           {guest ? "Exit" : "Leave"}
         </button>
-      </header>
 
-      {/* Entry points collapsed into a burger menu that drops down */}
-      <nav className="relative z-30 mt-5 flex items-center justify-center px-5">
+        {/* Entry points collapsed into a burger menu that drops down */}
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="flex items-center gap-2 rounded-full border border-border bg-popover/50 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur-sm transition-colors hover:border-foreground/40 hover:text-foreground"
+            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
           >
-            {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+            {menuOpen ? <X className="size-3.5" /> : <Menu className="size-3.5" />}
             Menu
           </button>
 
@@ -139,7 +137,7 @@ export function CircleView({ userName }: { userName: string }) {
               />
               <div
                 role="menu"
-                className="absolute left-1/2 top-full z-10 mt-2 flex w-52 -translate-x-1/2 flex-col gap-1 rounded-2xl border border-border bg-popover/90 p-2 shadow-xl backdrop-blur-md"
+                className="absolute right-0 top-full z-10 mt-3 flex w-52 flex-col gap-1 rounded-2xl border border-border bg-popover/90 p-2 shadow-xl backdrop-blur-md"
               >
                 <MenuItem
                   icon={<Plus className="size-4" />}
@@ -165,7 +163,7 @@ export function CircleView({ userName }: { userName: string }) {
             </>
           )}
         </div>
-      </nav>
+      </header>
 
       {/* Constellation canvas — a drawn spiral with "You" at its center */}
       <div className="relative z-10 flex-1">
