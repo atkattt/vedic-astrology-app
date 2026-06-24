@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Starfield } from "@/components/starfield"
-import { StoryContent } from "@/components/threshold/story-content"
+import { StoryReadCards } from "@/components/threshold/story-read-cards"
 
 // The loading stages cycle while the chart "reads". Later this list will be
 // driven by the real engine; for now it's a timed simulation (~4.5s total).
@@ -96,7 +96,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           While the sky reads you
         </p>
 
-        <StoryContent />
+        <StoryReadCards />
       </div>
 
       {/* The handoff CTA — fixed at the bottom, fades/rises in only when the
