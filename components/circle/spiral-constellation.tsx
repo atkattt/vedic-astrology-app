@@ -230,7 +230,7 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
   return (
     <div
       className="pointer-events-none absolute z-[2]"
-      style={{ left: "50%", top: "50%", transform: "translate(-50%, -58%)" }}
+      style={{ left: "50%", top: "50%", transform: "translate(-50%, -58%) translateY(50px)" }}
     >
       {/* Soft circular backdrop so the face reads cleanly against the
           starfield. Sized to sit just inside the spiral's clear zone
