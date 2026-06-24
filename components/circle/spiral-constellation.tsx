@@ -230,7 +230,7 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
   return (
     <div
       className="pointer-events-none absolute z-[2]"
-      style={{ left: "50%", top: "50%", transform: "translate(-50%, -66%)" }}
+      style={{ left: "50%", top: "50%", transform: "translate(-50%, -58%)" }}
     >
       {/* Soft circular backdrop so the face reads cleanly against the
           starfield. Sized to sit just inside the spiral's clear zone
@@ -245,13 +245,13 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
             "radial-gradient(circle, var(--background) 30%, color-mix(in oklch, var(--background) 70%, transparent) 58%, color-mix(in oklch, var(--background) 35%, transparent) 78%, transparent 100%)",
         }}
       />
-      {/* The avatar, constrained to a fixed 195x195 box so it can never sprawl
+      {/* The avatar, constrained to a fixed 230x230 box so it can never sprawl
           into the surrounding ring. Sits on top of everything (z-3). */}
       <div
         className="relative z-[3] flex items-center justify-center overflow-hidden"
-        style={{ width: 195, height: 195 }}
+        style={{ width: 230, height: 230 }}
       >
-        <SelfAvatar mood={mood} growth={growth} size={195} />
+        <SelfAvatar mood={mood} growth={growth} size={230} />
       </div>
     </div>
   )
