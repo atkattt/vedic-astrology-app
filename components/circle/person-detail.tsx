@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { useCircleData } from "@/components/circle/circle-data-provider"
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -11,10 +10,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Star, MapPin, Calendar, Clock, Link2, Trash2, X, ChevronRight } from "lucide-react"
+import { Link2, Trash2, X, ChevronRight } from "lucide-react"
 import { ReadCard } from "@/components/spiral/read-card"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makeBondRead, makePersonRead } from "@/lib/spiral/reads"
+
+const MONO =
+  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+// Glowing-white accent — never gold.
+const GLOW = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
 
 function formatDate(value: string | null) {
   if (!value) return "Unknown"
@@ -103,84 +107,101 @@ export function PersonDetail({
       }}
     >
       <DialogContent
-        className="max-h-[85vh] max-w-sm overflow-y-auto border-border bg-popover"
         showCloseButton={false}
+        className="max-h-[85vh] max-w-sm gap-0 overflow-y-auto p-6"
+        style={{
+          background: "#070707",
+          border: "1px solid #1a1a1a",
+          fontFamily: MONO,
+        }}
       >
         {person && (
           <>
-            <DialogHeader>
-              <div className="mb-2 flex items-center justify-between">
-                <span
-                  className="flex size-10 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: accentColor ? `${accentColor}26` : undefined,
-                    color: accentColor,
-                    boxShadow: accentColor ? `0 0 16px 0 ${accentColor}55` : undefined,
-                  }}
-                >
-                  <Star className="size-5" style={{ fill: accentColor }} />
+            <DialogHeader className="space-y-0">
+              {/* meta line: accent glyph (left), terminal tag + close (right) */}
+              <div
+                className="mb-4 flex items-center justify-between"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: 2,
+                  textTransform: "uppercase",
+                  color: "#4a4a4a",
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className="inline-block size-2.5 rounded-[2px]"
+                    style={{
+                      backgroundColor: accentColor ?? "#9a9a9a",
+                      boxShadow: accentColor
+                        ? `0 0 10px 0 ${accentColor}aa`
+                        : undefined,
+                    }}
+                  />
+                  read
                 </span>
                 <button
                   onClick={onClose}
-                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  className="transition-colors hover:text-foreground"
                   aria-label="Close"
                 >
-                  <X className="size-5" />
+                  <X className="size-4" />
                 </button>
               </div>
-              <DialogTitle className="text-balance font-serif text-3xl font-light">
+              <DialogTitle
+                className="text-balance text-2xl font-normal"
+                style={{ fontFamily: MONO, ...GLOW }}
+              >
                 {person.name}
               </DialogTitle>
             </DialogHeader>
 
-            <dl className="flex flex-col gap-3 border-t border-border pt-4">
+            {/* Birth coordinates — mono label / glowing value rows */}
+            <dl
+              className="mt-5 flex flex-col gap-2.5 pt-4"
+              style={{ borderTop: "1px solid #1a1a1a" }}
+            >
+              <Detail label="Born" value={formatDate(person.birthDate)} />
               <Detail
-                icon={<Calendar className="size-4" />}
-                label="Born"
-                value={formatDate(person.birthDate)}
-              />
-              <Detail
-                icon={<Clock className="size-4" />}
                 label="Time"
-                value={
-                  person.birthTimeUnknown
-                    ? "Unknown"
-                    : time ?? "Unknown"
-                }
+                value={person.birthTimeUnknown ? "Unknown" : time ?? "Unknown"}
               />
-              <Detail
-                icon={<MapPin className="size-4" />}
-                label="Place"
-                value={person.birthPlace || "Unknown"}
-              />
+              <Detail label="Place" value={person.birthPlace || "Unknown"} />
             </dl>
 
             {/* "You are here" — a read about this person, same agree/disagree loop */}
-            <div className="border-t border-border pt-4">
+            <div className="mt-5 pt-4" style={{ borderTop: "1px solid #1a1a1a" }}>
               {(() => {
                 const personRead = makePersonRead(person.id, person.name)
                 if (hasActed(personRead.id)) {
-                  return (
-                    <div className="rounded-2xl border border-border bg-secondary/30 p-4">
-                      <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                        You are here · filed
-                      </p>
-                      <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/80">
-                        {personRead.text}
-                      </p>
-                    </div>
-                  )
+                  return <FiledRead label="you are here · filed" text={personRead.text} />
                 }
                 return <ReadCard read={personRead} label="You are here" />
               })()}
             </div>
 
-            <div className="border-t border-border pt-4">
-              <p className="mb-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+            <div className="mt-5 pt-4" style={{ borderTop: "1px solid #1a1a1a" }}>
+              <p
+                className="mb-3"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: 2,
+                  textTransform: "uppercase",
+                  color: "#4a4a4a",
+                }}
+              >
                 Bonds
               </p>
               {bonds.length === 0 ? (
-                <p className="text-pretty font-serif text-sm italic text-muted-foreground">
+                <p
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    letterSpacing: 0.3,
+                    color: "#8a8a8a",
+                  }}
+                >
+                  <span style={{ color: "#555" }}>{"› "}</span>
                   No bonds yet — connect {person.name} to someone in your circle.
                 </p>
               ) : (
@@ -190,23 +211,39 @@ export function PersonDetail({
                     const bondRead = makeBondRead(b.relationship.id, b.other.name)
                     return (
                       <li key={b.relationship.id} className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2 rounded-md bg-secondary/50 px-3 py-2">
+                        <div
+                          className="flex items-center justify-between gap-2 px-3 py-2.5"
+                          style={{
+                            border: "1px solid #1a1a1a",
+                            borderRadius: 8,
+                            background: "rgba(255,255,255,0.02)",
+                          }}
+                        >
                           <button
                             onClick={() =>
                               setOpenBondId(isOpen ? null : b.relationship.id)
                             }
-                            className="flex flex-1 items-center gap-2 text-left font-serif text-sm text-foreground"
+                            className="flex flex-1 items-center gap-2 text-left"
+                            style={{
+                              fontSize: 13,
+                              letterSpacing: 0.3,
+                              color: "#cfcfcf",
+                            }}
                           >
                             <ChevronRight
-                              className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${
+                              className={`size-3.5 shrink-0 transition-transform ${
                                 isOpen ? "rotate-90" : ""
                               }`}
+                              style={{ color: "#555" }}
                             />
                             <span>
                               {b.other.name}
-                              <span className="text-muted-foreground"> × </span>
+                              <span style={{ color: "#555" }}> × </span>
                               You
-                              <span className="text-muted-foreground"> · {b.label}</span>
+                              <span style={{ color: "#4a4a4a" }}>
+                                {" · "}
+                                {b.label}
+                              </span>
                             </span>
                           </button>
                           <button
@@ -214,7 +251,8 @@ export function PersonDetail({
                               handleRemoveBond(b.relationship.id, b.label)
                             }
                             disabled={isPending}
-                            className="text-muted-foreground transition-colors hover:text-destructive"
+                            className="transition-colors hover:text-destructive"
+                            style={{ color: "#555" }}
                             aria-label={`Remove bond with ${b.other.name}`}
                           >
                             <X className="size-4" />
@@ -223,14 +261,10 @@ export function PersonDetail({
 
                         {isOpen &&
                           (hasActed(bondRead.id) ? (
-                            <div className="rounded-2xl border border-border bg-secondary/30 p-4">
-                              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                                A bond read · filed
-                              </p>
-                              <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/80">
-                                {bondRead.text}
-                              </p>
-                            </div>
+                            <FiledRead
+                              label="a bond read · filed"
+                              text={bondRead.text}
+                            />
                           ) : (
                             <ReadCard
                               read={bondRead}
@@ -245,42 +279,56 @@ export function PersonDetail({
               )}
             </div>
 
-            <div className="mt-2 flex flex-col gap-2">
-              <Button
+            <div className="mt-6 flex flex-col gap-2">
+              <CommandButton
                 onClick={() => onConnect(person)}
-                className="w-full rounded-full font-mono text-xs uppercase tracking-widest"
-              >
-                <Link2 className="size-4" />
-                Connect to someone
-              </Button>
+                icon={<Link2 className="size-3.5" />}
+                label="connect to someone"
+              />
 
               {confirmDelete ? (
-                <div className="flex flex-col gap-2 rounded-md border border-destructive/40 p-3">
-                  <p className="text-pretty text-center font-serif text-sm text-muted-foreground">
+                <div
+                  className="flex flex-col gap-2 p-3"
+                  style={{
+                    border: "1px solid rgba(248,113,113,0.4)",
+                    borderRadius: 8,
+                  }}
+                >
+                  <p
+                    className="text-center"
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                      letterSpacing: 0.3,
+                      color: "#8a8a8a",
+                    }}
+                  >
                     Remove {person.name} and all their bonds?
                   </p>
                   <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
+                    <CommandButton
                       onClick={() => setConfirmDelete(false)}
-                      className="flex-1 rounded-full font-mono text-xs uppercase tracking-widest"
-                    >
-                      Keep
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={isPending}
+                      label="keep"
+                    />
+                    <CommandButton
                       onClick={handleDeletePerson}
-                      className="flex-1 rounded-full font-mono text-xs uppercase tracking-widest"
-                    >
-                      Remove
-                    </Button>
+                      disabled={isPending}
+                      label="remove"
+                      danger
+                    />
                   </div>
                 </div>
               ) : (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="flex items-center justify-center gap-1.5 py-1 font-mono text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:text-destructive"
+                  className="flex items-center justify-center gap-1.5 py-1 transition-colors hover:text-destructive"
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                    color: "#555",
+                  }}
                 >
                   <Trash2 className="size-3.5" />
                   Remove from circle
@@ -294,23 +342,107 @@ export function PersonDetail({
   )
 }
 
-function Detail({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-}) {
+/** A filed read, shown in the terminal voice (grey body behind a › prompt). */
+function FiledRead({ label, text }: { label: string; text: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-primary/70">{icon}</span>
-      <dt className="w-14 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+    <div
+      className="p-4"
+      style={{ border: "1px solid #1a1a1a", borderRadius: 8 }}
+    >
+      <p
+        className="mb-2"
+        style={{
+          fontSize: 10,
+          letterSpacing: 2,
+          textTransform: "uppercase",
+          color: "#4a4a4a",
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          fontSize: 13.5,
+          lineHeight: 1.65,
+          letterSpacing: 0.3,
+          color: "#8a8a8a",
+        }}
+      >
+        <span style={{ color: "#555" }}>{"› "}</span>
+        {text}
+      </p>
+    </div>
+  )
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <dt
+        style={{
+          width: 56,
+          fontSize: 10,
+          letterSpacing: 2,
+          textTransform: "uppercase",
+          color: "#4a4a4a",
+        }}
+      >
         {label}
       </dt>
-      <dd className="font-serif text-sm text-foreground">{value}</dd>
+      <dd style={{ fontSize: 13, letterSpacing: 0.4, ...GLOW }}>{value}</dd>
     </div>
+  )
+}
+
+function CommandButton({
+  onClick,
+  label,
+  icon,
+  disabled,
+  danger,
+}: {
+  onClick: () => void
+  label: string
+  icon?: React.ReactNode
+  disabled?: boolean
+  danger?: boolean
+}) {
+  const [hover, setHover] = useState(false)
+  const baseColor = danger ? "#b46a6a" : "#7a7a7a"
+  const hoverColor = danger ? "#f87171" : "#cfcfcf"
+  const baseBorder = danger ? "rgba(248,113,113,0.35)" : "#1f1f1f"
+  const hoverBorder = danger ? "rgba(248,113,113,0.6)" : "#3a3a3a"
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        fontFamily: MONO,
+        fontSize: 12,
+        letterSpacing: 1,
+        border: `1px solid ${hover ? hoverBorder : baseBorder}`,
+        borderRadius: 8,
+        padding: "11px 16px",
+        cursor: disabled ? "default" : "pointer",
+        background: hover ? "rgba(255,255,255,0.03)" : "transparent",
+        color: hover ? hoverColor : baseColor,
+        opacity: disabled ? 0.6 : 1,
+        transition: "all .16s",
+        width: "100%",
+        textAlign: "center",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+      }}
+    >
+      <span style={{ opacity: 0.5 }}>[</span>
+      {icon}
+      {label}
+      <span style={{ opacity: 0.5 }}>]</span>
+    </button>
   )
 }
 

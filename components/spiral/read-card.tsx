@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { REASON_TAGS, type Read, type ReasonTag } from "@/lib/spiral/reads"
 
+const MONO =
+  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+
 type Phase = "idle" | "agreeing" | "reasons" | "leaving"
 
 export function ReadCard({
@@ -52,64 +55,160 @@ export function ReadCard({
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-border bg-popover/80 p-6 backdrop-blur-sm transition-colors",
-        phase === "agreeing" && "animate-agree-glow border-[oklch(0.72_0.14_155_/_0.6)]",
+        "relative p-5",
+        phase === "agreeing" && "animate-agree-glow",
         phase === "leaving" && "animate-card-fade-out",
         className,
       )}
+      style={{
+        background: "#070707",
+        border: "1px solid #1a1a1a",
+        borderRadius: 8,
+        fontFamily: MONO,
+      }}
     >
       {label && (
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+        <p
+          className="mb-3"
+          style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: "#4a4a4a",
+          }}
+        >
           {label}
         </p>
       )}
 
       <p
-        className={cn(
-          "text-pretty font-serif text-xl font-light italic leading-relaxed text-foreground transition-opacity md:text-2xl",
-          phase === "reasons" && "opacity-40",
-        )}
+        className="transition-opacity"
+        style={{
+          fontSize: 15,
+          lineHeight: 1.6,
+          letterSpacing: 0.4,
+          color: "#cfcfcf",
+          opacity: phase === "reasons" ? 0.4 : 1,
+        }}
       >
+        <span style={{ color: "#555" }}>{"› "}</span>
         {read.text}
       </p>
 
       {phase === "reasons" ? (
         <div className="mt-5">
-          <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+          <p
+            className="mb-3"
+            style={{
+              fontSize: 10,
+              letterSpacing: 2,
+              textTransform: "uppercase",
+              color: "#4a4a4a",
+            }}
+          >
             What made it wrong?
           </p>
           <div className="flex flex-wrap gap-2">
             {REASON_TAGS.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => handleReason(tag)}
-                className="rounded-full border border-border px-3 py-1.5 font-mono text-xs lowercase tracking-wide text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-              >
-                {tag}
-              </button>
+              <TagButton key={tag} onClick={() => handleReason(tag)} label={tag} />
             ))}
           </div>
         </div>
       ) : (
-        <div className="mt-6 flex gap-3">
-          <button
+        <div className="mt-6 flex gap-2.5">
+          <CmdButton
             onClick={handleAgree}
             disabled={phase !== "idle"}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-2.5 font-mono text-xs uppercase tracking-widest text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            <Check className="size-4" />
-            Agree
-          </button>
-          <button
+            icon={<Check className="size-3.5" />}
+            label="agree"
+            tone="agree"
+          />
+          <CmdButton
             onClick={handleDisagree}
             disabled={phase !== "idle"}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-border py-2.5 font-mono text-xs uppercase tracking-widest text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-60"
-          >
-            <X className="size-4" />
-            Disagree
-          </button>
+            icon={<X className="size-3.5" />}
+            label="disagree"
+          />
         </div>
       )}
     </div>
+  )
+}
+
+function CmdButton({
+  onClick,
+  label,
+  icon,
+  disabled,
+  tone,
+}: {
+  onClick: () => void
+  label: string
+  icon?: React.ReactNode
+  disabled?: boolean
+  tone?: "agree"
+}) {
+  const [hover, setHover] = useState(false)
+  const isAgree = tone === "agree"
+  const baseColor = isAgree ? "#7fae8a" : "#7a7a7a"
+  const hoverColor = isAgree ? "#9fe0ac" : "#cfcfcf"
+  const baseBorder = isAgree ? "rgba(127,174,138,0.35)" : "#1f1f1f"
+  const hoverBorder = isAgree ? "rgba(127,174,138,0.6)" : "#3a3a3a"
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        fontFamily: MONO,
+        fontSize: 12,
+        letterSpacing: 1,
+        border: `1px solid ${hover ? hoverBorder : baseBorder}`,
+        borderRadius: 8,
+        padding: "10px 14px",
+        cursor: disabled ? "default" : "pointer",
+        background: hover ? "rgba(255,255,255,0.03)" : "transparent",
+        color: hover ? hoverColor : baseColor,
+        opacity: disabled ? 0.6 : 1,
+        transition: "all .16s",
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+      }}
+    >
+      <span style={{ opacity: 0.5 }}>[</span>
+      {icon}
+      {label}
+      <span style={{ opacity: 0.5 }}>]</span>
+    </button>
+  )
+}
+
+function TagButton({ onClick, label }: { onClick: () => void; label: string }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        fontFamily: MONO,
+        fontSize: 12,
+        letterSpacing: 0.5,
+        textTransform: "lowercase",
+        border: `1px solid ${hover ? "#3a3a3a" : "#1f1f1f"}`,
+        borderRadius: 999,
+        padding: "6px 12px",
+        cursor: "pointer",
+        background: hover ? "rgba(255,255,255,0.03)" : "transparent",
+        color: hover ? "#cfcfcf" : "#7a7a7a",
+        transition: "all .16s",
+      }}
+    >
+      {label}
+    </button>
   )
 }
