@@ -139,8 +139,18 @@ export function CircleView({ userName }: { userName: string }) {
               />
               <div
                 role="menu"
-                className="absolute right-0 top-full z-10 mt-3 flex w-52 flex-col gap-1 rounded-2xl border border-border bg-popover/90 p-2 shadow-xl backdrop-blur-md"
+                className="absolute right-0 top-full z-10 mt-3 flex w-56 flex-col overflow-hidden rounded-lg shadow-xl"
+                style={{
+                  backgroundColor: "#070707",
+                  border: "1px solid #1a1a1a",
+                  fontFamily:
+                    "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                }}
               >
+                {/* Terminal meta line, mirroring the read cards' header */}
+                <div className="px-3 pb-2 pt-2.5 text-[9px] uppercase tracking-[0.3em] text-muted-foreground/60">
+                  Menu
+                </div>
                 <MenuItem
                   icon={<Plus className="size-4" />}
                   label="Add person"
@@ -252,7 +262,16 @@ function MenuItem({
   onNavigate?: () => void
 }) {
   const className =
-    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+    "flex w-full items-center gap-2 px-3 py-3 text-left font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+  const style = { borderTop: "1px solid #1a1a1a" }
+
+  const inner = (
+    <>
+      <span className="text-muted-foreground/40">{">"}</span>
+      <span className="text-muted-foreground/70">{icon}</span>
+      <span>{label}</span>
+    </>
+  )
 
   if (href) {
     return (
@@ -261,16 +280,15 @@ function MenuItem({
         href={href}
         onClick={onNavigate}
         className={className}
+        style={style}
       >
-        {icon}
-        {label}
+        {inner}
       </Link>
     )
   }
   return (
-    <button role="menuitem" onClick={onClick} className={className}>
-      {icon}
-      {label}
+    <button role="menuitem" onClick={onClick} className={className} style={style}>
+      {inner}
     </button>
   )
 }
