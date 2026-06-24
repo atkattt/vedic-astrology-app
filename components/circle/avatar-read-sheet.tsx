@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
-import { Starfield } from "@/components/starfield"
 import { chartRead } from "@/lib/spiral/chart-read"
 
 const MONO =
@@ -114,22 +113,15 @@ export function AvatarReadSheet({
             dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.22,1,0.36,1)",
         }}
       >
-        {/* Animated starry sky behind the content — same field as the other
-            screens, gently drifting. Scoped to the panel via absolute inset. */}
-        <Starfield
-          count={48}
-          className="pointer-events-none absolute inset-0 overflow-hidden animate-drift"
-        />
-
         {/* Drag handle */}
-        <div className="relative z-10 flex shrink-0 justify-center pb-1 pt-3">
+        <div className="flex shrink-0 justify-center pb-1 pt-3">
           <span
             className="h-1 w-10 rounded-full"
             style={{ background: "#2a2a2a" }}
           />
         </div>
 
-        <div className="relative z-10 flex-1 overflow-y-auto px-5 pb-10 pt-2">
+        <div className="flex-1 overflow-y-auto px-5 pb-10 pt-2">
           {/* Mini avatar */}
           <div className="flex justify-center">
             <SelfAvatar mood={mood} growth={growth} size={84} />
