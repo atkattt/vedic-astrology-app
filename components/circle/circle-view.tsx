@@ -11,6 +11,7 @@ import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
 import { SpiralConstellation } from "@/components/circle/spiral-constellation"
+import { AvatarReadSheet } from "@/components/circle/avatar-read-sheet"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
@@ -28,6 +29,7 @@ export function CircleView({ userName }: { userName: string }) {
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [readSheetOpen, setReadSheetOpen] = useState(false)
 
   // The central avatar's expression. Agree/disagree flash a transient mood that
   // auto-returns to "idle" so it can be re-triggered on the next read.
@@ -175,6 +177,7 @@ export function CircleView({ userName }: { userName: string }) {
             relationships={relationships}
             colorById={colorById}
             onSelect={setSelected}
+            onSelectSelf={() => setReadSheetOpen(true)}
             mood={mood}
           />
         )}
@@ -201,6 +204,13 @@ export function CircleView({ userName }: { userName: string }) {
           </div>
         )}
       </div>
+
+      <AvatarReadSheet
+        open={readSheetOpen}
+        onClose={() => setReadSheetOpen(false)}
+        mood={mood}
+        growth={Math.min(1, 0.35 + people.length * 0.1)}
+      />
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
       <PersonDetail

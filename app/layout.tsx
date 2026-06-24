@@ -32,6 +32,7 @@ import {
   Lora,
   PT_Sans,
   Space_Mono,
+  Fraunces,
 } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { SpiralProvider } from '@/components/spiral/spiral-provider'
@@ -201,6 +202,12 @@ const spaceMono = Space_Mono({
   subsets: ['latin'],
   display: 'swap',
 })
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Spiral Inward',
@@ -240,7 +247,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} bg-background`}
+      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} ${fraunces.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <SpiralProvider>{children}</SpiralProvider>

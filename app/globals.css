@@ -221,4 +221,31 @@
   .animate-glyph-pulse {
     animation: glyph-pulse 3.2s ease-in-out infinite;
   }
+
+  /* Threshold: slow hypnotic spin for the loading spiral glyph */
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-spin-slow {
+    animation: spin-slow 3.4s linear infinite;
+  }
+
+  /* Threshold: a light sweep travelling across the thin loading bar */
+  @keyframes bar-sweep {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(420%); }
+  }
+  .animate-bar-sweep {
+    animation: bar-sweep 1.6s ease-in-out infinite;
+  }
+
+  /* Threshold: the bottom CTA gently rises and fades in when ready */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-rise-in {
+    animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }

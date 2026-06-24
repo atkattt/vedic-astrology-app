@@ -57,12 +57,14 @@ export function SpiralConstellation({
   relationships,
   colorById,
   onSelect,
+  onSelectSelf,
   mood = "idle",
 }: {
   people: Person[]
   relationships: Relationship[]
   colorById: Map<number, string>
   onSelect: (person: Person) => void
+  onSelectSelf?: () => void
   mood?: Mood
 }) {
   // The spiral arm as a trail of ASCII glyphs (only + * ✦) winding outward.
@@ -220,13 +222,25 @@ export function SpiralConstellation({
         })}
 
         {/* Center: the expressive ASCII "you", large and on top of the spiral */}
-        <YouNode mood={mood} growth={Math.min(1, 0.35 + people.length * 0.1)} />
+        <YouNode
+          mood={mood}
+          growth={Math.min(1, 0.35 + people.length * 0.1)}
+          onSelectSelf={onSelectSelf}
+        />
       </div>
     </div>
   )
 }
 
-function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
+function YouNode({
+  mood,
+  growth,
+  onSelectSelf,
+}: {
+  mood: Mood
+  growth: number
+  onSelectSelf?: () => void
+}) {
   return (
     <div
       className="pointer-events-none absolute z-[2]"
@@ -253,6 +267,18 @@ function YouNode({ mood, growth }: { mood: Mood; growth: number }) {
       >
         <SelfAvatar mood={mood} growth={growth} size={230} />
       </div>
+
+      {/* Tap target over the face → opens the chart read sheet. The avatar
+          itself is pointer-events-none, so this circular button carries the
+          interaction. Kept smaller than the box so it stays on the face. */}
+      {onSelectSelf && (
+        <button
+          type="button"
+          onClick={onSelectSelf}
+          aria-label="Read your chart"
+          className="pointer-events-auto absolute left-1/2 top-1/2 z-[4] size-36 -translate-x-1/2 -translate-y-1/2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      )}
     </div>
   )
 }
