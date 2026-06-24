@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Starfield } from "@/components/starfield"
-import { StoryContent } from "@/components/threshold/story-content"
+import { StoryReadCards } from "@/components/threshold/story-read-cards"
 
 export const metadata = {
   title: "What this is · Spiral Inward",
@@ -30,7 +30,7 @@ export default function AboutPage() {
           What this is, where it&apos;s going
         </p>
 
-        <StoryContent />
+        <StoryReadCards />
       </div>
     </main>
   )
