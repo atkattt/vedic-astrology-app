@@ -266,7 +266,7 @@ export default function TerminalOnboarding({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            gap: 41,
+            gap: 13,
             overflowY: "auto",
             paddingTop: 30,
           }}
