@@ -19,7 +19,7 @@ import { useSpiral } from "@/components/spiral/spiral-provider"
 import ReadHub from "@/components/spiral/read-hub"
 import { type ReasonTag } from "@/lib/spiral/reads"
 import { Button } from "@/components/ui/button"
-import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X } from "lucide-react"
+import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info } from "lucide-react"
 
 export function CircleView({ userName }: { userName: string }) {
   const router = useRouter()
@@ -159,6 +159,12 @@ export function CircleView({ userName }: { userName: string }) {
                   icon={<PenLine className="size-4" />}
                   label="What you know"
                   href="/self"
+                  onNavigate={() => setMenuOpen(false)}
+                />
+                <MenuItem
+                  icon={<Info className="size-4" />}
+                  label="What this is"
+                  href="/about"
                   onNavigate={() => setMenuOpen(false)}
                 />
               </div>
