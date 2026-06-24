@@ -15,7 +15,13 @@ type Star = {
  * A field of faint, gently twinkling stars rendered behind all content.
  * Deterministic per `count` so it stays stable across renders.
  */
-export function Starfield({ count = 80 }: { count?: number }) {
+export function Starfield({
+  count = 80,
+  className = "pointer-events-none fixed inset-0 overflow-hidden animate-drift",
+}: {
+  count?: number
+  className?: string
+}) {
   const stars = useMemo<Star[]>(() => {
     // Seeded pseudo-random for stable positions.
     let seed = 7
@@ -34,10 +40,7 @@ export function Starfield({ count = 80 }: { count?: number }) {
   }, [count])
 
   return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 overflow-hidden animate-drift"
-    >
+    <div aria-hidden="true" className={className}>
       {/* Subtle radial deepening toward the edges */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,oklch(0.12_0.02_275)_100%)]" />
       {stars.map((s, i) => (
