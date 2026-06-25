@@ -243,19 +243,18 @@ export default function TerminalOnboarding({
         color: "#e8e4da",
         fontFamily:
           "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
-        alignItems: "center",
+        alignItems: "stretch",
         justifyContent: "center",
       }}
     >
       <div
         style={{
-          width: 380,
-          maxWidth: "100%",
-          height: "92vh",
-          maxHeight: 780,
-          padding: "40px 30px",
+          width: "100%",
+          maxWidth: 420,
+          height: "100dvh",
+          padding: "calc(env(safe-area-inset-top, 0px) + 28px) 28px calc(env(safe-area-inset-bottom, 0px) + 28px)",
           display: "flex",
           flexDirection: "column",
         }}
@@ -264,19 +263,20 @@ export default function TerminalOnboarding({
           ref={logRef}
           style={{
             flex: 1,
+            minHeight: 0,
             display: "flex",
             flexDirection: "column",
-            gap: 13,
+            gap: 14,
             overflowY: "auto",
-            paddingTop: 85,
+            paddingTop: "clamp(12px, 3vh, 32px)",
           }}
         >
           {lines.map((l, i) => (
             <div
               key={i}
               style={{
-                fontSize: 13,
-                lineHeight: 1.6,
+                fontSize: 16,
+                lineHeight: 1.55,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
@@ -294,8 +294,8 @@ export default function TerminalOnboarding({
           {typing !== "" && (
             <div
               style={{
-                fontSize: 13,
-                lineHeight: 1.6,
+                fontSize: 16,
+                lineHeight: 1.55,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
@@ -306,8 +306,8 @@ export default function TerminalOnboarding({
               <span
                 style={{
                   display: "inline-block",
-                  width: 9,
-                  height: 17,
+                  width: 10,
+                  height: 19,
                   background: "#e8e4da",
                   marginLeft: 2,
                   verticalAlign: -3,
