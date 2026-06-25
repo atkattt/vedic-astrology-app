@@ -266,17 +266,17 @@ export default function TerminalOnboarding({
             minHeight: 0,
             display: "flex",
             flexDirection: "column",
-            gap: 13,
+            gap: 14,
             overflowY: "auto",
-            paddingTop: "clamp(24px, 8vh, 72px)",
+            paddingTop: "clamp(12px, 3vh, 32px)",
           }}
         >
           {lines.map((l, i) => (
             <div
               key={i}
               style={{
-                fontSize: 13,
-                lineHeight: 1.6,
+                fontSize: 16,
+                lineHeight: 1.55,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
@@ -294,8 +294,8 @@ export default function TerminalOnboarding({
           {typing !== "" && (
             <div
               style={{
-                fontSize: 13,
-                lineHeight: 1.6,
+                fontSize: 16,
+                lineHeight: 1.55,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
@@ -306,8 +306,8 @@ export default function TerminalOnboarding({
               <span
                 style={{
                   display: "inline-block",
-                  width: 9,
-                  height: 17,
+                  width: 10,
+                  height: 19,
                   background: "#e8e4da",
                   marginLeft: 2,
                   verticalAlign: -3,
