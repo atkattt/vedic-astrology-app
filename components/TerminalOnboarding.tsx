@@ -268,14 +268,14 @@ export default function TerminalOnboarding({
             flexDirection: "column",
             gap: 13,
             overflowY: "auto",
-            paddingTop: 30,
+            paddingTop: 85,
           }}
         >
           {lines.map((l, i) => (
             <div
               key={i}
               style={{
-                fontSize: 19,
+                fontSize: 13,
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
