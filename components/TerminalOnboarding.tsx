@@ -294,7 +294,7 @@ export default function TerminalOnboarding({
           {typing !== "" && (
             <div
               style={{
-                fontSize: 19,
+                fontSize: 13,
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
