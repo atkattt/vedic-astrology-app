@@ -243,19 +243,18 @@ export default function TerminalOnboarding({
         color: "#e8e4da",
         fontFamily:
           "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
-        alignItems: "center",
+        alignItems: "stretch",
         justifyContent: "center",
       }}
     >
       <div
         style={{
-          width: 380,
-          maxWidth: "100%",
-          height: "92vh",
-          maxHeight: 780,
-          padding: "40px 30px",
+          width: "100%",
+          maxWidth: 420,
+          height: "100dvh",
+          padding: "calc(env(safe-area-inset-top, 0px) + 28px) 28px calc(env(safe-area-inset-bottom, 0px) + 28px)",
           display: "flex",
           flexDirection: "column",
         }}
@@ -264,11 +263,12 @@ export default function TerminalOnboarding({
           ref={logRef}
           style={{
             flex: 1,
+            minHeight: 0,
             display: "flex",
             flexDirection: "column",
             gap: 13,
             overflowY: "auto",
-            paddingTop: 85,
+            paddingTop: "clamp(24px, 8vh, 72px)",
           }}
         >
           {lines.map((l, i) => (
