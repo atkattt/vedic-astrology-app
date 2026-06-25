@@ -16,11 +16,10 @@ export default function OnboardingPage() {
         } catch {
           // sessionStorage may be unavailable (private mode); proceed anyway.
         }
-        // For now, skip the account step and drop the visitor straight into the
-        // spiral homepage (self avatar + constellation). The /guest route sets
-        // the lightweight guest cookie and redirects to /circle. The make-an-
-        // account portion will slot back in here once the core flow is final.
-        router.push("/guest")
+        // The birth-data ritual is done. Hand off to the threshold screen,
+        // where the chart "reads" (loads) while the visitor can read the
+        // project's story. From there, "enter the spiral" continues to /circle.
+        router.push("/threshold")
       }}
     />
   )

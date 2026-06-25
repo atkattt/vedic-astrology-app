@@ -266,16 +266,16 @@ export default function TerminalOnboarding({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            gap: 41,
+            gap: 13,
             overflowY: "auto",
-            paddingTop: 30,
+            paddingTop: 85,
           }}
         >
           {lines.map((l, i) => (
             <div
               key={i}
               style={{
-                fontSize: 19,
+                fontSize: 13,
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
@@ -294,7 +294,7 @@ export default function TerminalOnboarding({
           {typing !== "" && (
             <div
               style={{
-                fontSize: 19,
+                fontSize: 13,
                 lineHeight: 1.6,
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",

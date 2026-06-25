@@ -11,6 +11,7 @@ import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
 import { SpiralConstellation } from "@/components/circle/spiral-constellation"
+import { AvatarReadSheet } from "@/components/circle/avatar-read-sheet"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
@@ -18,7 +19,7 @@ import { useSpiral } from "@/components/spiral/spiral-provider"
 import ReadHub from "@/components/spiral/read-hub"
 import { type ReasonTag } from "@/lib/spiral/reads"
 import { Button } from "@/components/ui/button"
-import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X } from "lucide-react"
+import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info } from "lucide-react"
 
 export function CircleView({ userName }: { userName: string }) {
   const router = useRouter()
@@ -28,6 +29,7 @@ export function CircleView({ userName }: { userName: string }) {
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [readSheetOpen, setReadSheetOpen] = useState(false)
 
   // The central avatar's expression. Agree/disagree flash a transient mood that
   // auto-returns to "idle" so it can be re-triggered on the next read.
@@ -137,8 +139,18 @@ export function CircleView({ userName }: { userName: string }) {
               />
               <div
                 role="menu"
-                className="absolute right-0 top-full z-10 mt-3 flex w-52 flex-col gap-1 rounded-2xl border border-border bg-popover/90 p-2 shadow-xl backdrop-blur-md"
+                className="absolute right-0 top-full z-10 mt-3 flex w-56 flex-col overflow-hidden rounded-lg shadow-xl"
+                style={{
+                  backgroundColor: "#070707",
+                  border: "1px solid #1a1a1a",
+                  fontFamily:
+                    "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                }}
               >
+                {/* Terminal meta line, mirroring the read cards' header */}
+                <div className="px-3 pb-2 pt-2.5 text-[9px] uppercase tracking-[0.3em] text-muted-foreground/60">
+                  Menu
+                </div>
                 <MenuItem
                   icon={<Plus className="size-4" />}
                   label="Add person"
@@ -159,6 +171,12 @@ export function CircleView({ userName }: { userName: string }) {
                   href="/self"
                   onNavigate={() => setMenuOpen(false)}
                 />
+                <MenuItem
+                  icon={<Info className="size-4" />}
+                  label="What this is"
+                  href="/about"
+                  onNavigate={() => setMenuOpen(false)}
+                />
               </div>
             </>
           )}
@@ -175,6 +193,7 @@ export function CircleView({ userName }: { userName: string }) {
             relationships={relationships}
             colorById={colorById}
             onSelect={setSelected}
+            onSelectSelf={() => setReadSheetOpen(true)}
             mood={mood}
           />
         )}
@@ -201,6 +220,13 @@ export function CircleView({ userName }: { userName: string }) {
           </div>
         )}
       </div>
+
+      <AvatarReadSheet
+        open={readSheetOpen}
+        onClose={() => setReadSheetOpen(false)}
+        mood={mood}
+        growth={Math.min(1, 0.35 + people.length * 0.1)}
+      />
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
       <PersonDetail
@@ -236,7 +262,16 @@ function MenuItem({
   onNavigate?: () => void
 }) {
   const className =
-    "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
+    "flex w-full items-center gap-2 px-3 py-3 text-left font-mono text-[11px] uppercase tracking-widest text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+  const style = { borderTop: "1px solid #1a1a1a" }
+
+  const inner = (
+    <>
+      <span className="text-muted-foreground/40">{">"}</span>
+      <span className="text-muted-foreground/70">{icon}</span>
+      <span>{label}</span>
+    </>
+  )
 
   if (href) {
     return (
@@ -245,16 +280,15 @@ function MenuItem({
         href={href}
         onClick={onNavigate}
         className={className}
+        style={style}
       >
-        {icon}
-        {label}
+        {inner}
       </Link>
     )
   }
   return (
-    <button role="menuitem" onClick={onClick} className={className}>
-      {icon}
-      {label}
+    <button role="menuitem" onClick={onClick} className={className} style={style}>
+      {inner}
     </button>
   )
 }
