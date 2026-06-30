@@ -761,23 +761,13 @@ export function SpiralUniverse({
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
-            width: 230,
-            height: 230,
-            background:
-              "radial-gradient(circle, var(--background) 30%, color-mix(in oklch, var(--background) 70%, transparent) 58%, color-mix(in oklch, var(--background) 35%, transparent) 78%, transparent 100%)",
-          }}
-        />
-        {/* Glowing containment ring: a luminous circle that holds the avatar
-            in its own halo of light, separating "you" from the surrounding
-            universe. Soft inner + outer glow, thin bright stroke. */}
-        <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
             width: 172,
             height: 172,
+            // A solid, opaque disc — your own "self avatar screen". Fully
+            // contained inside the stroke (no glow, no bleed into the
+            // surrounding universe).
+            backgroundColor: "var(--background)",
             border: "1px solid oklch(0.95 0 0 / 0.55)",
-            boxShadow:
-              "0 0 24px oklch(0.95 0 0 / 0.30), inset 0 0 28px oklch(0.95 0 0 / 0.16)",
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
