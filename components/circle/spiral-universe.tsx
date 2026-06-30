@@ -5,6 +5,17 @@ import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { YOU_COLOR } from "@/lib/circle/colors"
 import { chartRead } from "@/lib/spiral/chart-read"
+import { useSpiral } from "@/components/spiral/spiral-provider"
+import { makePersonRead, type Read } from "@/lib/spiral/reads"
+import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
+
+// Neutral self color — a glowing white, NOT gold. Reactions tint away from it.
+const NEUTRAL_COLOR = "#e8e4da"
+const AGREE_COLOR = "#8fc9a3"
+const DISAGREE_COLOR = "#d98a9a"
+// A tap must stay under this many pixels of movement to count as a click
+// (otherwise dragging across the universe would open panels by accident).
+const TAP_SLOP = 6
 
 /**
  * SpiralUniverse — Layer 1 of the explorable universe.
@@ -89,9 +100,26 @@ function readPoint(angle: number, r: number) {
   return { x: Math.cos(angle) * r, y: Math.sin(angle) * r }
 }
 
-type PlacedRead = { label: string; x: number; y: number }
-type PlacedPerson = { person: Person; x: number; y: number; color: string }
+type PlacedRead = {
+  label: string
+  x: number
+  y: number
+  panel: PanelData
+  read: Read
+}
+type PlacedPerson = {
+  person: Person
+  x: number
+  y: number
+  color: string
+  panel: PanelData
+  read: Read
+}
 type PlacedBond = { id: number; x1: number; y1: number; x2: number; y2: number }
+
+function slug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+}
 
 export function SpiralUniverse({
   people,
@@ -118,6 +146,76 @@ export function SpiralUniverse({
   const lastRef = useRef({ x: 0, y: 0 })
   const ptsRef = useRef<Map<number, { x: number; y: number }>>(new Map())
   const pinchRef = useRef(0)
+  // Click-vs-drag: where the gesture started, and whether it ever exceeded the
+  // tap slop. Object clicks are ignored once movement crosses the threshold.
+  const downPtRef = useRef({ x: 0, y: 0 })
+  const movedRef = useRef(false)
+  // The element pressed at pointerdown. We resolve taps here (not via onClick)
+  // because the stage takes pointer capture, which retargets the click event
+  // away from the object that was actually pressed.
+  const downTargetRef = useRef<HTMLElement | null>(null)
+
+  const { agree, disagree } = useSpiral()
+
+  // The open read/person panel + the avatar's transient reaction.
+  const [panel, setPanel] = useState<{ data: PanelData; read: Read } | null>(null)
+  const [reactMood, setReactMood] = useState<Mood | null>(null)
+  const [reactColor, setReactColor] = useState<string | null>(null)
+  const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const closePanel = useCallback(() => {
+    if (reactTimer.current) clearTimeout(reactTimer.current)
+    setPanel(null)
+    setReactMood(null)
+    setReactColor(null)
+  }, [])
+
+  const openRead = useCallback((r: PlacedRead) => {
+    if (reactTimer.current) clearTimeout(reactTimer.current)
+    setPanel({ data: r.panel, read: r.read })
+    setReactMood("curious") // lean in; reads stay neutral white
+    setReactColor(null)
+  }, [])
+
+  const openPerson = useCallback((p: PlacedPerson) => {
+    if (reactTimer.current) clearTimeout(reactTimer.current)
+    setPanel({ data: p.panel, read: p.read })
+    setReactMood("curious")
+    setReactColor(p.color) // tint to that person's color while open
+  }, [])
+
+  // yes/no from the panel → SAME persistence as the bottom ReadHub, plus a
+  // brief avatar emote/tint that auto-decays before the panel closes.
+  const judge = useCallback(
+    (agreeIt: boolean) => {
+      const current = panel
+      if (!current) return
+      if (agreeIt) agree(current.read)
+      else disagree(current.read, "skip")
+      setReactMood(agreeIt ? "agree" : "disagree")
+      setReactColor(agreeIt ? AGREE_COLOR : DISAGREE_COLOR)
+      if (reactTimer.current) clearTimeout(reactTimer.current)
+      reactTimer.current = setTimeout(() => closePanel(), 820)
+    },
+    [panel, agree, disagree, closePanel],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (reactTimer.current) clearTimeout(reactTimer.current)
+    }
+  }, [])
+
+  // Mirror the latest placements + openers into refs so the (stable) pointer
+  // effect can resolve a tap to the right object without re-subscribing.
+  const readsRef = useRef(reads)
+  readsRef.current = reads
+  const peopleRef = useRef(placedPeople)
+  peopleRef.current = placedPeople
+  const openReadRef = useRef(openRead)
+  openReadRef.current = openRead
+  const openPersonRef = useRef(openPerson)
+  openPersonRef.current = openPerson
 
   // The spiral arm, as a trail of ASCII glyphs winding outward from the core.
   const glyphs = useMemo<Glyph[]>(() => {
@@ -167,21 +265,41 @@ export function SpiralUniverse({
 
   // READ objects — facets of the user's own chart, derived from the chart
   // engine output (chartRead.sections), placed in the inner ring by angle+r.
+  // Each carries the panel content + a Read that persists through the SAME
+  // agree/disagree pipeline the bottom ReadHub uses.
   const reads = useMemo<PlacedRead[]>(() => {
     return chartRead.sections.slice(0, READ_LAYOUT.length).map((s, i) => {
       const { angle, r } = READ_LAYOUT[i % READ_LAYOUT.length]
       const { x, y } = readPoint(angle, r)
-      return { label: s.label, x, y }
+      return {
+        label: s.label,
+        x,
+        y,
+        panel: { src: s.value.toLowerCase(), title: s.label, body: s.body },
+        read: { id: `chart-${slug(s.label)}`, category: "about-you", text: s.body },
+      }
     })
   }, [])
 
   // PEOPLE — the others in the spiral, placed ON the arm by their order, each
-  // in their own palette color.
+  // in their own palette color. Tapping opens the bond read.
   const placedPeople = useMemo<PlacedPerson[]>(() => {
     const n = people.length
     return people.map((person, i) => {
       const { x, y } = spiralPoint(personT(i, n))
-      return { person, x, y, color: colorById.get(person.id) ?? YOU_COLOR }
+      const read = makePersonRead(person.id, person.name)
+      return {
+        person,
+        x,
+        y,
+        color: colorById.get(person.id) ?? YOU_COLOR,
+        panel: {
+          src: "the bond between you",
+          title: `${person.name} × you`,
+          body: read.text,
+        },
+        read,
+      }
     })
   }, [people, colorById])
 
@@ -251,6 +369,9 @@ export function SpiralUniverse({
       ptsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
       draggingRef.current = true
       lastRef.current = { x: e.clientX, y: e.clientY }
+      downPtRef.current = { x: e.clientX, y: e.clientY }
+      movedRef.current = false
+      downTargetRef.current = e.target as HTMLElement | null
       try {
         stage.setPointerCapture(e.pointerId)
       } catch {
@@ -261,6 +382,14 @@ export function SpiralUniverse({
     const onPointerMove = (e: PointerEvent) => {
       if (ptsRef.current.has(e.pointerId)) {
         ptsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      }
+      // Once the pointer travels past the slop, this gesture is a drag, not a
+      // tap — suppress any object click that would otherwise fire on pointerup.
+      if (
+        !movedRef.current &&
+        Math.hypot(e.clientX - downPtRef.current.x, e.clientY - downPtRef.current.y) > TAP_SLOP
+      ) {
+        movedRef.current = true
       }
       // Two pointers → pinch zoom about their midpoint.
       if (ptsRef.current.size === 2) {
@@ -286,10 +415,43 @@ export function SpiralUniverse({
       apply()
     }
 
-    const clearPt = (e: PointerEvent) => {
+    // Resolve a tap: only when the gesture didn't move past the slop and wasn't
+    // a pinch. We use the element pressed at pointerdown (capture retargets the
+    // synthetic click, so onClick on the object is unreliable here).
+    const resolveTap = () => {
+      if (movedRef.current) return
+      const objEl = downTargetRef.current?.closest<HTMLElement>("[data-obj]")
+      if (!objEl) return
+      const type = objEl.dataset.obj
+      const idx = Number(objEl.dataset.objIndex)
+      if (Number.isNaN(idx)) return
+      if (type === "read") {
+        const r = readsRef.current[idx]
+        if (r) openReadRef.current(r)
+      } else if (type === "person") {
+        const p = peopleRef.current[idx]
+        if (p) openPersonRef.current(p)
+      }
+    }
+
+    const onPointerUp = (e: PointerEvent) => {
+      const wasPinch = ptsRef.current.size >= 2
       ptsRef.current.delete(e.pointerId)
       if (ptsRef.current.size < 2) pinchRef.current = 0
-      if (ptsRef.current.size === 0) draggingRef.current = false
+      if (ptsRef.current.size === 0) {
+        draggingRef.current = false
+        if (!wasPinch) resolveTap()
+        downTargetRef.current = null
+      }
+    }
+
+    const onPointerCancel = (e: PointerEvent) => {
+      ptsRef.current.delete(e.pointerId)
+      if (ptsRef.current.size < 2) pinchRef.current = 0
+      if (ptsRef.current.size === 0) {
+        draggingRef.current = false
+        downTargetRef.current = null
+      }
     }
 
     const onWheel = (e: WheelEvent) => {
@@ -300,8 +462,8 @@ export function SpiralUniverse({
 
     stage.addEventListener("pointerdown", onPointerDown)
     stage.addEventListener("pointermove", onPointerMove)
-    stage.addEventListener("pointerup", clearPt)
-    stage.addEventListener("pointercancel", clearPt)
+    stage.addEventListener("pointerup", onPointerUp)
+    stage.addEventListener("pointercancel", onPointerCancel)
     stage.addEventListener("wheel", onWheel, { passive: false })
 
     const onResize = () => apply()
@@ -402,15 +564,28 @@ export function SpiralUniverse({
           </svg>
         )}
 
-        {/* READ objects — facets of your chart in the inner ring. */}
+        {/* READ objects — facets of your chart in the inner ring. Tap to open. */}
         {reads.map((r) => (
           <div
             key={r.label}
-            className="absolute flex flex-col items-center"
+            role="button"
+            tabIndex={0}
+            aria-label={`Read: ${r.label}`}
+            onClick={() => {
+              if (movedRef.current) return // a drag, not a tap
+              openRead(r)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                openRead(r)
+              }
+            }}
+            className="group absolute flex cursor-pointer flex-col items-center"
             style={{ left: r.x, top: r.y, transform: "translate(-50%, -50%)" }}
           >
             <span
-              className="flex size-[26px] items-center justify-center rounded-full text-[11px]"
+              className="flex size-[26px] items-center justify-center rounded-full text-[11px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
               style={{
                 border: "1px solid #6a6a6a",
                 color: "#e8e4da",
@@ -429,29 +604,43 @@ export function SpiralUniverse({
           </div>
         ))}
 
-        {/* PEOPLE — placed on the spiral arm, each in their own color. */}
-        {placedPeople.map(({ person, x, y, color }) => (
+        {/* PEOPLE — placed on the spiral arm, each in their own color. Tap to
+            open the bond read. */}
+        {placedPeople.map((pp) => (
           <div
-            key={person.id}
-            className="absolute flex flex-col items-center"
-            style={{ left: x, top: y, transform: "translate(-50%, -50%)" }}
+            key={pp.person.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`Bond: ${pp.person.name}`}
+            onClick={() => {
+              if (movedRef.current) return // a drag, not a tap
+              openPerson(pp)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                openPerson(pp)
+              }
+            }}
+            className="group absolute flex cursor-pointer flex-col items-center"
+            style={{ left: pp.x, top: pp.y, transform: "translate(-50%, -50%)" }}
           >
             <span
-              className="flex size-[34px] items-center justify-center rounded-full text-[13px]"
+              className="flex size-[34px] items-center justify-center rounded-full text-[13px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
               style={{
-                border: `1.5px solid ${color}`,
-                color,
+                border: `1.5px solid ${pp.color}`,
+                color: pp.color,
                 backgroundColor: "#080808",
-                boxShadow: `0 0 14px ${color}`,
+                boxShadow: `0 0 14px ${pp.color}`,
               }}
             >
               {"\u2605"}
             </span>
             <span
               className="mt-1.5 max-w-24 truncate text-[12px] tracking-[1px]"
-              style={{ fontFamily: monoFont, color }}
+              style={{ fontFamily: monoFont, color: pp.color }}
             >
-              {person.name}
+              {pp.person.name}
             </span>
           </div>
         ))}
@@ -473,7 +662,12 @@ export function SpiralUniverse({
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-          <SelfAvatar mood={mood} growth={growth} size={230} />
+          <SelfAvatar
+            mood={reactMood ?? mood}
+            color={reactColor ?? NEUTRAL_COLOR}
+            growth={growth}
+            size={230}
+          />
         </div>
         {/* Tap target over the face → opens the chart read sheet */}
         {onSelectSelf && (
@@ -522,6 +716,10 @@ export function SpiralUniverse({
           Reset
         </button>
       </div>
+
+      {/* Slide-up read panel — tapping a read/person opens it; yes/no route to
+          the same agree/disagree persistence as the bottom ReadHub. */}
+      <UniverseReadPanel data={panel?.data ?? null} onJudge={judge} onClose={closePanel} />
     </div>
   )
 }
