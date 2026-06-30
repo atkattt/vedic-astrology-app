@@ -122,6 +122,7 @@ export function UniverseReadPanel({
       <div
         role="dialog"
         aria-modal="true"
+        aria-hidden={!open}
         className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[440px]"
         style={{
           background: "#070707",
@@ -132,6 +133,10 @@ export function UniverseReadPanel({
           transition: dragStart.current
             ? "none"
             : "transform .38s cubic-bezier(.3,.8,.3,1)",
+          // When closed, drop out of the a11y tree + pointer flow entirely so
+          // the off-screen yes/no buttons aren't focusable or clickable.
+          visibility: open ? "visible" : "hidden",
+          pointerEvents: open ? "auto" : "none",
           fontFamily: mono,
         }}
       >

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Person } from "@/lib/db/schema"
@@ -15,49 +15,23 @@ import { AvatarReadSheet } from "@/components/circle/avatar-read-sheet"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
-import { useSpiral } from "@/components/spiral/spiral-provider"
-import ReadHub from "@/components/spiral/read-hub"
-import { type ReasonTag } from "@/lib/spiral/reads"
+
 import { Button } from "@/components/ui/button"
 import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info } from "lucide-react"
 
 export function CircleView({ userName }: { userName: string }) {
   const router = useRouter()
   const { guest, people, relationships } = useCircleData()
-  const { currentRead, queue, agree, disagree } = useSpiral()
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [readSheetOpen, setReadSheetOpen] = useState(false)
 
-  // The central avatar's expression. Agree/disagree flash a transient mood that
-  // auto-returns to "idle" so it can be re-triggered on the next read.
-  const [mood, setMood] = useState<Mood>("idle")
-  const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const flashMood = useCallback((m: Mood) => {
-    if (moodTimer.current) clearTimeout(moodTimer.current)
-    // Snap to idle first so re-picking the same answer twice in a row still
-    // re-triggers the expression (prop must actually change), then flash it.
-    setMood("idle")
-    requestAnimationFrame(() => setMood(m))
-    moodTimer.current = setTimeout(() => setMood("idle"), 1400)
-  }, [])
-
-  const handleAgree = useCallback(() => {
-    if (!currentRead) return
-    flashMood("agree")
-    agree(currentRead)
-  }, [currentRead, agree, flashMood])
-
-  const handleDisagree = useCallback(
-    (reason?: string) => {
-      if (!currentRead) return
-      flashMood("disagree")
-      disagree(currentRead, (reason ?? "skip") as ReasonTag)
-    },
-    [currentRead, disagree, flashMood],
-  )
+  // The central avatar's resting expression. Per-read reactions (agree /
+  // disagree / curious + color) are now driven inside SpiralUniverse itself
+  // when an object is tapped, so the base mood here just stays idle.
+  const mood: Mood = "idle"
 
   const peopleById = useMemo(() => {
     const map = new Map<number, Person>()
@@ -195,39 +169,9 @@ export function CircleView({ userName }: { userName: string }) {
             colorById={colorById}
             mood={mood}
             growth={Math.min(1, 0.35 + people.length * 0.1)}
-            onSelectSelf={() => setReadSheetOpen(true)}
           />
         )}
       </div>
-
-      {/* Core loop: a read about you, surfaced over the constellation */}
-      <div className="relative z-20 mx-auto flex w-full max-w-md justify-center px-5 pb-8 pt-4">
-        {currentRead ? (
-          <ReadHub
-            read={currentRead.text}
-            remaining={queue.length}
-            onAgree={handleAgree}
-            onDisagree={handleDisagree}
-          />
-        ) : (
-          <div className="w-full rounded-2xl border border-border bg-popover/60 p-6 text-center backdrop-blur-sm">
-            <span className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Sparkles className="size-5" />
-            </span>
-            <p className="text-pretty font-serif text-base italic leading-relaxed text-muted-foreground">
-              You&apos;ve read everything the sky has for now. Add a truth of
-              your own, or revisit your history.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <AvatarReadSheet
-        open={readSheetOpen}
-        onClose={() => setReadSheetOpen(false)}
-        mood={mood}
-        growth={Math.min(1, 0.35 + people.length * 0.1)}
-      />
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
       <PersonDetail
