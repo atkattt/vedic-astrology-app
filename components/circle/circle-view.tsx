@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import type { Person } from "@/lib/db/schema"
 import { authClient } from "@/lib/auth-client"
 import { RELATIONSHIP_LABELS, type RelationshipKind } from "@/lib/relationships"
-import { Starfield } from "@/components/starfield"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
@@ -76,8 +75,6 @@ export function CircleView({ userName }: { userName: string }) {
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
-      <Starfield count={90} />
-
       {/* Header: exit on the left, burger menu on the top-right corner */}
       <header className="relative z-30 flex items-center justify-between px-5 pt-6">
         <button

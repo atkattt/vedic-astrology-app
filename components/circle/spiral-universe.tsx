@@ -65,15 +65,6 @@ type Glyph = {
   delay: number
 }
 
-type WorldStar = {
-  x: number
-  y: number
-  size: number
-  opacity: number
-  duration: string
-  delay: string
-}
-
 // READ objects (facets of your own chart) live in the inner ring, placed by
 // angle + radius — NOT on the spiral arm. These fixed slots keep them spread
 // evenly around the avatar; chart sections fill them in order.
@@ -235,28 +226,6 @@ export function SpiralUniverse({
       })
     }
     return out
-  }, [])
-
-  // Starfield baked into the universe so it parallaxes as you pan/zoom.
-  // Seeded PRNG keeps positions stable across SSR + client (no hydration drift).
-  const stars = useMemo<WorldStar[]>(() => {
-    let seed = 7
-    const rand = () => {
-      seed = (seed * 9301 + 49297) % 233280
-      return seed / 233280
-    }
-    return Array.from({ length: 220 }).map(() => {
-      const r = 80 + rand() * 860
-      const a = rand() * Math.PI * 2
-      return {
-        x: Math.cos(a) * r,
-        y: Math.sin(a) * r,
-        size: rand() < 0.85 ? 1 : 2,
-        opacity: 0.2 + rand() * 0.55,
-        duration: `${3 + rand() * 5}s`,
-        delay: `${rand() * 6}s`,
-      }
-    })
   }, [])
 
   // READ objects — facets of the user's own chart, derived from the chart
@@ -505,25 +474,6 @@ export function SpiralUniverse({
         className="absolute left-0 top-0"
         style={{ width: 0, height: 0, transformOrigin: "0 0", willChange: "transform" }}
       >
-        {/* Parallaxing starfield, scattered across world space */}
-        {stars.map((s, i) => (
-          <span
-            key={`star-${i}`}
-            className="animate-twinkle absolute rounded-full bg-foreground"
-            style={{
-              left: s.x,
-              top: s.y,
-              width: s.size,
-              height: s.size,
-              opacity: s.opacity,
-              transform: "translate(-50%, -50%)",
-              // @ts-expect-error custom property consumed by the twinkle keyframes
-              "--twinkle-duration": s.duration,
-              animationDelay: s.delay,
-            }}
-          />
-        ))}
-
         {/* Spiral arm — a trail of pulsating glyphs winding out from the core */}
         {glyphs.map((g) => (
           <span
