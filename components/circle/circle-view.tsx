@@ -18,7 +18,13 @@ import { useCircleData } from "@/components/circle/circle-data-provider"
 import { Button } from "@/components/ui/button"
 import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info } from "lucide-react"
 
-export function CircleView({ userName }: { userName: string }) {
+export function CircleView({
+  userName,
+  initialRevealRadius,
+}: {
+  userName: string
+  initialRevealRadius: number
+}) {
   const router = useRouter()
   const { guest, people, relationships } = useCircleData()
   const [addOpen, setAddOpen] = useState(false)
@@ -159,13 +165,15 @@ export function CircleView({ userName }: { userName: string }) {
         {people.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
-          <SpiralUniverse
-            people={people}
-            relationships={relationships}
-            colorById={colorById}
-            mood={mood}
-            growth={Math.min(1, 0.35 + people.length * 0.1)}
-          />
+              <SpiralUniverse
+                people={people}
+                relationships={relationships}
+                colorById={colorById}
+                mood={mood}
+                growth={Math.min(1, 0.35 + people.length * 0.1)}
+                guest={guest}
+                initialRevealRadius={initialRevealRadius}
+              />
         )}
       </div>
 

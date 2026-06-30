@@ -88,5 +88,14 @@ export const relationships = pgTable("relationships", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
+// Per-user exploration progress for the explorable universe (Layer 4). Stores
+// how far the "revealed frontier" has expanded from the center. One row per user.
+export const userProgress = pgTable("user_progress", {
+  userId: text("userId").primaryKey(),
+  revealRadius: integer("revealRadius").notNull().default(150),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+})
+
 export type Person = typeof people.$inferSelect
 export type Relationship = typeof relationships.$inferSelect
+export type UserProgress = typeof userProgress.$inferSelect

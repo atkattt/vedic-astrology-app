@@ -8,6 +8,7 @@ import { chartRead } from "@/lib/spiral/chart-read"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
+import { saveRevealRadius } from "@/app/actions/progress"
 
 // Neutral self color — a glowing white, NOT gold. Reactions tint away from it.
 const NEUTRAL_COLOR = "#e8e4da"
@@ -38,6 +39,17 @@ const TAP_SLOP = 6
 const MIN_SCALE = 0.4
 const MAX_SCALE = 4
 
+// ---- Layer 4: progressive reveal ----------------------------------------
+// The universe starts mostly in void. Each answered read pushes a circular
+// "revealed frontier" outward from center; objects/stars now inside it
+// materialize (fade up, desaturate→color, scale into place). Objects beyond
+// the frontier stay dimly visible but locked (not clickable, no label).
+// Starting frontier: reveals just the innermost read(s) around the avatar so
+// there's always an entry point, while people (further out on the arm) and the
+// outer read ring stay in void until you answer.
+const BASE_REVEAL_RADIUS = 175
+const REVEAL_STEP = 120 // how far each answer pushes the frontier outward
+
 // Spiral geometry in world units, centered on (0,0).
 const TURNS = 3
 const MAX_R = 480
@@ -59,6 +71,7 @@ type Glyph = {
   key: number
   x: number
   y: number
+  r: number
   char: string
   size: number
   max: number
@@ -95,6 +108,7 @@ type PlacedRead = {
   label: string
   x: number
   y: number
+  r: number
   panel: PanelData
   read: Read
 }
@@ -102,6 +116,7 @@ type PlacedPerson = {
   person: Person
   x: number
   y: number
+  r: number
   color: string
   panel: PanelData
   read: Read
@@ -119,6 +134,8 @@ export function SpiralUniverse({
   mood = "idle",
   growth,
   onSelectSelf,
+  guest,
+  initialRevealRadius = BASE_REVEAL_RADIUS,
 }: {
   people: Person[]
   relationships: Relationship[]
@@ -126,6 +143,8 @@ export function SpiralUniverse({
   mood?: Mood
   growth: number
   onSelectSelf?: () => void
+  guest: boolean
+  initialRevealRadius?: number
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const universeRef = useRef<HTMLDivElement | null>(null)
@@ -147,6 +166,15 @@ export function SpiralUniverse({
   const downTargetRef = useRef<HTMLElement | null>(null)
 
   const { agree, disagree } = useSpiral()
+
+  // ---- Layer 4: the revealed frontier --------------------------------------
+  // How far the universe has been uncovered, in world units from center.
+  // Seeded from the user's saved progress so returning users keep their world.
+  const [revealRadius, setRevealRadius] = useState(initialRevealRadius)
+  // Mirror into a ref so the (stable) pointer handler can gate taps on locked
+  // objects without re-subscribing.
+  const revealRadiusRef = useRef(revealRadius)
+  revealRadiusRef.current = revealRadius
 
   // The open read/person panel + the avatar's transient reaction.
   const [panel, setPanel] = useState<{ data: PanelData; read: Read } | null>(null)
@@ -185,10 +213,18 @@ export function SpiralUniverse({
       else disagree(current.read, "skip")
       setReactMood(agreeIt ? "agree" : "disagree")
       setReactColor(agreeIt ? AGREE_COLOR : DISAGREE_COLOR)
+      // Both YES and NO are self-knowledge — both push the frontier outward and
+      // materialize more of the universe. Persist for authed users so the
+      // revealed world stays revealed across sessions; guests stay in memory.
+      setRevealRadius((prev) => {
+        const next = prev + REVEAL_STEP
+        if (!guest) void saveRevealRadius(next).catch(() => {})
+        return next
+      })
       if (reactTimer.current) clearTimeout(reactTimer.current)
       reactTimer.current = setTimeout(() => closePanel(), 820)
     },
-    [panel, agree, disagree, closePanel],
+    [panel, agree, disagree, closePanel, guest],
   )
 
   useEffect(() => {
@@ -219,6 +255,7 @@ export function SpiralUniverse({
         key: i,
         x,
         y,
+        r: dist,
         char: chars[i % chars.length],
         size: 7 + Math.min(t, 1.4) * 9,
         max: (0.16 + Math.min(t, 1) * 0.34) * edgeFade,
@@ -240,6 +277,7 @@ export function SpiralUniverse({
         label: s.label,
         x,
         y,
+        r: Math.hypot(x, y),
         panel: { src: s.value.toLowerCase(), title: s.label, body: s.body },
         read: { id: `chart-${slug(s.label)}`, category: "about-you", text: s.body },
       }
@@ -257,6 +295,7 @@ export function SpiralUniverse({
         person,
         x,
         y,
+        r: Math.hypot(x, y),
         color: colorById.get(person.id) ?? YOU_COLOR,
         panel: {
           src: "the bond between you",
@@ -401,12 +440,14 @@ export function SpiralUniverse({
       const type = objEl.dataset.obj
       const idx = Number(objEl.dataset.objIndex)
       if (Number.isNaN(idx)) return
+      // Locked objects (beyond the revealed frontier) can't be opened — the
+      // user has to expand the frontier by answering reads first.
       if (type === "read") {
         const r = readsRef.current[idx]
-        if (r) openReadRef.current(r)
+        if (r && r.r <= revealRadiusRef.current) openReadRef.current(r)
       } else if (type === "person") {
         const p = peopleRef.current[idx]
-        if (p) openPersonRef.current(p)
+        if (p && p.r <= revealRadiusRef.current) openPersonRef.current(p)
       }
     }
 
@@ -461,6 +502,13 @@ export function SpiralUniverse({
   const monoFont =
     "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 
+  // Progress HUD: how many real objects (reads + people) sit inside the
+  // revealed frontier vs. how many exist in total.
+  const totalObjects = reads.length + placedPeople.length
+  const revealedObjects =
+    reads.filter((r) => r.r <= revealRadius).length +
+    placedPeople.filter((p) => p.r <= revealRadius).length
+
   return (
     <div
       ref={stageRef}
@@ -474,27 +522,34 @@ export function SpiralUniverse({
         className="absolute left-0 top-0"
         style={{ width: 0, height: 0, transformOrigin: "0 0", willChange: "transform" }}
       >
-        {/* Spiral arm — a trail of pulsating glyphs winding out from the core */}
-        {glyphs.map((g) => (
-          <span
-            key={`glyph-${g.key}`}
-            className="animate-glyph-pulse absolute select-none"
-            style={{
-              left: g.x,
-              top: g.y,
-              fontFamily: monoFont,
-              fontSize: g.size,
-              lineHeight: 1,
-              color: "oklch(0.62 0 0)",
-              transform: "translate(-50%, -50%)",
-              // @ts-expect-error custom property consumed by the pulse keyframes
-              "--glyph-max": g.max,
-              animationDelay: `${g.delay}s`,
-            }}
-          >
-            {g.char}
-          </span>
-        ))}
+        {/* Spiral arm — a trail of pulsating glyphs winding out from the core.
+            Glyphs beyond the revealed frontier are barely-there points of light
+            (locked stars); answering reads expands the frontier and they
+            materialize up to their full pulse amplitude. */}
+        {glyphs.map((g) => {
+          const locked = g.r > revealRadius
+          return (
+            <span
+              key={`glyph-${g.key}`}
+              className="animate-glyph-pulse absolute select-none"
+              style={{
+                left: g.x,
+                top: g.y,
+                fontFamily: monoFont,
+                fontSize: g.size,
+                lineHeight: 1,
+                color: "oklch(0.62 0 0)",
+                transform: "translate(-50%, -50%)",
+                // @ts-expect-error custom property consumed by the pulse keyframes
+                "--glyph-max": locked ? 0.04 : g.max,
+                transition: "color 1s ease",
+                animationDelay: `${g.delay}s`,
+              }}
+            >
+              {g.char}
+            </span>
+          )
+        })}
 
         {/* Bonds — faint dashed lines between connected people, in world
             coords. Drawn beneath the nodes via a zero-size, overflow-visible
@@ -524,81 +579,121 @@ export function SpiralUniverse({
         {/* READ objects — facets of your chart in the inner ring. Tap to open.
             Taps resolve in the stage's pointerup handler (via data-obj), since
             pointer capture makes per-element onClick unreliable here. */}
-        {reads.map((r, i) => (
-          <div
-            key={r.label}
-            data-obj="read"
-            data-obj-index={i}
-            role="button"
-            tabIndex={0}
-            aria-label={`Read: ${r.label}`}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                openRead(r)
-              }
-            }}
-            className="group absolute flex cursor-pointer flex-col items-center"
-            style={{ left: r.x, top: r.y, transform: "translate(-50%, -50%)" }}
-          >
-            <span
-              className="flex size-[26px] items-center justify-center rounded-full text-[11px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
+        {reads.map((r, i) => {
+          const locked = r.r > revealRadius
+          return (
+            <div
+              key={r.label}
+              data-obj="read"
+              data-obj-index={i}
+              role="button"
+              tabIndex={locked ? -1 : 0}
+              aria-hidden={locked || undefined}
+              aria-label={`Read: ${r.label}`}
+              onKeyDown={(e) => {
+                if (locked) return
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  openRead(r)
+                }
+              }}
+              className="group absolute flex flex-col items-center"
               style={{
-                border: "1px solid #6a6a6a",
-                color: "#e8e4da",
-                backgroundColor: "#080808",
-                boxShadow: "0 0 10px rgba(245,245,245,0.2)",
+                left: r.x,
+                top: r.y,
+                transform: `translate(-50%, -50%) scale(${locked ? 0.7 : 1})`,
+                opacity: locked ? 0.12 : 1,
+                filter: locked ? "grayscale(1) blur(1px)" : "none",
+                pointerEvents: locked ? "none" : "auto",
+                cursor: locked ? "default" : "pointer",
+                transition:
+                  "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {"\u2726"}
-            </span>
-            <span
-              className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
-              style={{ fontFamily: monoFont, color: "#8a8a8a" }}
-            >
-              {r.label}
-            </span>
-          </div>
-        ))}
+              <span
+                className="flex size-[26px] items-center justify-center rounded-full text-[11px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
+                style={{
+                  border: "1px solid #6a6a6a",
+                  color: "#e8e4da",
+                  backgroundColor: "#080808",
+                  boxShadow: locked ? "none" : "0 0 10px rgba(245,245,245,0.2)",
+                }}
+              >
+                {"\u2726"}
+              </span>
+              <span
+                className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
+                style={{
+                  fontFamily: monoFont,
+                  color: "#8a8a8a",
+                  opacity: locked ? 0 : 1,
+                  transition: "opacity 1s ease",
+                }}
+              >
+                {r.label}
+              </span>
+            </div>
+          )
+        })}
 
         {/* PEOPLE — placed on the spiral arm, each in their own color. Tap to
             open the bond read. */}
-        {placedPeople.map((pp, i) => (
-          <div
-            key={pp.person.id}
-            data-obj="person"
-            data-obj-index={i}
-            role="button"
-            tabIndex={0}
-            aria-label={`Bond: ${pp.person.name}`}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                openPerson(pp)
-              }
-            }}
-            className="group absolute flex cursor-pointer flex-col items-center"
-            style={{ left: pp.x, top: pp.y, transform: "translate(-50%, -50%)" }}
-          >
-            <span
-              className="flex size-[34px] items-center justify-center rounded-full text-[13px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
+        {placedPeople.map((pp, i) => {
+          const locked = pp.r > revealRadius
+          return (
+            <div
+              key={pp.person.id}
+              data-obj="person"
+              data-obj-index={i}
+              role="button"
+              tabIndex={locked ? -1 : 0}
+              aria-hidden={locked || undefined}
+              aria-label={`Bond: ${pp.person.name}`}
+              onKeyDown={(e) => {
+                if (locked) return
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  openPerson(pp)
+                }
+              }}
+              className="group absolute flex flex-col items-center"
               style={{
-                border: `1.5px solid ${pp.color}`,
-                color: pp.color,
-                backgroundColor: "#080808",
-                boxShadow: `0 0 14px ${pp.color}`,
+                left: pp.x,
+                top: pp.y,
+                transform: `translate(-50%, -50%) scale(${locked ? 0.7 : 1})`,
+                opacity: locked ? 0.12 : 1,
+                filter: locked ? "grayscale(1) blur(1px)" : "none",
+                pointerEvents: locked ? "none" : "auto",
+                cursor: locked ? "default" : "pointer",
+                transition:
+                  "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {"\u2605"}
-            </span>
-            <span
-              className="mt-1.5 max-w-24 truncate text-[12px] tracking-[1px]"
-              style={{ fontFamily: monoFont, color: pp.color }}
-            >
-              {pp.person.name}
-            </span>
-          </div>
-        ))}
+              <span
+                className="flex size-[34px] items-center justify-center rounded-full text-[13px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
+                style={{
+                  border: `1.5px solid ${pp.color}`,
+                  color: pp.color,
+                  backgroundColor: "#080808",
+                  boxShadow: locked ? "none" : `0 0 14px ${pp.color}`,
+                }}
+              >
+                {"\u2605"}
+              </span>
+              <span
+                className="mt-1.5 max-w-24 truncate text-[12px] tracking-[1px]"
+                style={{
+                  fontFamily: monoFont,
+                  color: pp.color,
+                  opacity: locked ? 0 : 1,
+                  transition: "opacity 1s ease",
+                }}
+              >
+                {pp.person.name}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       {/* ===== Pinned avatar: a separate layer, never transformed by the
@@ -642,12 +737,25 @@ export function SpiralUniverse({
       </div>
 
       {/* ===== HUD ===== */}
-      <p
-        className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground/40"
-        style={{ fontFamily: monoFont }}
-      >
-        Drag to move · scroll / pinch to zoom
-      </p>
+      {/* Progress: how much of your universe you've uncovered so far. */}
+      <div className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col items-center gap-1">
+        <p
+          className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70"
+          style={{ fontFamily: monoFont }}
+        >
+          your universe ·{" "}
+          <span className="text-foreground/80">
+            {revealedObjects} of {totalObjects}
+          </span>{" "}
+          revealed
+        </p>
+        <p
+          className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/40"
+          style={{ fontFamily: monoFont }}
+        >
+          Drag to move · scroll / pinch to zoom
+        </p>
+      </div>
 
       <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
         <HudButton
