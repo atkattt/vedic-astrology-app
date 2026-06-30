@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
+import type { Person, Relationship } from "@/lib/db/schema"
+import { YOU_COLOR } from "@/lib/circle/colors"
+import { chartRead } from "@/lib/spiral/chart-read"
 
 /**
  * SpiralUniverse — Layer 1 of the explorable universe.
@@ -60,29 +63,47 @@ type WorldStar = {
   delay: string
 }
 
-type Marker = {
-  label: string
-  x: number
-  y: number
-  color: string
-  glyph: string
-}
-
-// Placeholder markers (Layer 2 replaces these with real reads + people).
-const MARKERS: Marker[] = [
-  { label: "core", x: 150, y: -96, color: "#cfcbc1", glyph: "✦" },
-  { label: "gift", x: -168, y: 64, color: "#cfcbc1", glyph: "✦" },
-  { label: "turn", x: 64, y: 188, color: "#cfcbc1", glyph: "✦" },
-  { label: "Mara", x: 372, y: -228, color: "#d98a9a", glyph: "★" },
-  { label: "Théo", x: -432, y: 148, color: "#7fc4d4", glyph: "★" },
-  { label: "Ines", x: 128, y: 446, color: "#a99ad9", glyph: "★" },
+// READ objects (facets of your own chart) live in the inner ring, placed by
+// angle + radius — NOT on the spiral arm. These fixed slots keep them spread
+// evenly around the avatar; chart sections fill them in order.
+const READ_LAYOUT: { angle: number; r: number }[] = [
+  { angle: -0.5, r: 172 },
+  { angle: 1.1, r: 205 },
+  { angle: 2.5, r: 158 },
+  { angle: 3.7, r: 232 },
+  { angle: 5.0, r: 190 },
 ]
 
+// PEOPLE live ON the spiral arm, further out than the reads. The first person
+// added sits innermost; each subsequent one is placed further along the arm.
+const PERSON_MIN_T = 0.52
+const PERSON_MAX_T = 1.12
+
+function personT(i: number, n: number) {
+  if (n <= 1) return 0.7
+  return PERSON_MIN_T + (PERSON_MAX_T - PERSON_MIN_T) * (i / (n - 1))
+}
+
+// A read placed in the inner ring by angle + radius.
+function readPoint(angle: number, r: number) {
+  return { x: Math.cos(angle) * r, y: Math.sin(angle) * r }
+}
+
+type PlacedRead = { label: string; x: number; y: number }
+type PlacedPerson = { person: Person; x: number; y: number; color: string }
+type PlacedBond = { id: number; x1: number; y1: number; x2: number; y2: number }
+
 export function SpiralUniverse({
+  people,
+  relationships,
+  colorById,
   mood = "idle",
   growth,
   onSelectSelf,
 }: {
+  people: Person[]
+  relationships: Relationship[]
+  colorById: Map<number, string>
   mood?: Mood
   growth: number
   onSelectSelf?: () => void
@@ -143,6 +164,39 @@ export function SpiralUniverse({
       }
     })
   }, [])
+
+  // READ objects — facets of the user's own chart, derived from the chart
+  // engine output (chartRead.sections), placed in the inner ring by angle+r.
+  const reads = useMemo<PlacedRead[]>(() => {
+    return chartRead.sections.slice(0, READ_LAYOUT.length).map((s, i) => {
+      const { angle, r } = READ_LAYOUT[i % READ_LAYOUT.length]
+      const { x, y } = readPoint(angle, r)
+      return { label: s.label, x, y }
+    })
+  }, [])
+
+  // PEOPLE — the others in the spiral, placed ON the arm by their order, each
+  // in their own palette color.
+  const placedPeople = useMemo<PlacedPerson[]>(() => {
+    const n = people.length
+    return people.map((person, i) => {
+      const { x, y } = spiralPoint(personT(i, n))
+      return { person, x, y, color: colorById.get(person.id) ?? YOU_COLOR }
+    })
+  }, [people, colorById])
+
+  // BONDS — faint dashed lines between connected people, in world coords.
+  const bonds = useMemo<PlacedBond[]>(() => {
+    const byId = new Map(placedPeople.map((pp) => [pp.person.id, pp]))
+    const out: PlacedBond[] = []
+    for (const r of relationships) {
+      const a = byId.get(r.fromPersonId)
+      const b = byId.get(r.toPersonId)
+      if (!a || !b) continue
+      out.push({ id: r.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y })
+    }
+    return out
+  }, [relationships, placedPeople])
 
   const apply = useCallback(() => {
     const stage = stageRef.current
@@ -323,28 +377,81 @@ export function SpiralUniverse({
           </span>
         ))}
 
-        {/* Placeholder object markers, positioned in world coordinates */}
-        {MARKERS.map((m) => (
+        {/* Bonds — faint dashed lines between connected people, in world
+            coords. Drawn beneath the nodes via a zero-size, overflow-visible
+            SVG anchored at the universe origin. */}
+        {bonds.length > 0 && (
+          <svg
+            className="absolute left-0 top-0 overflow-visible"
+            style={{ width: 0, height: 0 }}
+            aria-hidden="true"
+          >
+            {bonds.map((b) => (
+              <line
+                key={b.id}
+                x1={b.x1}
+                y1={b.y1}
+                x2={b.x2}
+                y2={b.y2}
+                stroke="#3a3550"
+                strokeWidth={1}
+                strokeDasharray="3 5"
+                opacity={0.5}
+              />
+            ))}
+          </svg>
+        )}
+
+        {/* READ objects — facets of your chart in the inner ring. */}
+        {reads.map((r) => (
           <div
-            key={m.label}
+            key={r.label}
             className="absolute flex flex-col items-center"
-            style={{ left: m.x, top: m.y, transform: "translate(-50%, -50%)" }}
+            style={{ left: r.x, top: r.y, transform: "translate(-50%, -50%)" }}
           >
             <span
-              className="flex size-8 items-center justify-center rounded-full text-[10px]"
+              className="flex size-[26px] items-center justify-center rounded-full text-[11px]"
               style={{
-                border: `1px solid ${m.color}`,
-                color: m.color,
-                boxShadow: `0 0 10px ${m.color}`,
+                border: "1px solid #6a6a6a",
+                color: "#e8e4da",
+                backgroundColor: "#080808",
+                boxShadow: "0 0 10px rgba(245,245,245,0.2)",
               }}
             >
-              {m.glyph}
+              {"\u2726"}
             </span>
             <span
-              className="mt-1.5 text-[11px] tracking-widest"
-              style={{ fontFamily: monoFont, color: "#9a9a9a" }}
+              className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
+              style={{ fontFamily: monoFont, color: "#8a8a8a" }}
             >
-              {m.label}
+              {r.label}
+            </span>
+          </div>
+        ))}
+
+        {/* PEOPLE — placed on the spiral arm, each in their own color. */}
+        {placedPeople.map(({ person, x, y, color }) => (
+          <div
+            key={person.id}
+            className="absolute flex flex-col items-center"
+            style={{ left: x, top: y, transform: "translate(-50%, -50%)" }}
+          >
+            <span
+              className="flex size-[34px] items-center justify-center rounded-full text-[13px]"
+              style={{
+                border: `1.5px solid ${color}`,
+                color,
+                backgroundColor: "#080808",
+                boxShadow: `0 0 14px ${color}`,
+              }}
+            >
+              {"\u2605"}
+            </span>
+            <span
+              className="mt-1.5 max-w-24 truncate text-[12px] tracking-[1px]"
+              style={{ fontFamily: monoFont, color }}
+            >
+              {person.name}
             </span>
           </div>
         ))}

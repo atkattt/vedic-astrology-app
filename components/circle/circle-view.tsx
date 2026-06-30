@@ -190,6 +190,9 @@ export function CircleView({ userName }: { userName: string }) {
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
           <SpiralUniverse
+            people={people}
+            relationships={relationships}
+            colorById={colorById}
             mood={mood}
             growth={Math.min(1, 0.35 + people.length * 0.1)}
             onSelectSelf={() => setReadSheetOpen(true)}
