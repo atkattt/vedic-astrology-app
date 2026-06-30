@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Starfield } from "@/components/starfield"
 import { StoryReadCards } from "@/components/threshold/story-read-cards"
+import AsciiSpiral from "@/components/threshold/ascii-spiral"
 
 // The loading stages cycle while the chart "reads". Later this list will be
 // driven by the real engine; for now it's a timed simulation (~4.5s total).
@@ -45,26 +46,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
         />
 
         <div className="relative z-10 flex flex-col items-center">
-          {/* Slowly rotating spiral, drawn in ASCII */}
-          <pre
-            aria-hidden="true"
-            className="animate-spin-slow select-none font-mono leading-none"
-            style={{
-              ...glowText,
-              fontSize: "9px",
-              letterSpacing: "1px",
-              margin: 0,
-            }}
-          >
-{` .-"""""-.
-/  .---.  \\
-| / .-. \\ |
-|| |   | ||
-|| '   ' /|
-| \\ '-'  /
- \\ '---;'
-  '-..-' `}
-          </pre>
+          {/* Spiral drawn in ASCII — matches the SelfAvatar glyph palette,
+              winding infinitely inward into a dark core. */}
+          <AsciiSpiral size={150} />
 
           {/* Cycling status line */}
           <p
