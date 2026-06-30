@@ -11,7 +11,7 @@ import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
 import { SpiralUniverse } from "@/components/circle/spiral-universe"
-import { AvatarReadSheet } from "@/components/circle/avatar-read-sheet"
+
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
@@ -26,7 +26,6 @@ export function CircleView({ userName }: { userName: string }) {
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [readSheetOpen, setReadSheetOpen] = useState(false)
 
   // The central avatar's resting expression. Per-read reactions (agree /
   // disagree / curious + color) are now driven inside SpiralUniverse itself
