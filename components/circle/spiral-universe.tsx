@@ -206,17 +206,6 @@ export function SpiralUniverse({
     }
   }, [])
 
-  // Mirror the latest placements + openers into refs so the (stable) pointer
-  // effect can resolve a tap to the right object without re-subscribing.
-  const readsRef = useRef(reads)
-  readsRef.current = reads
-  const peopleRef = useRef(placedPeople)
-  peopleRef.current = placedPeople
-  const openReadRef = useRef(openRead)
-  openReadRef.current = openRead
-  const openPersonRef = useRef(openPerson)
-  openPersonRef.current = openPerson
-
   // The spiral arm, as a trail of ASCII glyphs winding outward from the core.
   const glyphs = useMemo<Glyph[]>(() => {
     const chars = ["+", "*", "✦"]
@@ -315,6 +304,17 @@ export function SpiralUniverse({
     }
     return out
   }, [relationships, placedPeople])
+
+  // Mirror the latest placements + openers into refs so the (stable) pointer
+  // effect can resolve a tap to the right object without re-subscribing.
+  const readsRef = useRef(reads)
+  readsRef.current = reads
+  const peopleRef = useRef(placedPeople)
+  peopleRef.current = placedPeople
+  const openReadRef = useRef(openRead)
+  openReadRef.current = openRead
+  const openPersonRef = useRef(openPerson)
+  openPersonRef.current = openPerson
 
   const apply = useCallback(() => {
     const stage = stageRef.current
@@ -475,8 +475,8 @@ export function SpiralUniverse({
     return () => {
       stage.removeEventListener("pointerdown", onPointerDown)
       stage.removeEventListener("pointermove", onPointerMove)
-      stage.removeEventListener("pointerup", clearPt)
-      stage.removeEventListener("pointercancel", clearPt)
+      stage.removeEventListener("pointerup", onPointerUp)
+      stage.removeEventListener("pointercancel", onPointerCancel)
       stage.removeEventListener("wheel", onWheel)
       window.removeEventListener("resize", onResize)
     }
@@ -564,17 +564,17 @@ export function SpiralUniverse({
           </svg>
         )}
 
-        {/* READ objects — facets of your chart in the inner ring. Tap to open. */}
-        {reads.map((r) => (
+        {/* READ objects — facets of your chart in the inner ring. Tap to open.
+            Taps resolve in the stage's pointerup handler (via data-obj), since
+            pointer capture makes per-element onClick unreliable here. */}
+        {reads.map((r, i) => (
           <div
             key={r.label}
+            data-obj="read"
+            data-obj-index={i}
             role="button"
             tabIndex={0}
             aria-label={`Read: ${r.label}`}
-            onClick={() => {
-              if (movedRef.current) return // a drag, not a tap
-              openRead(r)
-            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault()
@@ -606,16 +606,14 @@ export function SpiralUniverse({
 
         {/* PEOPLE — placed on the spiral arm, each in their own color. Tap to
             open the bond read. */}
-        {placedPeople.map((pp) => (
+        {placedPeople.map((pp, i) => (
           <div
             key={pp.person.id}
+            data-obj="person"
+            data-obj-index={i}
             role="button"
             tabIndex={0}
             aria-label={`Bond: ${pp.person.name}`}
-            onClick={() => {
-              if (movedRef.current) return // a drag, not a tap
-              openPerson(pp)
-            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault()
