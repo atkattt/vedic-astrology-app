@@ -206,6 +206,13 @@ export function SpiralUniverse({
     }
   }, [])
 
+  // When a read/bond panel is open it slides up from the bottom and can cover
+  // the centered avatar. Lift the avatar into the upper area so it stays fully
+  // visible above the panel. The amount scales with the stage height.
+  const avatarLift = panel
+    ? Math.min(220, Math.max(120, (stageRef.current?.clientHeight ?? 720) * 0.2))
+    : 0
+
   // The spiral arm, as a trail of ASCII glyphs winding outward from the core.
   const glyphs = useMemo<Glyph[]>(() => {
     const chars = ["+", "*", "✦"]
@@ -644,10 +651,16 @@ export function SpiralUniverse({
         ))}
       </div>
 
-      {/* ===== Pinned avatar: a separate layer, never transformed ===== */}
+      {/* ===== Pinned avatar: a separate layer, never transformed by the
+          camera. It lifts upward while a panel is open so it stays visible. ===== */}
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-        style={{ width: 230, height: 230 }}
+        className="pointer-events-none absolute left-1/2 top-1/2 z-[60]"
+        style={{
+          width: 230,
+          height: 230,
+          transform: `translate(-50%, calc(-50% - ${avatarLift}px))`,
+          transition: "transform .4s cubic-bezier(.3,.8,.3,1)",
+        }}
       >
         {/* Dark radial backdrop so the core reads cleanly over the glyph trail */}
         <div
