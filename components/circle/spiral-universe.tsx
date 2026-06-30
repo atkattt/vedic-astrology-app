@@ -177,6 +177,17 @@ export function SpiralUniverse({
   const revealRadiusRef = useRef(revealRadius)
   revealRadiusRef.current = revealRadius
 
+  // Track the previous frontier so we can flare-in only the objects that just
+  // crossed into the revealed zone this step. The ref lags one render behind:
+  // during the render right after an expansion it still holds the old radius,
+  // which is exactly the window we use to detect "newly revealed".
+  const prevRevealRef = useRef(revealRadius)
+  useEffect(() => {
+    prevRevealRef.current = revealRadius
+  }, [revealRadius])
+  const justRevealed = (r: number) =>
+    r > prevRevealRef.current && r <= revealRadius
+
   // The open read/person panel + the avatar's transient reaction.
   const [panel, setPanel] = useState<{ data: PanelData; read: Read } | null>(null)
   const [reactMood, setReactMood] = useState<Mood | null>(null)
@@ -514,7 +525,16 @@ export function SpiralUniverse({
     <div
       ref={stageRef}
       className="absolute inset-0 overflow-hidden"
-      style={{ touchAction: "none", cursor: "grab", userSelect: "none" }}
+      style={{
+        touchAction: "none",
+        cursor: "grab",
+        userSelect: "none",
+        // Charcoal void: a near-black field that lifts faintly toward the
+        // center, so the explored core feels lit and the unexplored edges
+        // recede into darkness.
+        background:
+          "radial-gradient(120% 120% at 50% 50%, oklch(0.19 0 0) 0%, oklch(0.13 0 0) 45%, oklch(0.08 0 0) 100%)",
+      }}
     >
       {/* ===== The universe layer: everything here pans + zooms ===== */}
       <div
@@ -523,6 +543,22 @@ export function SpiralUniverse({
         className="absolute left-0 top-0"
         style={{ width: 0, height: 0, transformOrigin: "0 0", willChange: "transform" }}
       >
+        {/* Frontier pulse: a faint ring flashes at the current reveal radius
+            whenever it expands, marking the edge of what you've uncovered.
+            Keyed on revealRadius so it remounts + re-animates on each step. */}
+        <span
+          key={`frontier-${revealRadius}`}
+          className="animate-frontier-pulse absolute rounded-full"
+          style={{
+            left: -revealRadius,
+            top: -revealRadius,
+            width: revealRadius * 2,
+            height: revealRadius * 2,
+            border: "1px solid oklch(0.92 0 0)",
+            boxShadow: "0 0 24px oklch(0.92 0 0 / 0.4)",
+          }}
+        />
+
         {/* Spiral arm — a trail of pulsating glyphs winding out from the core.
             Glyphs beyond the revealed frontier are barely-there points of light
             (locked stars); answering reads expands the frontier and they
@@ -542,7 +578,7 @@ export function SpiralUniverse({
                 color: "oklch(0.62 0 0)",
                 transform: "translate(-50%, -50%)",
                 // @ts-expect-error custom property consumed by the pulse keyframes
-                "--glyph-max": locked ? 0.04 : g.max,
+                "--glyph-max": locked ? 0.12 : g.max,
                 transition: "color 1s ease",
                 animationDelay: `${g.delay}s`,
               }}
@@ -598,13 +634,15 @@ export function SpiralUniverse({
                   openRead(r)
                 }
               }}
-              className="group absolute flex flex-col items-center"
+              className={`group absolute flex flex-col items-center${
+                justRevealed(r.r) ? " animate-flare-in" : ""
+              }`}
               style={{
                 left: r.x,
                 top: r.y,
-                transform: `translate(-50%, -50%) scale(${locked ? 0.7 : 1})`,
-                opacity: locked ? 0.12 : 1,
-                filter: locked ? "grayscale(1) blur(1px)" : "none",
+                transform: `translate(-50%, -50%) scale(${locked ? 0.78 : 1})`,
+                opacity: locked ? 0.34 : 1,
+                filter: locked ? "grayscale(0.8) blur(0.5px)" : "none",
                 pointerEvents: locked ? "none" : "auto",
                 cursor: locked ? "default" : "pointer",
                 transition:
@@ -657,13 +695,15 @@ export function SpiralUniverse({
                   openPerson(pp)
                 }
               }}
-              className="group absolute flex flex-col items-center"
+              className={`group absolute flex flex-col items-center${
+                justRevealed(pp.r) ? " animate-flare-in" : ""
+              }`}
               style={{
                 left: pp.x,
                 top: pp.y,
-                transform: `translate(-50%, -50%) scale(${locked ? 0.7 : 1})`,
-                opacity: locked ? 0.12 : 1,
-                filter: locked ? "grayscale(1) blur(1px)" : "none",
+                transform: `translate(-50%, -50%) scale(${locked ? 0.78 : 1})`,
+                opacity: locked ? 0.34 : 1,
+                filter: locked ? "grayscale(0.8) blur(0.5px)" : "none",
                 pointerEvents: locked ? "none" : "auto",
                 cursor: locked ? "default" : "pointer",
                 transition:

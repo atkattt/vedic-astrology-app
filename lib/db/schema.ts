@@ -92,7 +92,7 @@ export const relationships = pgTable("relationships", {
 // how far the "revealed frontier" has expanded from the center. One row per user.
 export const userProgress = pgTable("user_progress", {
   userId: text("userId").primaryKey(),
-  revealRadius: integer("revealRadius").notNull().default(175),
+  revealRadius: integer("revealRadius").notNull().default(240),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })
 
