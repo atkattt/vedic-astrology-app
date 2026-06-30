@@ -8,7 +8,7 @@ import { CircleDataProvider } from "@/components/circle/circle-data-provider"
 import { DEMO_PEOPLE, DEMO_RELATIONSHIPS } from "@/lib/circle/demo"
 
 // Starting frontier for fresh / guest universes (mirrors BASE_REVEAL_RADIUS).
-const BASE_REVEAL_RADIUS = 175
+const BASE_REVEAL_RADIUS = 240
 
 export default async function CirclePage() {
   const session = await auth.api.getSession({ headers: await headers() })

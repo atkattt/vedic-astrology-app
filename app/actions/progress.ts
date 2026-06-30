@@ -6,9 +6,9 @@ import { userProgress } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { headers } from "next/headers"
 
-// The starting frontier — just the inner area around the avatar (mirrors the
-// BASE_REVEAL_RADIUS constant used on the client).
-const BASE_REVEAL_RADIUS = 175
+// The starting frontier — covers the user's own inner read-ring so their chart
+// is reachable from the start (mirrors BASE_REVEAL_RADIUS on the client).
+const BASE_REVEAL_RADIUS = 240
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })

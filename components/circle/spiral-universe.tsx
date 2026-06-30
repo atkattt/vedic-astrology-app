@@ -44,10 +44,11 @@ const MAX_SCALE = 4
 // "revealed frontier" outward from center; objects/stars now inside it
 // materialize (fade up, desaturate→color, scale into place). Objects beyond
 // the frontier stay dimly visible but locked (not clickable, no label).
-// Starting frontier: reveals just the innermost read(s) around the avatar so
-// there's always an entry point, while people (further out on the arm) and the
-// outer read ring stay in void until you answer.
-const BASE_REVEAL_RADIUS = 175
+// Starting frontier: covers ALL of the user's own read-facets (inner ring,
+// max radius ~232) so their own chart is reachable from the first moment —
+// locking your own facets behind progress would be confusing. Only PEOPLE,
+// placed further out on the arm (radius >= 250), reveal progressively.
+const BASE_REVEAL_RADIUS = 240
 const REVEAL_STEP = 120 // how far each answer pushes the frontier outward
 
 // Spiral geometry in world units, centered on (0,0).
