@@ -15,7 +15,6 @@ const STAGES = [
 
 // Glowing-white accent — never gold. Reused for emphasis words and the CTA.
 const glowText = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
-const fraunces = "var(--font-fraunces), Georgia, serif"
 
 export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   const [stage, setStage] = useState(0)
@@ -46,14 +45,26 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
         />
 
         <div className="relative z-10 flex flex-col items-center">
-          {/* Slowly rotating spiral glyph */}
-          <span
+          {/* Slowly rotating spiral, drawn in ASCII */}
+          <pre
             aria-hidden="true"
-            className="animate-spin-slow select-none text-5xl leading-none"
-            style={{ ...glowText, fontFamily: fraunces }}
+            className="animate-spin-slow select-none font-mono leading-none"
+            style={{
+              ...glowText,
+              fontSize: "9px",
+              letterSpacing: "1px",
+              margin: 0,
+            }}
           >
-            {"\u{AA5C}"}
-          </span>
+{` .-"""""-.
+/  .---.  \\
+| / .-. \\ |
+|| |   | ||
+|| '   ' /|
+| \\ '-'  /
+ \\ '---;'
+  '-..-' `}
+          </pre>
 
           {/* Cycling status line */}
           <p
