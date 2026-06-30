@@ -10,7 +10,7 @@ import { Starfield } from "@/components/starfield"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
-import { SpiralConstellation } from "@/components/circle/spiral-constellation"
+import { SpiralUniverse } from "@/components/circle/spiral-universe"
 import { AvatarReadSheet } from "@/components/circle/avatar-read-sheet"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
@@ -183,18 +183,16 @@ export function CircleView({ userName }: { userName: string }) {
         </div>
       </header>
 
-      {/* Constellation canvas — a drawn spiral with "You" at its center */}
+      {/* Constellation canvas — a draggable, zoomable universe with "You"
+          pinned at its center. (Layer 1: pan/zoom + placeholder markers.) */}
       <div className="relative z-10 flex-1">
         {people.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
-          <SpiralConstellation
-            people={people}
-            relationships={relationships}
-            colorById={colorById}
-            onSelect={setSelected}
-            onSelectSelf={() => setReadSheetOpen(true)}
+          <SpiralUniverse
             mood={mood}
+            growth={Math.min(1, 0.35 + people.length * 0.1)}
+            onSelectSelf={() => setReadSheetOpen(true)}
           />
         )}
       </div>
