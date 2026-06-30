@@ -543,19 +543,28 @@ export function SpiralUniverse({
         className="absolute left-0 top-0"
         style={{ width: 0, height: 0, transformOrigin: "0 0", willChange: "transform" }}
       >
-        {/* Frontier pulse: a faint ring flashes at the current reveal radius
-            whenever it expands, marking the edge of what you've uncovered.
-            Keyed on revealRadius so it remounts + re-animates on each step. */}
+        {/* Frontier pulse: a soft, fog-like bloom that swells at the current
+            reveal radius whenever it expands, marking the edge of what you've
+            uncovered. Rather than a hard ring it's an organic, blurred halo —
+            a radial gradient that glows toward its rim, with a slightly
+            irregular (non-circular) shape so it reads as drifting fog rather
+            than a geometric outline. Keyed on revealRadius so it remounts +
+            re-animates on each step. */}
         <span
           key={`frontier-${revealRadius}`}
-          className="animate-frontier-pulse absolute rounded-full"
+          className="animate-frontier-pulse absolute"
           style={{
-            left: -revealRadius,
-            top: -revealRadius,
-            width: revealRadius * 2,
-            height: revealRadius * 2,
-            border: "1px solid oklch(0.92 0 0)",
-            boxShadow: "0 0 24px oklch(0.92 0 0 / 0.4)",
+            left: -revealRadius * 1.18,
+            top: -revealRadius * 1.18,
+            width: revealRadius * 2.36,
+            height: revealRadius * 2.36,
+            // Organic, lava-lamp-ish blob outline (not a perfect circle).
+            borderRadius: "46% 54% 52% 48% / 52% 47% 53% 48%",
+            // Fog: transparent core, a diffuse luminous band near the frontier
+            // edge, fading back out — no hard stroke anywhere.
+            background:
+              "radial-gradient(circle, transparent 56%, oklch(0.92 0 0 / 0.10) 72%, oklch(0.95 0 0 / 0.22) 82%, oklch(0.92 0 0 / 0.08) 92%, transparent 100%)",
+            filter: "blur(14px)",
           }}
         />
 
@@ -756,6 +765,19 @@ export function SpiralUniverse({
             height: 230,
             background:
               "radial-gradient(circle, var(--background) 30%, color-mix(in oklch, var(--background) 70%, transparent) 58%, color-mix(in oklch, var(--background) 35%, transparent) 78%, transparent 100%)",
+          }}
+        />
+        {/* Glowing containment ring: a luminous circle that holds the avatar
+            in its own halo of light, separating "you" from the surrounding
+            universe. Soft inner + outer glow, thin bright stroke. */}
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            width: 172,
+            height: 172,
+            border: "1px solid oklch(0.95 0 0 / 0.55)",
+            boxShadow:
+              "0 0 24px oklch(0.95 0 0 / 0.30), inset 0 0 28px oklch(0.95 0 0 / 0.16)",
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
