@@ -49,6 +49,7 @@ export default async function WelcomePage() {
               buttonVariants({ size: "lg" }),
               "h-11 rounded-full px-10 font-mono text-sm uppercase tracking-widest",
             )}
+            style={{ color: "#2a2a2a" }}
           >
             Begin
           </Link>
@@ -60,7 +61,7 @@ export default async function WelcomePage() {
             className="text-foreground transition-colors hover:text-foreground"
             style={{ paddingBottom: "25px" }}
           >
-            <Eye className="size-5 text-black" />
+            <Eye className="size-5 text-white" />
           </Button>
         </div>
       </div>
