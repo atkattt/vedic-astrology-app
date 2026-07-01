@@ -25,7 +25,6 @@ export default async function WelcomePage() {
             fontFamily: '"JetBrains Mono", sans-serif',
             fontWeight: '700',
             textTransform: 'lowercase',
-            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
             letterSpacing: '-0.03em',
             lineHeight: '0.9em',
             fontSize: '39px',
@@ -57,10 +56,10 @@ export default async function WelcomePage() {
             nativeButton={false}
             variant="ghost"
             size="sm"
-            className="text-muted-foreground/70 transition-colors hover:text-foreground"
+            className="text-foreground transition-colors hover:text-foreground"
             style={{ paddingBottom: "25px" }}
           >
-            <Eye className="size-5" />
+            <Eye className="size-5 text-black" />
           </Button>
         </div>
       </div>
