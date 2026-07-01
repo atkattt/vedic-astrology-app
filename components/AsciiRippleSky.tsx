@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { SKY_CELL, skyField } from "@/lib/sky-field"
 
 /**
  * A full-screen, infinitely animating ASCII "ripple sky" rendered to a canvas.
@@ -29,7 +30,7 @@ export default function AsciiRippleSky() {
       12: 0.78, // medium spiral
       13: 1.0, // large spiral
     }
-    const cell = 14 // px per glyph cell
+    const cell = SKY_CELL // px per glyph cell (shared with the cloud layer)
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches
@@ -55,13 +56,8 @@ export default function AsciiRippleSky() {
     resize()
     window.addEventListener("resize", resize)
 
-    // A few moving ripple sources, expressed in grid coordinates.
-    const sources = [
-      { x: 0.3, y: 0.35, freq: 0.45, speed: 1.1 },
-      { x: 0.72, y: 0.62, freq: 0.32, speed: -0.8 },
-      { x: 0.5, y: 0.5, freq: 0.6, speed: 0.55 },
-    ]
-
+    // The ripple reads from the shared sky-field module (skyField / SKY_SOURCES)
+    // so the cloud layer behind us pulses from the exact same wave.
     let raf = 0
     let start = performance.now()
 
@@ -71,16 +67,7 @@ export default function AsciiRippleSky() {
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          let v = 0
-          for (const s of sources) {
-            const dx = c - s.x * cols
-            const dy = r - s.y * rows
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            v += Math.sin(dist * s.freq - t * s.speed)
-          }
-          // Normalize roughly to 0..1
-          let n = (v / sources.length + 1) / 2
-          n = Math.max(0, Math.min(1, n))
+          const n = skyField(c, r, cols, rows, t)
 
           const idx = Math.floor(n * (ramp.length - 1))
           const ch = ramp[idx]
@@ -125,8 +112,10 @@ export default function AsciiRippleSky() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0"
-      style={{ backgroundColor: "#000000" }}
+      className="pointer-events-none fixed inset-0 z-[1]"
+      // Transparent + screen blend so the ASCII glyphs sit as light ON TOP of
+      // the SwirlCloudSky (z-0) behind it — the two layers share one wave.
+      style={{ backgroundColor: "transparent", mixBlendMode: "screen" }}
     />
   )
 }

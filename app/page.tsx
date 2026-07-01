@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Eye } from "lucide-react"
+import SwirlCloudSky from "@/components/SwirlCloudSky"
 import AsciiRippleSky from "@/components/AsciiRippleSky"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -13,6 +14,8 @@ export default async function WelcomePage() {
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 py-16">
+      {/* Sky field: clouds (z-0) behind the ASCII ripple (z-1), one shared wave */}
+      <SwirlCloudSky />
       <AsciiRippleSky />
 
       <div className="relative z-10 flex flex-col items-center text-center">
