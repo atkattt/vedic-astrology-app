@@ -33,9 +33,12 @@ export function SelfSpaceView({ revealRadius }: { revealRadius: number }) {
       </header>
 
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-5 pb-24 pt-6">
-        {/* 1 — The self avatar */}
+        {/* 1 — The self avatar. Rendered identically to the spiral center in
+            the circle: same neutral tint (#e8e4da) and same size (230) so the
+            face + glow read exactly the same. Shrinking it distorted the face
+            because the glyph glow blur is a fixed pixel radius. */}
         <section className="flex flex-col items-center gap-3">
-          <SelfAvatar mood="idle" growth={growth} size={104} />
+          <SelfAvatar mood="idle" color="#e8e4da" growth={growth} size={230} />
           <p
             className="text-center font-serif text-base font-light lowercase text-foreground"
             style={{ textWrap: "balance" }}
