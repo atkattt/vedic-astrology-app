@@ -40,10 +40,26 @@ export function SelfSpaceView({
 
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-5 pb-24 pt-6">
         {/* 1 — The self avatar. Rendered identically to the spiral center in
-            the circle: same neutral tint (#e8e4da) and same size (230) so the
-            face + glow read exactly the same. */}
+            the circle: same neutral tint (#e8e4da), same size (230), AND the
+            same "screen" framing — an opaque dark backdrop disc with a subtle
+            ring, and an overflow-hidden circular container — so it reads
+            exactly the same as the one pinned at the center of /circle. */}
         <section className="flex flex-col items-center gap-3">
-          <SelfAvatar mood="idle" color="#e8e4da" growth={growth} size={230} />
+          <div className="relative" style={{ width: 230, height: 230 }}>
+            {/* Dark radial backdrop so the core reads cleanly, matching /circle */}
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                width: 172,
+                height: 172,
+                backgroundColor: "var(--background)",
+                border: "1px solid oklch(0.95 0 0 / 0.55)",
+              }}
+            />
+            <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+              <SelfAvatar mood="idle" color="#e8e4da" growth={growth} size={230} />
+            </div>
+          </div>
           <p
             className="text-center font-serif text-base font-light lowercase text-foreground"
             style={{ textWrap: "balance" }}
