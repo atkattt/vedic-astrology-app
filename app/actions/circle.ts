@@ -1,16 +1,18 @@
 "use server"
 
-import { auth } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 import { db } from "@/lib/db"
 import { people, relationships } from "@/lib/db/schema"
 import { and, asc, eq, inArray, or } from "drizzle-orm"
-import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 
 async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) throw new Error("Unauthorized")
-  return session.user.id
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+  return user.id
 }
 
 export async function getPeople() {

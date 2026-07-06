@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { authClient } from "@/lib/auth-client"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +15,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   const isSignUp = mode === "sign-up"
 
@@ -23,24 +24,62 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setError(null)
     setLoading(true)
 
+    const supabase = createClient()
+
     try {
       if (isSignUp) {
-        const { error } = await authClient.signUp.email({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          name: name.trim() || email.split("@")[0],
+          options: {
+            data: { name: name.trim() || email.split("@")[0] },
+            emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          },
         })
         if (error) throw new Error(error.message || "Could not create account")
-      } else {
-        const { error } = await authClient.signIn.email({ email, password })
-        if (error) throw new Error(error.message || "Could not sign in")
+        // Email confirmation is on: no session yet. If the email already
+        // exists Supabase returns an obfuscated user with no identities.
+        if (data.user && data.user.identities?.length === 0) {
+          throw new Error("An account with this email already exists")
+        }
+        setEmailSent(true)
+        setLoading(false)
+        return
       }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (error) throw new Error(error.message || "Could not sign in")
       router.push("/circle")
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
       setLoading(false)
     }
+  }
+
+  // After a successful sign-up we wait on email confirmation.
+  if (emailSent) {
+    return (
+      <div className="flex w-full flex-col gap-4 text-center">
+        <p className="font-serif text-lg font-light text-foreground">
+          check your email
+        </p>
+        <p className="font-mono text-xs leading-relaxed text-muted-foreground">
+          we sent a confirmation link to{" "}
+          <span className="text-foreground">{email}</span>. open it to finish
+          mapping your chart, then sign in.
+        </p>
+        <Link
+          href="/sign-in"
+          className="mt-2 font-mono text-xs uppercase tracking-widest text-foreground underline-offset-4 hover:underline"
+        >
+          Back to sign in
+        </Link>
+      </div>
+    )
   }
 
   return (

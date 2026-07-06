@@ -1,13 +1,15 @@
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Starfield } from "@/components/starfield"
 import { AuthForm } from "@/components/auth-form"
 
 export default async function SignInPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (session?.user) redirect("/circle")
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user) redirect("/circle")
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 py-16">

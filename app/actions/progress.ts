@@ -1,19 +1,21 @@
 "use server"
 
-import { auth } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 import { db } from "@/lib/db"
 import { userProgress } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
-import { headers } from "next/headers"
 
 // The starting frontier — covers the user's own inner read-ring so their chart
 // is reachable from the start (mirrors BASE_REVEAL_RADIUS on the client).
 const BASE_REVEAL_RADIUS = 240
 
 async function getUserId() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) throw new Error("Unauthorized")
-  return session.user.id
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+  return user.id
 }
 
 /** Read the saved reveal frontier for the current user (defaults to base). */
