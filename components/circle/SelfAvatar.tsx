@@ -64,10 +64,18 @@ export default function SelfAvatar({
   mood = "idle",
   growth = 0.4,
   size = 80,
+  color = null,
 }: {
   mood?: Mood;
   growth?: number;
   size?: number;
+  /**
+   * Optional tint that overrides the glyph color AND the glow/drop-shadow.
+   * When null/undefined the avatar keeps its mood-based gold glow (default for
+   * existing usages). The spiral universe passes a value here — neutral white
+   * (#e8e4da) at rest, or a person's color / green / rose during reactions.
+   */
+  color?: string | null;
 }) {
   const ref = useRef<HTMLPreElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -75,6 +83,7 @@ export default function SelfAvatar({
   // live values the loop reads (avoid re-subscribing the rAF on every prop change)
   const moodRef = useRef<Mood>(mood);
   const growthRef = useRef<number>(growth);
+  const colorRef = useRef<string | null>(color);
   const reactT = useRef<number>(0);
 
   const reduceMotion =
@@ -93,6 +102,10 @@ export default function SelfAvatar({
   useEffect(() => {
     growthRef.current = growth;
   }, [growth]);
+
+  useEffect(() => {
+    colorRef.current = color;
+  }, [color]);
 
   useEffect(() => {
     const el = ref.current;
@@ -202,7 +215,17 @@ export default function SelfAvatar({
       }
       el.textContent = out;
       const e = EXPR[moodRef.current] || EXPR.idle;
-      el.style.filter = `drop-shadow(0 0 9px rgba(${e.glow}))`;
+      const tint = colorRef.current;
+      if (tint != null) {
+        // Tinted mode: glyph + glow follow the color. White (#e8e4da) reads as
+        // the neutral glowing self; person colors / green / rose are reactions.
+        el.style.color = tint;
+        el.style.filter = `drop-shadow(0 0 12px ${tint})`;
+      } else {
+        // Untinted (default): keep the mood-based gold glow used elsewhere.
+        el.style.color = "#e8e4da";
+        el.style.filter = `drop-shadow(0 0 9px rgba(${e.glow}))`;
+      }
     };
 
     const loop = () => {

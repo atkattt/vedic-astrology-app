@@ -1,63 +1,41 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Person } from "@/lib/db/schema"
 import { authClient } from "@/lib/auth-client"
 import { RELATIONSHIP_LABELS, type RelationshipKind } from "@/lib/relationships"
-import { Starfield } from "@/components/starfield"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
-import { SpiralConstellation } from "@/components/circle/spiral-constellation"
-import { AvatarReadSheet } from "@/components/circle/avatar-read-sheet"
+import { SpiralUniverse } from "@/components/circle/spiral-universe"
+
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
-import { useSpiral } from "@/components/spiral/spiral-provider"
-import ReadHub from "@/components/spiral/read-hub"
-import { type ReasonTag } from "@/lib/spiral/reads"
+
 import { Button } from "@/components/ui/button"
 import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info } from "lucide-react"
 
-export function CircleView({ userName }: { userName: string }) {
+export function CircleView({
+  userName,
+  initialRevealRadius,
+}: {
+  userName: string
+  initialRevealRadius: number
+}) {
   const router = useRouter()
   const { guest, people, relationships } = useCircleData()
-  const { currentRead, queue, agree, disagree } = useSpiral()
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [readSheetOpen, setReadSheetOpen] = useState(false)
 
-  // The central avatar's expression. Agree/disagree flash a transient mood that
-  // auto-returns to "idle" so it can be re-triggered on the next read.
-  const [mood, setMood] = useState<Mood>("idle")
-  const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const flashMood = useCallback((m: Mood) => {
-    if (moodTimer.current) clearTimeout(moodTimer.current)
-    // Snap to idle first so re-picking the same answer twice in a row still
-    // re-triggers the expression (prop must actually change), then flash it.
-    setMood("idle")
-    requestAnimationFrame(() => setMood(m))
-    moodTimer.current = setTimeout(() => setMood("idle"), 1400)
-  }, [])
-
-  const handleAgree = useCallback(() => {
-    if (!currentRead) return
-    flashMood("agree")
-    agree(currentRead)
-  }, [currentRead, agree, flashMood])
-
-  const handleDisagree = useCallback(
-    (reason?: string) => {
-      if (!currentRead) return
-      flashMood("disagree")
-      disagree(currentRead, (reason ?? "skip") as ReasonTag)
-    },
-    [currentRead, disagree, flashMood],
-  )
+  // The central avatar's resting expression. Per-read reactions (agree /
+  // disagree / curious + color) are now driven inside SpiralUniverse itself
+  // when an object is tapped, so the base mood here just stays idle.
+  const mood: Mood = "idle"
 
   const peopleById = useMemo(() => {
     const map = new Map<number, Person>()
@@ -103,8 +81,6 @@ export function CircleView({ userName }: { userName: string }) {
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
-      <Starfield count={90} />
-
       {/* Header: exit on the left, burger menu on the top-right corner */}
       <header className="relative z-30 flex items-center justify-between px-5 pt-6">
         <button
@@ -183,50 +159,23 @@ export function CircleView({ userName }: { userName: string }) {
         </div>
       </header>
 
-      {/* Constellation canvas — a drawn spiral with "You" at its center */}
+      {/* Constellation canvas — a draggable, zoomable universe with "You"
+          pinned at its center. (Layer 1: pan/zoom + placeholder markers.) */}
       <div className="relative z-10 flex-1">
         {people.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
-          <SpiralConstellation
-            people={people}
-            relationships={relationships}
-            colorById={colorById}
-            onSelect={setSelected}
-            onSelectSelf={() => setReadSheetOpen(true)}
-            mood={mood}
-          />
+              <SpiralUniverse
+                people={people}
+                relationships={relationships}
+                colorById={colorById}
+                mood={mood}
+                growth={Math.min(1, 0.35 + people.length * 0.1)}
+                guest={guest}
+                initialRevealRadius={initialRevealRadius}
+              />
         )}
       </div>
-
-      {/* Core loop: a read about you, surfaced over the constellation */}
-      <div className="relative z-20 mx-auto flex w-full max-w-md justify-center px-5 pb-8 pt-4">
-        {currentRead ? (
-          <ReadHub
-            read={currentRead.text}
-            remaining={queue.length}
-            onAgree={handleAgree}
-            onDisagree={handleDisagree}
-          />
-        ) : (
-          <div className="w-full rounded-2xl border border-border bg-popover/60 p-6 text-center backdrop-blur-sm">
-            <span className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Sparkles className="size-5" />
-            </span>
-            <p className="text-pretty font-serif text-base italic leading-relaxed text-muted-foreground">
-              You&apos;ve read everything the sky has for now. Add a truth of
-              your own, or revisit your history.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <AvatarReadSheet
-        open={readSheetOpen}
-        onClose={() => setReadSheetOpen(false)}
-        mood={mood}
-        growth={Math.min(1, 0.35 + people.length * 0.1)}
-      />
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
       <PersonDetail

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Starfield } from "@/components/starfield"
 import { StoryReadCards } from "@/components/threshold/story-read-cards"
+import AsciiSpiral from "@/components/threshold/ascii-spiral"
 
 // The loading stages cycle while the chart "reads". Later this list will be
 // driven by the real engine; for now it's a timed simulation (~4.5s total).
@@ -15,7 +16,6 @@ const STAGES = [
 
 // Glowing-white accent — never gold. Reused for emphasis words and the CTA.
 const glowText = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
-const fraunces = "var(--font-fraunces), Georgia, serif"
 
 export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   const [stage, setStage] = useState(0)
@@ -46,14 +46,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
         />
 
         <div className="relative z-10 flex flex-col items-center">
-          {/* Slowly rotating spiral glyph */}
-          <span
-            aria-hidden="true"
-            className="animate-spin-slow select-none text-5xl leading-none"
-            style={{ ...glowText, fontFamily: fraunces }}
-          >
-            {"\u{AA5C}"}
-          </span>
+          {/* Spiral drawn in ASCII — matches the SelfAvatar glyph palette,
+              winding infinitely inward into a dark core. */}
+          <AsciiSpiral size={150} />
 
           {/* Cycling status line */}
           <p
