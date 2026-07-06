@@ -109,9 +109,18 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const evolveTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  // Read prefers-reduced-motion only AFTER mount. Reading `window` during render
+  // is a server/client branch that produced a hydration mismatch and left the
+  // dev preview stuck reloading. Start `false` (matching the server), then sync.
+  const [reduceMotion, setReduceMotion] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)")
+    if (!mq) return
+    setReduceMotion(mq.matches)
+    const onChange = () => setReduceMotion(mq.matches)
+    mq.addEventListener?.("change", onChange)
+    return () => mq.removeEventListener?.("change", onChange)
+  }, [])
 
   // ----- imperative reactions ------------------------------------------------
   useImperativeHandle(
