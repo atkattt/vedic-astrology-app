@@ -1,24 +1,33 @@
-import { auth } from "@/lib/auth"
-import { headers, cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getPeople, getRelationships } from "@/app/actions/circle"
 import { getRevealRadius } from "@/app/actions/progress"
 import { CircleView } from "@/components/circle/circle-view"
 import { CircleDataProvider } from "@/components/circle/circle-data-provider"
+import { BirthChartBootstrap } from "@/components/birth-chart-bootstrap"
 import { DEMO_PEOPLE, DEMO_RELATIONSHIPS } from "@/lib/circle/demo"
 
 // Starting frontier for fresh / guest universes (mirrors BASE_REVEAL_RADIUS).
 const BASE_REVEAL_RADIUS = 240
 
 export default async function CirclePage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (session?.user) {
+  if (user) {
     const [people, relationships, revealRadius] = await Promise.all([
       getPeople(),
       getRelationships(),
       getRevealRadius(),
     ])
+
+    const userName =
+      (user.user_metadata?.name as string | undefined) ||
+      user.email?.split("@")[0] ||
+      "You"
 
     return (
       <CircleDataProvider
@@ -26,10 +35,8 @@ export default async function CirclePage() {
         initialPeople={people}
         initialRelationships={relationships}
       >
-        <CircleView
-          userName={session.user.name}
-          initialRevealRadius={revealRadius}
-        />
+        <BirthChartBootstrap />
+        <CircleView userName={userName} initialRevealRadius={revealRadius} />
       </CircleDataProvider>
     )
   }

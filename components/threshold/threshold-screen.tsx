@@ -4,6 +4,13 @@ import { useEffect, useState } from "react"
 import { Starfield } from "@/components/starfield"
 import { StoryReadCards } from "@/components/threshold/story-read-cards"
 import AsciiSpiral from "@/components/threshold/ascii-spiral"
+import {
+  BIRTH_DATA_KEY,
+  BIRTH_NORMALIZED_KEY,
+  CHART_KEY,
+  normalizeBirthData,
+  type RawBirthData,
+} from "@/lib/birth-data"
 
 // The loading stages cycle while the chart "reads". Later this list will be
 // driven by the real engine; for now it's a timed simulation (~4.5s total).
@@ -20,17 +27,87 @@ const glowText = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45
 export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   const [stage, setStage] = useState(0)
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
     const timers: ReturnType<typeof setTimeout>[] = []
-    // Advance through each stage every ~1.1s.
+    // Advance through each stage every ~1.1s for the ritual's pacing.
     STAGES.forEach((_, i) => {
-      timers.push(setTimeout(() => setStage(i), i * 1100))
+      timers.push(setTimeout(() => !cancelled && setStage(i), i * 1100))
     })
-    // Finish the "read" at ~4.5s. The user is never yanked anywhere — the CTA
-    // simply appears and waits for them whenever they choose to continue.
-    timers.push(setTimeout(() => setReady(true), 4500))
-    return () => timers.forEach(clearTimeout)
+
+    // A minimum on-screen time so a fast read still feels like a "reading"
+    // rather than a flash.
+    const minDelay = new Promise<void>((res) => setTimeout(res, 4500))
+
+    // The real "read": normalize the onboarding answers, geocode the birth
+    // place, then ask the chart engine (the brain) to compute the chart.
+    async function computeChart() {
+      try {
+        const rawStr = sessionStorage.getItem(BIRTH_DATA_KEY)
+        if (!rawStr) {
+          throw new Error("we lost your birth details — begin again")
+        }
+        const raw = JSON.parse(rawStr) as RawBirthData
+        const norm = normalizeBirthData(raw)
+
+        if (!norm.place) throw new Error("we need your birth place to read the sky")
+
+        const geoRes = await fetch(
+          `/api/geocode?q=${encodeURIComponent(norm.place)}`,
+        )
+        const geo = await geoRes.json()
+        if (!geoRes.ok) {
+          throw new Error(geo.error || "couldn't place your birth city")
+        }
+
+        const chartRes = await fetch("/api/chart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: norm.date,
+            time: norm.time,
+            lat: geo.lat,
+            lng: geo.lng,
+            timezone: geo.timezone,
+          }),
+        })
+        const chart = await chartRes.json()
+        if (!chartRes.ok) {
+          throw new Error(chart.error || "the sky wouldn't read")
+        }
+
+        // Stash the computed chart + resolved location so the account step and
+        // the spiral can use them.
+        sessionStorage.setItem(
+          BIRTH_NORMALIZED_KEY,
+          JSON.stringify({
+            ...norm,
+            placeName: geo.name,
+            country: geo.country,
+            lat: geo.lat,
+            lng: geo.lng,
+            timezone: geo.timezone,
+          }),
+        )
+        sessionStorage.setItem(CHART_KEY, JSON.stringify(chart))
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "the read failed")
+        }
+      }
+    }
+
+    // Reveal the CTA once both the minimum time and the real computation finish.
+    Promise.all([computeChart(), minDelay]).then(() => {
+      if (!cancelled) setReady(true)
+    })
+
+    return () => {
+      cancelled = true
+      timers.forEach(clearTimeout)
+    }
   }, [])
 
   return (
@@ -56,7 +133,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             aria-live="polite"
           >
             {ready ? (
-              <span style={glowText}>{"\u2726 found you"}</span>
+              <span style={glowText}>
+                {error ? "\u2726 the read faltered" : "\u2726 found you"}
+              </span>
             ) : (
               STAGES[stage]
             )}
@@ -113,9 +192,15 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           >
             {"enter the spiral \u23CE"}
           </button>
-          <p className="relative z-10 mt-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-            your chart is ready
-          </p>
+          {error ? (
+            <p className="relative z-10 mt-3 max-w-xs text-center font-mono text-[10px] normal-case leading-relaxed tracking-[0.15em] text-destructive">
+              {error}
+            </p>
+          ) : (
+            <p className="relative z-10 mt-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+              your chart is ready
+            </p>
+          )}
         </div>
       )}
     </main>

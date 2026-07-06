@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Person } from "@/lib/db/schema"
-import { authClient } from "@/lib/auth-client"
+import { createClient } from "@/lib/supabase/client"
 import { RELATIONSHIP_LABELS, type RelationshipKind } from "@/lib/relationships"
 import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
@@ -74,7 +74,8 @@ export function CircleView({
       router.refresh()
       return
     }
-    await authClient.signOut()
+    const supabase = createClient()
+    await supabase.auth.signOut()
     router.push("/")
     router.refresh()
   }
