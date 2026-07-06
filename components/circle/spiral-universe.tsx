@@ -618,9 +618,7 @@ export function SpiralUniverse({
                 color: "oklch(0.62 0 0)",
                 transform: "translate(-50%, -50%)",
                 // @ts-expect-error custom property consumed by the pulse keyframes
-                // Round: React serializes the CSS var at full float precision,
-                // which the client re-computes slightly differently → mismatch.
-                "--glyph-max": locked ? 0.12 : Math.round(g.max * 10000) / 10000,
+                "--glyph-max": locked ? 0.12 : g.max,
                 transition: "color 1s ease",
                 animationDelay: `${g.delay}s`,
               }}
@@ -812,7 +810,7 @@ export function SpiralUniverse({
             size={230}
           />
         </div>
-        {/* Tap target over the face ��� opens the chart read sheet */}
+        {/* Tap target over the face → opens the chart read sheet */}
         {onSelectSelf && (
           <button
             type="button"
