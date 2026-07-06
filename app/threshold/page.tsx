@@ -9,9 +9,9 @@ export default function ThresholdPage() {
   return (
     <ThresholdScreen
       onEnter={() => {
-        // /guest sets the lightweight guest cookie and redirects to /circle,
-        // the spiral homepage with the self avatar.
-        router.push("/guest")
+        // The chart has been read from the birth data; now create an account to
+        // keep it. Sign-up reads the stashed chart after confirmation.
+        router.push("/sign-up")
       }}
     />
   )
