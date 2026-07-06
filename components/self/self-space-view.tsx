@@ -5,14 +5,20 @@ import { ArrowLeft, Lock } from "lucide-react"
 import SelfAvatar from "@/components/circle/SelfAvatar"
 import { Starfield } from "@/components/starfield"
 import { SelfChat } from "@/components/self/self-chat"
-import { chartRead } from "@/lib/spiral/chart-read"
+import { SelfReads } from "@/components/self/self-reads"
 import { CHAT_UNLOCK_RADIUS, unlockProgress } from "@/lib/self/unlock"
+import type { SelfReadsData } from "@/lib/self/reads-data"
 
 const MONO =
   "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
-const GLOW = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
 
-export function SelfSpaceView({ revealRadius }: { revealRadius: number }) {
+export function SelfSpaceView({
+  revealRadius,
+  reads,
+}: {
+  revealRadius: number
+  reads: SelfReadsData | null
+}) {
   const progress = unlockProgress(revealRadius)
   const unlocked = revealRadius >= CHAT_UNLOCK_RADIUS
   // The self grows more defined as the frontier expands.
@@ -35,8 +41,7 @@ export function SelfSpaceView({ revealRadius }: { revealRadius: number }) {
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-5 pb-24 pt-6">
         {/* 1 — The self avatar. Rendered identically to the spiral center in
             the circle: same neutral tint (#e8e4da) and same size (230) so the
-            face + glow read exactly the same. Shrinking it distorted the face
-            because the glyph glow blur is a fixed pixel radius. */}
+            face + glow read exactly the same. */}
         <section className="flex flex-col items-center gap-3">
           <SelfAvatar mood="idle" color="#e8e4da" growth={growth} size={230} />
           <p
@@ -50,88 +55,28 @@ export function SelfSpaceView({ revealRadius }: { revealRadius: number }) {
         {/* 2 — Talk to your self (gated) */}
         <section className="flex flex-col gap-3">
           <SectionLabel>talk to your self</SectionLabel>
-          {unlocked ? (
-            <SelfChat />
-          ) : (
-            <LockedChat progress={progress} />
-          )}
+          {unlocked ? <SelfChat /> : <LockedChat progress={progress} />}
         </section>
 
-        {/* 3 — Full personality chart read */}
-        <section className="flex flex-col gap-4">
+        {/* 3 — Full personality read: authored fragments matched to the chart */}
+        <section className="flex flex-col gap-5">
           <SectionLabel>your chart, read in full</SectionLabel>
-
-          <p
-            style={{
-              fontSize: 15,
-              lineHeight: 1.6,
-              letterSpacing: 0.4,
-              color: "#9a9a9a",
-            }}
-          >
-            <span style={{ color: "#555" }}>{"› "}</span>
-            <ReadSummary />
-          </p>
-
-          <div className="mt-2 flex flex-col gap-6">
-            {chartRead.sections.map((s) => (
-              <div key={s.label}>
-                <div
-                  className="flex items-baseline justify-between gap-3 pb-2"
-                  style={{ borderBottom: "1px solid #1a1a1a" }}
-                >
-                  <span
-                    style={{
-                      fontSize: 10,
-                      letterSpacing: 2,
-                      textTransform: "uppercase",
-                      color: "#4a4a4a",
-                      fontFamily: MONO,
-                    }}
-                  >
-                    {s.label}
-                  </span>
-                  <span
-                    className="text-right"
-                    style={{
-                      ...GLOW,
-                      fontSize: 11,
-                      letterSpacing: 0.5,
-                      fontFamily: MONO,
-                    }}
-                  >
-                    {s.value}
-                  </span>
-                </div>
-                <p
-                  className="mt-3"
-                  style={{
-                    fontSize: 13.5,
-                    lineHeight: 1.65,
-                    letterSpacing: 0.3,
-                    color: "#8a8a8a",
-                    fontFamily: MONO,
-                  }}
-                >
-                  <span style={{ color: "#555" }}>{"› "}</span>
-                  {s.body}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <p
-            className="mt-3"
-            style={{
-              fontSize: 10,
-              lineHeight: 1.7,
-              letterSpacing: 1,
-              color: "#555",
-              fontFamily: MONO,
-            }}
-          >
-            {chartRead.closing}
-          </p>
+          {reads ? (
+            <SelfReads data={reads} />
+          ) : (
+            <p
+              style={{
+                fontSize: 13.5,
+                lineHeight: 1.65,
+                letterSpacing: 0.3,
+                color: "#6a6a6a",
+                fontFamily: MONO,
+              }}
+            >
+              <span style={{ color: "#555" }}>{"› "}</span>
+              sign in to see your chart read in full.
+            </p>
+          )}
         </section>
       </div>
     </main>
@@ -151,19 +96,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     >
       {children}
     </span>
-  )
-}
-
-function ReadSummary() {
-  const { text, emphasis } = chartRead.summary
-  const idx = text.indexOf(emphasis)
-  if (idx === -1) return <>{text}</>
-  return (
-    <>
-      {text.slice(0, idx)}
-      <span style={GLOW}>{emphasis}</span>
-      {text.slice(idx + emphasis.length)}
-    </>
   )
 }
 

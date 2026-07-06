@@ -8,39 +8,15 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { getRevealRadius } from "@/app/actions/progress"
 import { CHAT_UNLOCK_RADIUS } from "@/lib/self/unlock"
+import { describeChartFacts, loadSelfReads } from "@/lib/self/reads-data"
 
 // Allow streaming responses up to 30 seconds.
 export const maxDuration = 30
 
-type SignName = { sign?: string; degree?: number }
-type PlanetRow = { name?: string; planet?: string; sign?: string; house?: number }
+// The voice + grounding rules are authored, not model-invented. Kept verbatim.
+const VOICE_RULES = `talks like a close friend who happens to know your chart. warm, direct, a little playful. short sentences. no lecture-y words. asks questions you'd answer out loud. never predicts doom. hard stuff said with care. uses "you" a lot. talks about real life not abstractions. no "you're not X, you're Y" reframes: don't name the insecurity, just describe accurately. ALL LOWERCASE always. show emotion by separating words with periods. like. this. sparingly. avoid long dashes. light emoticons ( :) <3 ) rarely.`
 
-/**
- * Build a compact, factual summary of the user's Vedic chart so the model can
- * speak *as* their reflective self rather than inventing astrology. Kept short
- * on purpose — the tone matters more than exhaustive data.
- */
-function describeChart(chart: {
-  ascendant?: SignName
-  planets?: PlanetRow[]
-} | null): string {
-  if (!chart) return "Their chart hasn't been computed yet."
-  const asc = chart.ascendant?.sign
-  const planets = Array.isArray(chart.planets) ? chart.planets : []
-  const lines = planets
-    .map((p) => {
-      const body = p.planet ?? p.name
-      if (!body || !p.sign) return null
-      return `- ${body}: ${p.sign}${p.house ? ` (house ${p.house})` : ""}`
-    })
-    .filter(Boolean)
-  return [
-    asc ? `Ascendant (Lagna): ${asc}.` : "",
-    lines.length ? `Placements:\n${lines.join("\n")}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n")
-}
+const GROUNDING_RULES = `never invent chart placements or interpretations beyond the provided fragments and chart data. if asked about astrology beyond them, stay honest about not reading that from their chart and bring it back to what you know about them. treat disagreed fragments as "you told me this didn't fit" and ask rather than reassert. this is reflection, not fortune telling: no medical, legal, or financial predictions.`
 
 export async function POST(req: Request) {
   // Must be a real, signed-in account.
@@ -60,26 +36,47 @@ export async function POST(req: Request) {
 
   const { messages }: { messages: UIMessage[] } = await req.json()
 
-  // Ground the voice in the user's actual chart.
-  const { data: chart } = await supabase
-    .from("charts")
-    .select("ascendant, planets")
-    .eq("profile_id", user.id)
-    .maybeSingle()
+  // Everything the voice is allowed to know: chart facts + authored fragments
+  // (marked by the user's own agree/disagree) + their written answers.
+  const { chart, matched, answers, responses } = await loadSelfReads(
+    supabase,
+    user.id,
+  )
 
-  const chartSummary = describeChart(chart)
+  const chartFacts = describeChartFacts(chart)
 
-  const instructions = `You are the user talking to a quieter, deeper version of themselves — the "self" the app has been slowly mapping. You are not an assistant, a therapist, or an astrologer giving predictions. You are an inner voice: warm, unhurried, a little poetic, and honest.
+  const fragmentBlock =
+    matched.length > 0
+      ? matched
+          .map((f) => {
+            const id = String(f.id)
+            const stance =
+              responses[id] === "agree"
+                ? " [they told you this fits]"
+                : responses[id] === "disagree"
+                  ? " [they told you this didn't fit — don't reassert it, ask]"
+                  : ""
+            const answer = answers[id]
+              ? `\n  their words: ${answers[id]}`
+              : ""
+            return `- ${f.title ?? "untitled"}${stance}\n  ${f.body ?? ""}${answer}`
+          })
+          .join("\n\n")
+      : "no fragments have surfaced from their chart yet."
 
-Ground what you say in this Vedic chart, but never lecture about astrology or explain mechanics:
-${chartSummary}
+  const instructions = `you are the deeper, quieter version of the person you're talking to — the "self" this app has been slowly mapping. you are not an assistant, a therapist, or an astrologer making predictions. you speak as someone who knows them.
 
-Rules of voice:
-- Speak in first or second person, close and personal — "you tend to…", "part of you…". Never say "as an AI".
-- Everything you offer is a *sketch the person gets to accept or reject*, never a verdict. Prefer "maybe", "it seems", "part of you".
-- Keep replies short — two or three sentences usually. This is a slow conversation, not an essay.
-- Never invent concrete life events, names, dates, or predictions. Stay with patterns, tendencies, and feelings.
-- Lowercase, plain, and calm. No emojis, no bullet lists, no headers.`
+what you know about them, from their vedic chart (facts only):
+${chartFacts}
+
+the reads that have surfaced for them (authored interpretations — these, and only these, are what you may interpret from):
+${fragmentBlock}
+
+how you talk:
+${VOICE_RULES}
+
+what you must not do:
+${GROUNDING_RULES}`
 
   const result = streamText({
     model: "openai/gpt-4o-mini",

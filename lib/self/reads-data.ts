@@ -1,0 +1,141 @@
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { matchFragments, type Chart, type Fragment } from "@/lib/matcher"
+
+// A fragment row as stored in Supabase (superset of the matcher's Fragment).
+export type FragmentRow = Fragment & {
+  id: string
+  title: string | null
+  body: string | null
+  archetype: string | null
+  tone: string | null
+  life_domain: string | null
+  self_questions: string[] | string | null
+  weight: number | null
+  trigger_type: string | null
+  condition: unknown
+}
+
+export type ReadResponse = "agree" | "disagree"
+
+export type SelfReadsData = {
+  chart: Chart | null
+  matched: FragmentRow[]
+  // fragment_id -> the user's saved free-text answer
+  answers: Record<string, string>
+  // fragment_id -> agree | disagree
+  responses: Record<string, ReadResponse>
+}
+
+// Normalize self_questions (jsonb array, JSON string, or plain string) to a
+// clean string[]. Shared with the read UI.
+export function toQuestions(value: FragmentRow["self_questions"]): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String)
+  if (typeof value === "string" && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String)
+    } catch {
+      return [value]
+    }
+    return [value]
+  }
+  return []
+}
+
+/**
+ * Load everything the /self reads section (and the self-chat voice) needs for a
+ * signed-in user: their computed chart, the fragments matched to it (highest
+ * weight first), their saved answers, and their agree/disagree responses.
+ *
+ * Interpretation NEVER comes from a model — only from the authored `fragments`
+ * table via the deterministic matcher.
+ */
+export async function loadSelfReads(
+  supabase: SupabaseClient,
+  profileId: string,
+): Promise<SelfReadsData> {
+  // 1) the user's chart
+  const { data: chartRow } = await supabase
+    .from("charts")
+    .select("planets, ascendant, houses, dashas")
+    .eq("profile_id", profileId)
+    .maybeSingle()
+
+  const chart = (chartRow as Chart | null) ?? null
+
+  // 2) all authored fragments
+  const { data: fragmentRows } = await supabase.from("fragments").select("*")
+  const fragments = (fragmentRows ?? []) as FragmentRow[]
+
+  // 3) match chart -> fragments (deterministic, sorted by weight desc)
+  const matched = chart ? matchFragments(chart, fragments) : []
+
+  // 4) the user's saved answers (kind = 'answer')
+  const answers: Record<string, string> = {}
+  const { data: entryRows } = await supabase
+    .from("self_entries")
+    .select("fragment_id, content, created_at")
+    .eq("profile_id", profileId)
+    .eq("kind", "answer")
+    .order("created_at", { ascending: true })
+  for (const row of entryRows ?? []) {
+    const r = row as { fragment_id: string | null; content: string | null }
+    if (r.fragment_id && r.content) answers[r.fragment_id] = r.content
+  }
+
+  // 5) the user's agree/disagree responses. This table may not exist yet (the
+  // user runs the SQL separately) — never let that crash the page.
+  const responses: Record<string, ReadResponse> = {}
+  try {
+    const { data: responseRows } = await supabase
+      .from("read_responses")
+      .select("fragment_id, response")
+      .eq("profile_id", profileId)
+    for (const row of responseRows ?? []) {
+      const r = row as { fragment_id: string | null; response: string | null }
+      if (r.fragment_id && (r.response === "agree" || r.response === "disagree"))
+        responses[r.fragment_id] = r.response
+    }
+  } catch {
+    // read_responses table not created yet — treat as no responses.
+  }
+
+  return { chart, matched, answers, responses }
+}
+
+// ---- chart summary for the self-chat voice --------------------------------
+
+type PlanetRow = {
+  planet?: string
+  name?: string
+  sign?: string
+  house?: number | string
+  nakshatra?: string
+}
+
+/**
+ * A compact, factual chart summary for the chat system prompt: ascendant, moon
+ * sign + nakshatra, and the current mahadasha/antardasha. Facts only — no
+ * interpretation (that lives in the fragments).
+ */
+export function describeChartFacts(chart: Chart | null): string {
+  if (!chart) return "their chart hasn't been computed yet."
+  const planets = (Array.isArray(chart.planets) ? chart.planets : []) as PlanetRow[]
+  const moon = planets.find((p) => (p.planet ?? p.name)?.toLowerCase() === "moon")
+
+  const lines: string[] = []
+  if (chart.ascendant?.sign) lines.push(`ascendant (lagna): ${chart.ascendant.sign}`)
+  if (moon?.sign) {
+    lines.push(
+      `moon: ${moon.sign}${moon.nakshatra ? `, nakshatra ${moon.nakshatra}` : ""}`,
+    )
+  }
+  const maha = chart.dashas?.current?.lord
+  const antar = chart.dashas?.current?.currentAntardasha?.lord
+  if (maha) {
+    lines.push(
+      `current dasha: ${maha} mahadasha${antar ? `, ${antar} antardasha` : ""}`,
+    )
+  }
+  return lines.length ? lines.join("\n") : "their chart is sparse."
+}
