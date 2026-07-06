@@ -345,18 +345,27 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
 
 /** A few faint glyph motes drifting within the circle. */
 function Dust({ color, size }: { color: string; size: number }) {
+  // The motes use Math.random(), which would differ between the server and
+  // client and cause a hydration mismatch (that mismatch was stalling the
+  // preview). They're purely decorative, so we generate them only AFTER mount:
+  // the server renders an empty layer and the client fills it in.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const motes = useMemo(
     () =>
-      Array.from({ length: 9 }).map((_, i) => ({
-        id: i,
-        left: 12 + Math.random() * 76, // %
-        top: 12 + Math.random() * 76, // %
-        delay: Math.random() * 6,
-        dur: 5 + Math.random() * 5,
-        char: Math.random() > 0.5 ? "·" : "*",
-        op: 0.12 + Math.random() * 0.22,
-      })),
-    [],
+      mounted
+        ? Array.from({ length: 9 }).map((_, i) => ({
+            id: i,
+            left: 12 + Math.random() * 76, // %
+            top: 12 + Math.random() * 76, // %
+            delay: Math.random() * 6,
+            dur: 5 + Math.random() * 5,
+            char: Math.random() > 0.5 ? "·" : "*",
+            op: 0.12 + Math.random() * 0.22,
+          }))
+        : [],
+    [mounted],
   )
   return (
     <div
