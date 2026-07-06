@@ -5,6 +5,7 @@ import { getPeople, getRelationships } from "@/app/actions/circle"
 import { getRevealRadius } from "@/app/actions/progress"
 import { CircleView } from "@/components/circle/circle-view"
 import { CircleDataProvider } from "@/components/circle/circle-data-provider"
+import { BirthChartBootstrap } from "@/components/birth-chart-bootstrap"
 import { DEMO_PEOPLE, DEMO_RELATIONSHIPS } from "@/lib/circle/demo"
 
 // Starting frontier for fresh / guest universes (mirrors BASE_REVEAL_RADIUS).
@@ -34,6 +35,7 @@ export default async function CirclePage() {
         initialPeople={people}
         initialRelationships={relationships}
       >
+        <BirthChartBootstrap />
         <CircleView userName={userName} initialRevealRadius={revealRadius} />
       </CircleDataProvider>
     )
