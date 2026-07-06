@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase"
+import { getSupabase } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
 
@@ -29,12 +29,23 @@ function toQuestions(value: Fragment["self_questions"]): string[] {
 }
 
 export default async function BrainPage() {
-  const { data, error } = await supabase
-    .from("fragments")
-    .select("*")
-    .order("weight", { ascending: false })
+  const { client, error: clientError } = getSupabase()
 
-  const fragments = (data ?? []) as Fragment[]
+  const result = client
+    ? await client
+        .from("fragments")
+        .select("*")
+        .order("weight", { ascending: false })
+    : { data: null, error: null }
+
+  // Surface either the missing-env error or the fetch error in one place.
+  const error = clientError
+    ? { message: clientError }
+    : result.error
+      ? { message: result.error.message }
+      : null
+
+  const fragments = (result.data ?? []) as Fragment[]
 
   return (
     <main className="min-h-[100dvh] bg-neutral-950 px-6 py-20 text-neutral-200 lowercase">
