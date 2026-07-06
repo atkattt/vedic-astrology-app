@@ -22,11 +22,14 @@ export function CircleView({
   userName,
   initialRevealRadius,
   engagementScore = 0,
+  userId,
 }: {
   userName: string
   initialRevealRadius: number
   /** drives the evolving self creature's stage at the universe center */
   engagementScore?: number
+  /** stable per-user seed so the creature regrows the exact same being */
+  userId?: string
 }) {
   const router = useRouter()
   const { guest, people, relationships } = useCircleData()
@@ -187,6 +190,7 @@ export function CircleView({
                 colorById={colorById}
                 mood={mood}
                 engagementScore={engagementScore}
+                userId={userId}
                 guest={guest}
                 initialRevealRadius={initialRevealRadius}
               />

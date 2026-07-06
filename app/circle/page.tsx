@@ -43,6 +43,7 @@ export default async function CirclePage() {
           userName={userName}
           initialRevealRadius={revealRadius}
           engagementScore={engagementScore}
+          userId={user.id}
         />
       </CircleDataProvider>
     )

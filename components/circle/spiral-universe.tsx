@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
-import { scoreToStage } from "@/lib/self/avatar-stages"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { YOU_COLOR } from "@/lib/circle/colors"
 import { chartRead } from "@/lib/spiral/chart-read"
@@ -135,6 +134,7 @@ export function SpiralUniverse({
   relationships,
   colorById,
   engagementScore = 0,
+  userId,
   onSelectSelf,
   guest,
   initialRevealRadius = BASE_REVEAL_RADIUS,
@@ -144,8 +144,10 @@ export function SpiralUniverse({
   colorById: Map<number, string>
   /** resting expression, retained for API compatibility (unused by creature) */
   mood?: Mood
-  /** drives the evolving self creature's discrete stage (1–5) */
+  /** drives the evolving self creature's stage + accretion detail count */
   engagementScore?: number
+  /** stable per-user seed so the creature regrows the exact same being */
+  userId?: string
   onSelectSelf?: () => void
   guest: boolean
   initialRevealRadius?: number
@@ -787,7 +789,8 @@ export function SpiralUniverse({
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
           <SelfCreature
             ref={creatureRef}
-            stage={scoreToStage(engagementScore)}
+            score={engagementScore}
+            seed={userId}
             color={reactColor ?? NEUTRAL_COLOR}
             size={230}
           />

@@ -8,19 +8,36 @@ import {
   useRef,
   useState,
 } from "react"
-import { STAGE_ART, MAX_STAGE, toBlinkArt } from "@/lib/self/avatar-stages"
+import {
+  STAGE_ART,
+  STAGE_1,
+  STAGE_5,
+  MAX_STAGE,
+  scoreToStage,
+  buildAccretionGrid,
+  buildDetails,
+  ZONE_OPACITY,
+  type PlacedDetail,
+} from "@/lib/self/avatar-stages"
 
 /**
  * SelfCreature — the evolving ASCII "you".
  *
- * Discrete forms (1–5) come from lib/self/avatar-stages.ts. The creature
- * breathes and blinks on its own, plays brief reactions on demand (agree /
- * disagree / submit), and — when its `stage` prop increases — dissolves the old
- * form into ascii dust and reassembles the new one with a quiet caption.
+ * Two growth systems layer here:
+ *   1. STAGES (1–5) — discrete skeletons from lib/self/avatar-stages.ts. When
+ *      the stage increases the old form dissolves and the new one reassembles.
+ *   2. ACCRETION — infinite growth. Every engagement point adds one persistent
+ *      detail (aura spark / body texture / edge whisker), placed deterministically
+ *      from seed = hash(userId + point index). New details flicker in; the rest
+ *      of the being stays perfectly stable.
+ *
+ * The whole being (skeleton + details) is drawn as ONE monospace grid of
+ * absolutely-positioned cells, so details always line up with the skeleton and
+ * ride along with breathing / reactions / evolution.
  *
  * Reactions are imperative so the reads UI can fire them without prop churn:
  *   const ref = useRef<SelfCreatureHandle>(null)
- *   <SelfCreature ref={ref} stage={stage} />
+ *   <SelfCreature ref={ref} score={score} seed={userId} />
  *   ref.current?.react("agree")
  */
 
@@ -31,44 +48,56 @@ export type SelfCreatureHandle = {
 }
 
 type Props = {
-  stage: number
+  /** engagement score — drives BOTH the stage and the accretion detail count */
+  score?: number
+  /** explicit stage override; ignored when `score` is provided */
+  stage?: number
+  /** per-user seed (e.g. the auth user id) so the being regrows identically */
+  seed?: string
   size?: number
   /** glyph + glow tint; defaults to the neutral glowing self */
   color?: string
 }
 
-// Center every line of an art block to a common width so it sits centered in
-// the circle regardless of how the stage was hand-drawn.
-function centerArt(art: string): string {
+// Lay an arbitrary stage skeleton, centered, into the fixed grid envelope so it
+// shares coordinates with the accretion details (which are built from stage 5).
+function layoutSkeleton(art: string, cols: number, rows: number): string[] {
   const lines = art.split("\n")
-  const width = Math.max(...lines.map((l) => l.length))
-  return lines
-    .map((l) => {
-      const pad = width - l.length
-      const left = Math.floor(pad / 2)
-      return " ".repeat(left) + l + " ".repeat(pad - left)
-    })
-    .join("\n")
-}
-
-function artDims(art: string): { cols: number; rows: number } {
-  const lines = art.split("\n")
-  return {
-    cols: Math.max(...lines.map((l) => l.length)),
-    rows: lines.length,
-  }
+  const w = Math.max(...lines.map((l) => l.length))
+  const top = Math.floor((rows - lines.length) / 2)
+  const left = Math.floor((cols - w) / 2)
+  const out = Array.from({ length: rows }, () => Array<string>(cols).fill(" "))
+  lines.forEach((line, i) => {
+    const lineLeft = left + Math.floor((w - line.length) / 2)
+    for (let j = 0; j < line.length; j++) {
+      const r = top + i
+      const c = lineLeft + j
+      if (r >= 0 && r < rows && c >= 0 && c < cols) out[r][c] = line[j]
+    }
+  })
+  return out.map((a) => a.join(""))
 }
 
 const REACTION_MS = 600
 const EVOLVE_OUT_MS = 420
 const EVOLVE_IN_MS = 480
 const CAPTION_MS = 1900
+const ACCRETE_MS = 800
+
+const MONO =
+  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 
 const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature(
-  { stage, size = 230, color = "#e8e4da" },
+  { score, stage, seed, size = 230, color = "#e8e4da" },
   ref,
 ) {
-  const clampedStage = Math.max(1, Math.min(MAX_STAGE, Math.round(stage)))
+  // Effective stage: score wins when present, else the explicit stage prop.
+  const effectiveStage =
+    score != null ? scoreToStage(score) : Math.round(stage ?? 1)
+  const clampedStage = Math.max(1, Math.min(MAX_STAGE, effectiveStage))
+
+  // One detail per growth point, no cap.
+  const detailCount = score != null && seed ? Math.max(0, Math.floor(score)) : 0
 
   // The form currently drawn. Lags the prop during an evolution transition.
   const [displayStage, setDisplayStage] = useState(clampedStage)
@@ -129,11 +158,9 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
       setDisplayStage(clampedStage)
       return
     }
-    // Clear any in-flight transition.
     evolveTimers.current.forEach(clearTimeout)
     evolveTimers.current = []
 
-    // Dissolve the old form → swap → assemble the new → caption.
     setEvolvePhase("out")
     evolveTimers.current.push(
       setTimeout(() => {
@@ -157,34 +184,75 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     }
   }, [clampedStage, displayStage, reduceMotion])
 
-  // ----- art text ------------------------------------------------------------
-  const baseArt = STAGE_ART[displayStage] ?? STAGE_ART[1]
-  const text = useMemo(() => {
-    const centered = centerArt(baseArt)
-    return blinking ? toBlinkArt(centered) : centered
-  }, [baseArt, blinking])
+  // ----- accretion: which details are freshly added (to flicker in) ----------
+  const prevCount = useRef(detailCount)
+  const [freshFrom, setFreshFrom] = useState(detailCount)
+  useEffect(() => {
+    if (detailCount > prevCount.current) {
+      setFreshFrom(prevCount.current) // animate indices >= previous count
+      const t = setTimeout(() => setFreshFrom(detailCount), ACCRETE_MS + 100)
+      prevCount.current = detailCount
+      return () => clearTimeout(t)
+    }
+    if (detailCount !== prevCount.current) {
+      prevCount.current = detailCount
+      setFreshFrom(detailCount)
+    }
+  }, [detailCount])
 
-  const { cols, rows } = useMemo(() => artDims(centerArt(baseArt)), [baseArt])
+  // ----- geometry (fixed to the mature stage-5 envelope) ---------------------
+  const grid = useMemo(() => buildAccretionGrid(STAGE_5), [])
+  const details = useMemo(
+    () => (seed ? buildDetails(seed, detailCount, grid) : []),
+    [seed, detailCount, grid],
+  )
+  const skelLines = useMemo(
+    () => layoutSkeleton(STAGE_ART[displayStage] ?? STAGE_1, grid.cols, grid.rows),
+    [displayStage, grid],
+  )
 
-  // Font sized so the widest line and the row count both fit the circle, with
-  // breathing room inside the 172px face disc.
+  // Font sized so the whole grid fits inside the face disc with aura room.
   const inner = size * 0.62
-  const fontPx = Math.min(inner / (cols + 1), inner / (rows + 0.5))
+  const cellW = useMemo(() => {
+    const byWidth = inner / (grid.cols * 0.6)
+    const byHeight = inner / (grid.rows * 1.05)
+    return Math.min(byWidth, byHeight) * 0.6
+  }, [inner, grid.cols, grid.rows])
+  const fontPx = cellW / 0.6
+  const rowH = fontPx * 1.05
+  const boardW = grid.cols * cellW
+  const boardH = grid.rows * rowH
 
   const evolving = evolvePhase !== "idle"
   const artOpacity = evolvePhase === "out" ? 0 : 1
   const artBlur = evolvePhase === "out" ? 6 : 0
-  const artScatter = evolvePhase === "out" ? 6 : 0
+  const evolveScale = evolvePhase === "out" ? 0.9 : 1
 
-  // Reaction transform / filter.
+  // Reaction animation on the whole being.
   let reactionAnim = "none"
   if (reaction === "agree") reactionAnim = `creatureBounce ${REACTION_MS}ms ease`
   else if (reaction === "disagree")
     reactionAnim = `creatureTilt ${REACTION_MS}ms ease`
   else if (reaction === "submit")
     reactionAnim = `creatureAbsorb ${REACTION_MS}ms ease`
+  const breatheAnim = reduceMotion
+    ? "none"
+    : "creatureBreathe 4.5s ease-in-out infinite"
 
-  const breatheAnim = reduceMotion ? "none" : "creatureBreathe 4.5s ease-in-out infinite"
+  const cellStyle = (r: number, c: number): React.CSSProperties => ({
+    position: "absolute",
+    left: c * cellW,
+    top: r * rowH,
+    width: cellW,
+    height: rowH,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: MONO,
+    fontSize: `${fontPx}px`,
+    lineHeight: 1,
+    userSelect: "none",
+  })
 
   return (
     <div
@@ -193,34 +261,62 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     >
       <style>{CREATURE_KEYFRAMES}</style>
 
-      {/* Dust particles drifting inside the circle */}
+      {/* Dust motes drifting inside the circle */}
       {!reduceMotion && <Dust color={color} size={size} />}
 
-      {/* The creature itself */}
-      <pre
+      {/* The being: skeleton + accreted details, one shared grid */}
+      <div
         aria-hidden="true"
         style={{
-          margin: 0,
-          fontFamily:
-            "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: `${fontPx}px`,
-          lineHeight: 1.05,
-          letterSpacing: `${artScatter}px`,
-          whiteSpace: "pre",
-          textAlign: "center",
-          color,
-          filter: `drop-shadow(0 0 10px ${color}) blur(${artBlur}px)`,
+          position: "relative",
+          width: boardW,
+          height: boardH,
           opacity: artOpacity,
+          filter: `drop-shadow(0 0 10px ${color}) blur(${artBlur}px)`,
+          transform: `scale(${evolveScale})`,
+          transformOrigin: "center",
           transition: evolving
-            ? `opacity ${EVOLVE_OUT_MS}ms ease, filter ${EVOLVE_OUT_MS}ms ease, letter-spacing ${EVOLVE_OUT_MS}ms ease`
-            : "opacity .3s ease, filter .3s ease",
+            ? `opacity ${EVOLVE_OUT_MS}ms ease, filter ${EVOLVE_OUT_MS}ms ease, transform ${EVOLVE_OUT_MS}ms ease`
+            : "opacity .3s ease, filter .3s ease, transform .3s ease",
           animation: reaction ? reactionAnim : breatheAnim,
-          userSelect: "none",
           pointerEvents: "none",
+          color,
         }}
       >
-        {text}
-      </pre>
+        {/* skeleton glyphs */}
+        {skelLines.flatMap((line, r) =>
+          line.split("").map((ch, c) => {
+            if (ch === " ") return null
+            const shown = blinking && ch === "o" ? "-" : ch
+            return (
+              <span key={`s-${r}-${c}`} style={cellStyle(r, c)}>
+                {shown}
+              </span>
+            )
+          }),
+        )}
+
+        {/* accreted details */}
+        {details.map((d: PlacedDetail, i) => {
+          const fresh = !reduceMotion && d.index >= freshFrom
+          return (
+            <span
+              key={`d-${d.row}-${d.col}-${i}`}
+              style={{
+                ...cellStyle(d.row, d.col),
+                fontSize: `${fontPx * 0.92}px`,
+                opacity: fresh ? undefined : ZONE_OPACITY[d.zone],
+                filter: `drop-shadow(0 0 3px ${color})`,
+                animation: fresh
+                  ? `creatureAccrete ${ACCRETE_MS}ms ease forwards`
+                  : "none",
+              }}
+            >
+              {d.char}
+            </span>
+          )
+        })}
+      </div>
 
       {/* Quiet evolution caption */}
       <span
@@ -230,8 +326,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           bottom: size * 0.12,
           left: "50%",
           transform: "translateX(-50%)",
-          fontFamily:
-            "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontFamily: MONO,
           fontSize: 10,
           letterSpacing: 2,
           textTransform: "lowercase",
@@ -275,8 +370,7 @@ function Dust({ color, size }: { color: string; size: number }) {
             position: "absolute",
             left: `${m.left}%`,
             top: `${m.top}%`,
-            fontFamily:
-              "var(--font-space-mono), 'Space Mono', ui-monospace, monospace",
+            fontFamily: MONO,
             fontSize: 9,
             color,
             opacity: m.op,
@@ -316,6 +410,14 @@ const CREATURE_KEYFRAMES = `
 @keyframes creatureDrift {
   0%, 100% { transform: translate(0, 0); opacity: 0.1; }
   50% { transform: translate(4px, -6px); opacity: 0.35; }
+}
+@keyframes creatureAccrete {
+  0% { opacity: 0; }
+  20% { opacity: 0.65; }
+  35% { opacity: 0.12; }
+  55% { opacity: 0.9; }
+  70% { opacity: 0.3; }
+  100% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   @keyframes creatureBreathe { 0%,100% { transform: none; } }

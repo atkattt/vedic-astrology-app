@@ -29,5 +29,7 @@ export default async function SelfPage() {
     getRevealRadius(),
     loadSelfReads(supabase, user.id),
   ])
-  return <SelfSpaceView revealRadius={revealRadius} reads={reads} />
+  return (
+    <SelfSpaceView revealRadius={revealRadius} reads={reads} userId={user.id} />
+  )
 }
