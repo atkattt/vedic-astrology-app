@@ -38,11 +38,10 @@ export function SelfSpaceView({
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(
     () => new Set(reads ? Object.keys(reads.answers) : []),
   )
-  const score =
-    engagementScore({
-      responses: respondedIds.size,
-      answers: answeredIds.size,
-    }) || 18 // TEMP-VERIFY
+  const score = engagementScore({
+    responses: respondedIds.size,
+    answers: answeredIds.size,
+  })
 
   const handleResponse = useCallback(
     (fragmentId: string, response: ReadResponse) => {
@@ -96,12 +95,12 @@ export function SelfSpaceView({
             />
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
               <SelfCreature
-            ref={creatureRef}
-            score={score}
-            seed={userId ?? "demo-seed"}
-            size={230}
-            color="#e8e4da"
-          />
+                ref={creatureRef}
+                score={score}
+                seed={userId}
+                size={230}
+                color="#e8e4da"
+              />
             </div>
           </div>
           <p
