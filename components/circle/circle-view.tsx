@@ -16,7 +16,7 @@ import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
 
 import { Button } from "@/components/ui/button"
-import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info } from "lucide-react"
+import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info, Star, User } from "lucide-react"
 
 export function CircleView({
   userName,
@@ -145,6 +145,12 @@ export function CircleView({
                 <MenuItem
                   icon={<PenLine className="size-4" />}
                   label="What you know"
+                  href="/what-you-know"
+                  onNavigate={() => setMenuOpen(false)}
+                />
+                <MenuItem
+                  icon={<Star className="size-4" />}
+                  label="Self"
                   href="/self"
                   onNavigate={() => setMenuOpen(false)}
                 />
@@ -152,6 +158,12 @@ export function CircleView({
                   icon={<Info className="size-4" />}
                   label="What this is"
                   href="/about"
+                  onNavigate={() => setMenuOpen(false)}
+                />
+                <MenuItem
+                  icon={<User className="size-4" />}
+                  label="Profile"
+                  href="/profile"
                   onNavigate={() => setMenuOpen(false)}
                 />
               </div>
