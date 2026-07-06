@@ -69,6 +69,16 @@ function spiralPoint(t: number) {
   return { x: r * Math.cos(theta), y: r * Math.sin(theta) }
 }
 
+/**
+ * Round a numeric px value to 2 decimals for inline styles. The browser's
+ * CSSOM rounds sub-pixel values when it parses server HTML, so full-precision
+ * floats hydrate as a mismatch (server "-66.7769px" vs client -66.776908...).
+ * Rounding to 0.01px is imperceptible and serializes identically on both sides.
+ */
+function px2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
 type Glyph = {
   key: number
   x: number
@@ -570,10 +580,10 @@ export function SpiralUniverse({
           key={`frontier-${revealRadius}`}
           className="animate-frontier-pulse absolute"
           style={{
-            left: -revealRadius * 1.18,
-            top: -revealRadius * 1.18,
-            width: revealRadius * 2.36,
-            height: revealRadius * 2.36,
+            left: px2(-revealRadius * 1.18),
+            top: px2(-revealRadius * 1.18),
+            width: px2(revealRadius * 2.36),
+            height: px2(revealRadius * 2.36),
             // Organic, lava-lamp-ish blob outline (not a perfect circle).
             borderRadius: "46% 54% 52% 48% / 52% 47% 53% 48%",
             // Fog: transparent core, a diffuse luminous band near the frontier
@@ -587,7 +597,8 @@ export function SpiralUniverse({
         {/* Spiral arm — a trail of pulsating glyphs winding out from the core.
             Glyphs beyond the revealed frontier are barely-there points of light
             (locked stars); answering reads expands the frontier and they
-            materialize up to their full pulse amplitude. */}
+            materialize up to their full pulse amplitude.
+            Positions are deterministic (spiralPoint), so SSR and client agree. */}
         {glyphs.map((g) => {
           const locked = g.r > revealRadius
           return (
@@ -595,10 +606,14 @@ export function SpiralUniverse({
               key={`glyph-${g.key}`}
               className="animate-glyph-pulse absolute select-none"
               style={{
-                left: g.x,
-                top: g.y,
+                // Round to 2 decimals: the browser's CSSOM rounds sub-pixel
+                // values when it parses the server HTML, so full-precision
+                // floats hydrate as a mismatch. 0.01px is imperceptible and
+                // serializes identically on server and client.
+                left: px2(g.x),
+                top: px2(g.y),
                 fontFamily: monoFont,
-                fontSize: g.size,
+                fontSize: px2(g.size),
                 lineHeight: 1,
                 color: "oklch(0.62 0 0)",
                 transform: "translate(-50%, -50%)",
@@ -663,8 +678,8 @@ export function SpiralUniverse({
                 justRevealed(r.r) ? " animate-flare-in" : ""
               }`}
               style={{
-                left: r.x,
-                top: r.y,
+                left: px2(r.x),
+                top: px2(r.y),
                 transform: `translate(-50%, -50%) scale(${locked ? 0.78 : 1})`,
                 opacity: locked ? 0.34 : 1,
                 filter: locked ? "grayscale(0.8) blur(0.5px)" : "none",
@@ -724,8 +739,8 @@ export function SpiralUniverse({
                 justRevealed(pp.r) ? " animate-flare-in" : ""
               }`}
               style={{
-                left: pp.x,
-                top: pp.y,
+                left: px2(pp.x),
+                top: px2(pp.y),
                 transform: `translate(-50%, -50%) scale(${locked ? 0.78 : 1})`,
                 opacity: locked ? 0.34 : 1,
                 filter: locked ? "grayscale(0.8) blur(0.5px)" : "none",
