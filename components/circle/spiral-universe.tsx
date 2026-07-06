@@ -23,7 +23,7 @@ const TAP_SLOP = 6
 /**
  * SpiralUniverse — Layer 1 of the explorable universe.
  *
- * Turns the spiral area into a draggable, zoomable "universe." The SelfAvatar
+ * Turns the spiral area into a draggable, zoomable "universe." The SelfCreature
  * stays PINNED at the center of the stage and never moves; the universe layer
  * (starfield + spiral arm + object markers) pans and zooms behind/around it.
  *
