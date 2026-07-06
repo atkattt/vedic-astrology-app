@@ -13,7 +13,17 @@ const MONO =
   "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 const GLOW = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
 
-export function SelfReads({ data }: { data: SelfReadsData }) {
+export function SelfReads({
+  data,
+  onResponse,
+  onAnswer,
+}: {
+  data: SelfReadsData
+  /** fired when the user judges a fragment (drives the creature reaction) */
+  onResponse?: (fragmentId: string, response: ReadResponse) => void
+  /** fired when the user saves an answer (drives the creature reaction) */
+  onAnswer?: (fragmentId: string) => void
+}) {
   if (data.matched.length === 0) {
     return (
       <p
@@ -39,6 +49,8 @@ export function SelfReads({ data }: { data: SelfReadsData }) {
           fragment={f}
           initialResponse={data.responses[String(f.id)] ?? null}
           initialAnswer={data.answers[String(f.id)] ?? ""}
+          onResponse={onResponse}
+          onAnswer={onAnswer}
         />
       ))}
     </div>
@@ -49,10 +61,14 @@ function FragmentCard({
   fragment,
   initialResponse,
   initialAnswer,
+  onResponse,
+  onAnswer,
 }: {
   fragment: FragmentRow
   initialResponse: ReadResponse | null
   initialAnswer: string
+  onResponse?: (fragmentId: string, response: ReadResponse) => void
+  onAnswer?: (fragmentId: string) => void
 }) {
   const [response, setResponse] = useState<ReadResponse | null>(initialResponse)
   const [pending, startTransition] = useTransition()
@@ -62,6 +78,7 @@ function FragmentCard({
     if (pending) return
     const previous = response
     setResponse(next) // optimistic
+    onResponse?.(String(fragment.id), next) // animate the creature
     startTransition(async () => {
       const res = await saveReadResponse(String(fragment.id), next)
       if (!res.ok) setResponse(previous) // roll back on failure
@@ -120,6 +137,7 @@ function FragmentCard({
           fragmentId={String(fragment.id)}
           questions={questions}
           initialAnswer={initialAnswer}
+          onAnswer={onAnswer}
         />
       )}
     </article>
@@ -166,10 +184,12 @@ function AnswerBlock({
   fragmentId,
   questions,
   initialAnswer,
+  onAnswer,
 }: {
   fragmentId: string
   questions: string[]
   initialAnswer: string
+  onAnswer?: (fragmentId: string) => void
 }) {
   const [answer, setAnswer] = useState(initialAnswer)
   const [editing, setEditing] = useState(initialAnswer.length === 0)
@@ -186,6 +206,7 @@ function AnswerBlock({
       if (res.ok) {
         setAnswer(text)
         setEditing(false)
+        onAnswer?.(fragmentId) // animate the creature (soft shimmer)
       } else {
         setError(res.error)
       }

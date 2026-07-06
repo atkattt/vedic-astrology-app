@@ -1,13 +1,15 @@
 "use client"
 
+import { useCallback, useRef, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Lock } from "lucide-react"
-import SelfAvatar from "@/components/circle/SelfAvatar"
+import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
 import { Starfield } from "@/components/starfield"
 import { SelfChat } from "@/components/self/self-chat"
 import { SelfReads } from "@/components/self/self-reads"
 import { CHAT_UNLOCK_RADIUS, unlockProgress } from "@/lib/self/unlock"
-import type { SelfReadsData } from "@/lib/self/reads-data"
+import { engagementScore, scoreToStage } from "@/lib/self/avatar-stages"
+import type { ReadResponse, SelfReadsData } from "@/lib/self/reads-data"
 
 const MONO =
   "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -21,8 +23,42 @@ export function SelfSpaceView({
 }) {
   const progress = unlockProgress(revealRadius)
   const unlocked = revealRadius >= CHAT_UNLOCK_RADIUS
-  // The self grows more defined as the frontier expands.
-  const growth = Math.min(1, 0.32 + progress * 0.68)
+
+  // The creature's stage is driven by REAL engagement: each read_responses row
+  // (agree or disagree) = 1 point, each saved answer = 3 points. We seed from
+  // the loaded data and update live as the reads UI below fires, so the avatar
+  // can evolve in place the moment a new stage is crossed.
+  const creatureRef = useRef<SelfCreatureHandle>(null)
+  const [respondedIds, setRespondedIds] = useState<Set<string>>(
+    () => new Set(reads ? Object.keys(reads.responses) : []),
+  )
+  const [answeredIds, setAnsweredIds] = useState<Set<string>>(
+    () => new Set(reads ? Object.keys(reads.answers) : []),
+  )
+  const score = engagementScore({
+    responses: respondedIds.size,
+    answers: answeredIds.size,
+  })
+  const stage = scoreToStage(score)
+
+  const handleResponse = useCallback(
+    (fragmentId: string, response: ReadResponse) => {
+      // React on every tap; only grow the score the first time a fragment is
+      // judged (a row exists whether it's agree or disagree).
+      creatureRef.current?.react(response === "agree" ? "agree" : "disagree")
+      setRespondedIds((prev) =>
+        prev.has(fragmentId) ? prev : new Set(prev).add(fragmentId),
+      )
+    },
+    [],
+  )
+
+  const handleAnswer = useCallback((fragmentId: string) => {
+    creatureRef.current?.react("submit")
+    setAnsweredIds((prev) =>
+      prev.has(fragmentId) ? prev : new Set(prev).add(fragmentId),
+    )
+  }, [])
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col bg-background">
@@ -39,11 +75,10 @@ export function SelfSpaceView({
       </header>
 
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-5 pb-24 pt-6">
-        {/* 1 — The self avatar. Rendered identically to the spiral center in
-            the circle: same neutral tint (#e8e4da), same size (230), AND the
-            same "screen" framing — an opaque dark backdrop disc with a subtle
-            ring, and an overflow-hidden circular container — so it reads
-            exactly the same as the one pinned at the center of /circle. */}
+        {/* 1 — The self creature: an evolving ASCII being. Same "screen"
+            framing as the spiral center in /circle (opaque backdrop disc, subtle
+            ring, overflow-hidden circle) but the form inside now grows through
+            five discrete stages driven by real engagement. */}
         <section className="flex flex-col items-center gap-3">
           <div className="relative" style={{ width: 230, height: 230 }}>
             {/* Dark radial backdrop so the core reads cleanly, matching /circle */}
@@ -57,7 +92,7 @@ export function SelfSpaceView({
               }}
             />
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-              <SelfAvatar mood="idle" color="#e8e4da" growth={growth} size={230} />
+              <SelfCreature ref={creatureRef} stage={stage} size={230} color="#e8e4da" />
             </div>
           </div>
           <p
@@ -78,7 +113,11 @@ export function SelfSpaceView({
         <section className="flex flex-col gap-5">
           <SectionLabel>your chart, read in full</SectionLabel>
           {reads ? (
-            <SelfReads data={reads} />
+            <SelfReads
+              data={reads}
+              onResponse={handleResponse}
+              onAnswer={handleAnswer}
+            />
           ) : (
             <p
               style={{

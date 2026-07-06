@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getPeople, getRelationships } from "@/app/actions/circle"
 import { getRevealRadius } from "@/app/actions/progress"
+import { loadEngagementScore } from "@/lib/self/reads-data"
 import { CircleView } from "@/components/circle/circle-view"
 import { CircleDataProvider } from "@/components/circle/circle-data-provider"
 import { BirthChartBootstrap } from "@/components/birth-chart-bootstrap"
@@ -18,11 +19,13 @@ export default async function CirclePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const [people, relationships, revealRadius] = await Promise.all([
-      getPeople(),
-      getRelationships(),
-      getRevealRadius(),
-    ])
+    const [people, relationships, revealRadius, engagementScore] =
+      await Promise.all([
+        getPeople(),
+        getRelationships(),
+        getRevealRadius(),
+        loadEngagementScore(supabase, user.id),
+      ])
 
     const userName =
       (user.user_metadata?.name as string | undefined) ||
@@ -36,7 +39,11 @@ export default async function CirclePage() {
         initialRelationships={relationships}
       >
         <BirthChartBootstrap />
-        <CircleView userName={userName} initialRevealRadius={revealRadius} />
+        <CircleView
+          userName={userName}
+          initialRevealRadius={revealRadius}
+          engagementScore={engagementScore}
+        />
       </CircleDataProvider>
     )
   }

@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import SelfAvatar, { type Mood } from "@/components/circle/SelfAvatar"
+import type { Mood } from "@/components/circle/SelfAvatar"
+import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
+import { scoreToStage } from "@/lib/self/avatar-stages"
 import type { Person, Relationship } from "@/lib/db/schema"
 import { YOU_COLOR } from "@/lib/circle/colors"
 import { chartRead } from "@/lib/spiral/chart-read"
@@ -132,8 +134,7 @@ export function SpiralUniverse({
   people,
   relationships,
   colorById,
-  mood = "idle",
-  growth,
+  engagementScore = 0,
   onSelectSelf,
   guest,
   initialRevealRadius = BASE_REVEAL_RADIUS,
@@ -141,8 +142,10 @@ export function SpiralUniverse({
   people: Person[]
   relationships: Relationship[]
   colorById: Map<number, string>
+  /** resting expression, retained for API compatibility (unused by creature) */
   mood?: Mood
-  growth: number
+  /** drives the evolving self creature's discrete stage (1–5) */
+  engagementScore?: number
   onSelectSelf?: () => void
   guest: boolean
   initialRevealRadius?: number
@@ -193,6 +196,17 @@ export function SpiralUniverse({
   const [reactMood, setReactMood] = useState<Mood | null>(null)
   const [reactColor, setReactColor] = useState<string | null>(null)
   const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // The evolving self creature at the center. Its stage comes from real
+  // engagement; its brief reactions mirror the universe's read reactions.
+  const creatureRef = useRef<SelfCreatureHandle>(null)
+  useEffect(() => {
+    if (!reactMood) return
+    if (reactMood === "agree") creatureRef.current?.react("agree")
+    else if (reactMood === "submit") creatureRef.current?.react("submit")
+    else if (reactMood === "disagree" || reactMood === "curious")
+      creatureRef.current?.react("disagree")
+  }, [reactMood])
 
   const closePanel = useCallback(() => {
     if (reactTimer.current) clearTimeout(reactTimer.current)
@@ -771,10 +785,10 @@ export function SpiralUniverse({
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-          <SelfAvatar
-            mood={reactMood ?? mood}
+          <SelfCreature
+            ref={creatureRef}
+            stage={scoreToStage(engagementScore)}
             color={reactColor ?? NEUTRAL_COLOR}
-            growth={growth}
             size={230}
           />
         </div>

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { matchFragments, type Chart, type Fragment } from "@/lib/matcher"
+import { engagementScore } from "@/lib/self/avatar-stages"
 
 // A fragment row as stored in Supabase (superset of the matcher's Fragment).
 export type FragmentRow = Fragment & {
@@ -101,6 +102,39 @@ export async function loadSelfReads(
   }
 
   return { chart, matched, answers, responses }
+}
+
+/**
+ * The user's raw engagement score for the evolving self creature: each
+ * read_responses row = 1 point, each self_entries answer = 3 points. Used to
+ * pick the creature's stage in the universe view (where we don't need the full
+ * reads payload). Missing tables are treated as zero so this never crashes.
+ */
+export async function loadEngagementScore(
+  supabase: SupabaseClient,
+  profileId: string,
+): Promise<number> {
+  let responses = 0
+  let answers = 0
+
+  try {
+    const { count } = await supabase
+      .from("read_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", profileId)
+    responses = count ?? 0
+  } catch {
+    responses = 0
+  }
+
+  const { count: answerCount } = await supabase
+    .from("self_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", profileId)
+    .eq("kind", "answer")
+  answers = answerCount ?? 0
+
+  return engagementScore({ responses, answers })
 }
 
 // ---- chart summary for the self-chat voice --------------------------------
