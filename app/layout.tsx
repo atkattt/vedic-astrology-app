@@ -215,8 +215,9 @@ const fraunces = Fraunces({
   style: ['normal', 'italic'],
   display: 'swap',
 })
-// Geist Pixel isn't available via next/font/google, so we use Pixelify Sans —
-// a clean, highly readable pixel typeface — as the close alternative.
+// Geist Pixel is NOT available via the `geist` package or next/font/google, so
+// we load Pixelify Sans — a clean, readable pixel typeface — as the substitute.
+// Exposed as the CSS var --font-pixelify-sans and used by AmbientCreature words.
 const pixelifySans = Pixelify_Sans({
   variable: '--font-pixelify-sans',
   weight: ['400', '500', '600', '700'],
