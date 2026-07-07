@@ -904,17 +904,20 @@ export function SpiralUniverse({
           transition: "transform .4s cubic-bezier(.3,.8,.3,1)",
         }}
       >
-        {/* The moon of this sky: an opaque black disc with a crisp near-white
-            outline. It contains the self creature and masks the nebula behind
-            it, so the fog reads as emerging from the circle's rim and building
-            outward into the black void infinitely. */}
+        {/* The moon of this sky: an opaque black disc that contains the self
+            creature and masks the nebula behind it, so the fog reads as emerging
+            from the circle's rim. Its outline normally sits at the neutral
+            near-white, but adopts the color of whichever read/person panel is
+            open — echoing the tapped node back onto the self. */}
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
             width: 188,
             height: 188,
             backgroundColor: "#050505",
-            border: "1.5px solid #e8e4da",
+            border: `1.5px solid ${panel?.data.accent ?? NEUTRAL_COLOR}`,
+            boxShadow: panel?.data.accent ? `0 0 18px ${panel.data.accent}55` : "none",
+            transition: "border-color .5s ease, box-shadow .5s ease",
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
