@@ -15,8 +15,7 @@ import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
 import { useCircleData } from "@/components/circle/circle-data-provider"
 
-import { Button } from "@/components/ui/button"
-import { Plus, LogOut, Sparkles, Clock, PenLine, Menu, X, Info, Star, User } from "lucide-react"
+import { Plus, LogOut, Clock, PenLine, Menu, X, Info, Star, User } from "lucide-react"
 
 export function CircleView({
   userName,
@@ -178,22 +177,31 @@ export function CircleView({
         </div>
       </header>
 
-      {/* Constellation canvas — a draggable, zoomable universe with "You"
-          pinned at its center. (Layer 1: pan/zoom + placeholder markers.) */}
+      {/* Constellation canvas — always rendered so the self creature and its
+          circle are visible from the very first visit, even before anyone has
+          been added to the circle. */}
       <div className="relative z-10 flex-1">
-        {people.length === 0 ? (
-          <EmptyState onAdd={() => setAddOpen(true)} />
-        ) : (
-              <SpiralUniverse
-                people={people}
-                relationships={relationships}
-                colorById={colorById}
-                mood={mood}
-                engagementScore={engagementScore}
-                userId={userId}
-                guest={guest}
-                initialRevealRadius={initialRevealRadius}
-              />
+        <SpiralUniverse
+          people={people}
+          relationships={relationships}
+          colorById={colorById}
+          mood={mood}
+          engagementScore={engagementScore}
+          userId={userId}
+          guest={guest}
+          initialRevealRadius={initialRevealRadius}
+        />
+        {/* Hint overlay when the circle is still empty — shown on top of the
+            universe so the creature is always visible in the background. */}
+        {people.length === 0 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-16 flex flex-col items-center gap-3">
+            <button
+              className="pointer-events-auto rounded-full border border-foreground/20 bg-background/60 px-6 py-2.5 font-mono text-[10px] uppercase tracking-widest text-foreground/70 backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
+              onClick={() => setAddOpen(true)}
+            >
+              + Add someone to your circle
+            </button>
+          </div>
         )}
       </div>
 
@@ -262,26 +270,4 @@ function MenuItem({
   )
 }
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-      <span className="mb-5 flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Sparkles className="size-6" />
-      </span>
-      <h2 className="text-balance font-serif text-2xl font-light">
-        Your sky is empty
-      </h2>
-      <p className="mt-3 max-w-xs text-pretty font-serif text-sm leading-relaxed text-muted-foreground">
-        Add the first person to your circle and watch your constellation begin
-        to take shape.
-      </p>
-      <Button
-        onClick={onAdd}
-        className="mt-7 rounded-full px-8 font-mono text-xs uppercase tracking-widest"
-      >
-        <Plus className="size-4" />
-        Add your first person
-      </Button>
-    </div>
-  )
-}
+
