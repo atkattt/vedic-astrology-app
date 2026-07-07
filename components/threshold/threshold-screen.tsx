@@ -191,15 +191,18 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             style={{
               // Mostly-transparent tint so the effect reads as blurred glass
               // rather than a flat grey panel — the heavy backdrop blur does
-              // the work of making the CTA legible.
+              // the work of making the CTA legible. A light highlight at the
+              // very bottom sells the frosted-glass sheen.
               background:
-                "linear-gradient(to top, rgba(150,150,150,0.22), rgba(150,150,150,0.12) 45%, rgba(150,150,150,0.04) 80%, transparent)",
-              backdropFilter: "blur(30px) saturate(140%)",
-              WebkitBackdropFilter: "blur(30px) saturate(140%)",
+                "linear-gradient(to top, rgba(180,180,180,0.16), rgba(160,160,160,0.1) 45%, rgba(150,150,150,0.03) 80%, transparent)",
+              backdropFilter: "blur(48px) saturate(150%)",
+              WebkitBackdropFilter: "blur(48px) saturate(150%)",
+              // Keep the blur fully opaque across a taller band before easing
+              // out, so the button and label sit on solid frosted glass.
               maskImage:
-                "linear-gradient(to top, #000 55%, rgba(0,0,0,0.4) 80%, transparent)",
+                "linear-gradient(to top, #000 70%, rgba(0,0,0,0.5) 88%, transparent)",
               WebkitMaskImage:
-                "linear-gradient(to top, #000 55%, rgba(0,0,0,0.4) 80%, transparent)",
+                "linear-gradient(to top, #000 70%, rgba(0,0,0,0.5) 88%, transparent)",
             }}
           />
           <button
