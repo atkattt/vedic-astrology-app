@@ -213,7 +213,10 @@ export function SpiralUniverse({
   // away from the object that was actually pressed.
   const downTargetRef = useRef<HTMLElement | null>(null)
 
-  const { agree, disagree } = useSpiral()
+  const { agree, disagree, agreed } = useSpiral()
+  // Ids of reads the user has answered YES on. Once agreed, a read's star sheds
+  // its badge outline and lives bare in the spiral as a pure point of light.
+  const agreedIds = useMemo(() => new Set(agreed.map((r) => r.id)), [agreed])
 
   // ---- Layer 4: the revealed frontier --------------------------------------
   // How far the universe has been uncovered, in world units from center.
@@ -771,6 +774,7 @@ export function SpiralUniverse({
             pointer capture makes per-element onClick unreliable here. */}
         {reads.map((r, i) => {
           const locked = r.r > revealRadius
+          const answered = agreedIds.has(r.read.id)
           return (
             <div
               key={r.label}
@@ -802,9 +806,11 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {/* A star set inside a black disc with a colored outline in this
-                  facet's hue — a node that sits in the spiral. Pulses gently
-                  when revealed; a dim ember while locked. */}
+              {/* Unanswered: a star inside a black disc with a colored outline
+                  — a node sitting in the spiral. Once answered YES, the badge
+                  falls away and the colored star lives bare in the spiral as a
+                  pure point of light. Pulses gently when revealed; a dim ember
+                  while locked. */}
               <span
                 className={`flex items-center justify-center rounded-full leading-none transition-[filter] duration-150 group-hover:brightness-150${
                   locked ? "" : " animate-object-pulse"
@@ -812,12 +818,14 @@ export function SpiralUniverse({
                 style={{
                   width: 24,
                   height: 24,
-                  backgroundColor: "#050505",
-                  border: `1.5px solid ${locked ? "#4a4e56" : r.color}`,
+                  backgroundColor: answered ? "transparent" : "#050505",
+                  border: answered ? "none" : `1.5px solid ${locked ? "#4a4e56" : r.color}`,
                   color: locked ? "#4a4e56" : r.color,
                   fontFamily: monoFont,
-                  fontSize: 11,
-                  boxShadow: locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
+                  fontSize: answered ? 18 : 11,
+                  textShadow: answered ? `0 0 8px ${r.color}, 0 0 18px ${r.color}` : "none",
+                  boxShadow:
+                    answered || locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
                 }}
               >
                 {"\u2605"}
