@@ -150,9 +150,11 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
                 <span style={{ ...glowText, fontWeight: 600, fontFamily: '"Geist Pixel", sans-serif' }}>
                   {"the read faltered"}
                 </span>
-              ) : null
+              ) : (
+                <span />
+              )
             ) : (
-              STAGES[stage]
+              <span>{STAGES[stage]}</span>
             )}
           </p>
 
