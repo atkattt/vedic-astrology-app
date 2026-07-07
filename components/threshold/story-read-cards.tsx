@@ -99,13 +99,13 @@ function StoryReadCard({
         width: "100%",
         // Translucent grey glass card to match the /onboarding surface.
         border: "1px solid rgba(255,255,255,0.18)",
-        borderRadius: 18,
+        borderRadius: 13,
         background: "rgba(120,120,120,0.30)",
         backdropFilter: "blur(12px) saturate(120%)",
         WebkitBackdropFilter: "blur(12px) saturate(120%)",
         boxShadow:
           "0 16px 40px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)",
-        padding: "20px 18px 18px",
+        padding: "16px 18px 18px",
         fontFamily: MONO,
       }}
     >
@@ -119,12 +119,10 @@ function StoryReadCard({
           textTransform: "uppercase",
           color: "#2a2a2a",
           marginBottom: 18,
+          textAlign: "left",
         }}
       >
-        <span>{section.title}</span>
-        <span>
-          {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
-        </span>
+        <span style={{ fontFamily: PIXEL }}>{section.title}</span>
       </div>
 
       {/* the typed body */}

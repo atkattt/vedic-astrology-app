@@ -132,7 +132,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
 
       {/* Sticky hero — stays pinned while the story scrolls beneath it. */}
       <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-10 pt-16">
-        <div className="relative z-10 flex flex-col items-center">
+        <div className="relative z-10 flex flex-col items-center" style={{ gap: "0px" }}>
           {/* Spiral drawn in ASCII — matches the SelfAvatar glyph palette,
               winding infinitely inward into a dark core. */}
           <AsciiSpiral size={150} />
@@ -147,8 +147,8 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           >
             {ready ? (
               error ? (
-                <span style={{ ...glowText, fontWeight: 600 }}>
-                  {"\u2726 the read faltered"}
+                <span style={{ ...glowText, fontWeight: 600, fontFamily: '"Geist Pixel", sans-serif' }}>
+                  {"the read faltered"}
                 </span>
               ) : null
             ) : (
@@ -240,7 +240,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-20">
           <button
             onClick={onEnter}
-            className="relative z-10 rounded-full border px-9 py-3.5 text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
+            className="relative z-10 rounded-full border text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
             style={{
               ...glowText,
               fontFamily: '"Geist Mono", sans-serif',
@@ -248,14 +248,18 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               // Transparent pill — the frosted glass shelf beneath supplies the
               // backdrop, so the story text never shows through the label.
               background: "transparent",
+              paddingRight: "21px",
+              paddingLeft: "29px",
+              paddingTop: "14px",
+              paddingBottom: "14px",
             }}
           >
-            {"enter the spiral \u23CE"}
+            {"enter the spiral "}
           </button>
           {error ? (
             <p
               className="relative z-10 mt-3 max-w-xs text-center text-[10px] normal-case leading-relaxed tracking-[0.15em]"
-              style={{ fontFamily: '"Geist Mono", sans-serif', color: "#7f1d1d" }}
+              style={{ fontFamily: '"Geist Mono", sans-serif', color: "#ff0000" }}
             >
               {error}
             </p>
