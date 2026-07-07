@@ -21,10 +21,8 @@ import { SKY_CELL, skyField } from "@/lib/sky-field"
 
 type RGB = [number, number, number]
 const PALETTE: Record<"day" | "night", { sky: RGB; sky2: RGB; cloud: RGB }> = {
-  // Neutral greyscale swirl: a medium-grey sky with lighter grey clouds, so the
-  // backdrop reads as soft grey fog (no blue tint) at any time of day.
-  day: { sky: [128, 128, 128], sky2: [142, 142, 142], cloud: [214, 214, 214] },
-  night: { sky: [128, 128, 128], sky2: [142, 142, 142], cloud: [214, 214, 214] },
+  day: { sky: [126, 170, 214], sky2: [150, 190, 226], cloud: [252, 253, 255] },
+  night: { sky: [10, 14, 30], sky2: [20, 26, 48], cloud: [172, 182, 220] },
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
