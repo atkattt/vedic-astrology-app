@@ -61,6 +61,9 @@ const FADE_BAND = 76
 // The nebula is sampled along the spiral curve; at each sample we scatter a
 // small cloud of glyphs across the arm's width, so the sky reads as dense
 // drifting fog rather than a thin bead-trail.
+// Radius of the clean disc carved out of the nebula around each read/person
+// marker, so its star badge sits in the spiral without a fog glyph behind it.
+const MARKER_CLEAR_RADIUS = 26
 const NEBULA_SAMPLES = 240
 const GLYPH_T_START = 0.04
 const GLYPH_T_END = 1.72
@@ -307,6 +310,16 @@ export function SpiralUniverse({
     ? Math.min(220, Math.max(120, (stageRef.current?.clientHeight ?? 720) * 0.2))
     : 0
 
+  // World-space centers of every read/person marker, on the spiral arm. The
+  // nebula carves a small clear disc around each so a marker's star sits IN the
+  // spiral cleanly, never stacked on top of a fog glyph.
+  const markerCenters = useMemo<{ x: number; y: number }[]>(() => {
+    const pts = READ_T.map((t) => spiralPoint(t))
+    const n = people.length
+    for (let i = 0; i < n; i++) pts.push(spiralPoint(personT(i, n)))
+    return pts
+  }, [people.length])
+
   // The nebula: a dense field of ASCII glyphs scattered along AND across the
   // spiral arm, forming cloudy limbs with organic clumping (density noise)
   // rather than an even trail. Deterministic (seeded RNG + spiralPoint), so
@@ -346,6 +359,16 @@ export function SpiralUniverse({
           const y = cy + py * perp + ty * off
           const dist = Math.hypot(x, y)
           if (dist < AVATAR_CLEAR_RADIUS) continue
+          // Keep a clean disc around each marker so its star reads as part of
+          // the spiral, not layered over a fog glyph.
+          let nearMarker = false
+          for (const m of markerCenters) {
+            if (Math.hypot(x - m.x, y - m.y) < MARKER_CLEAR_RADIUS) {
+              nearMarker = true
+              break
+            }
+          }
+          if (nearMarker) continue
           const rawEdge = Math.min(1, Math.max(0, (dist - AVATAR_CLEAR_RADIUS) / FADE_BAND))
           const edgeFade = rawEdge * rawEdge * (3 - 2 * rawEdge) // smoothstep
           // brighter near the spine, fainter toward the arm edge
@@ -366,7 +389,7 @@ export function SpiralUniverse({
       }
     }
     return out
-  }, [])
+  }, [markerCenters])
 
   // READ objects — facets of the user's own chart, derived from the chart
   // engine output (chartRead.sections), placed in the inner ring by angle+r.
@@ -773,31 +796,25 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {/* A bright star living in the nebula — pulses gently when
-                  revealed; a dim label-less ember when still locked. */}
+              {/* A star set inside a black disc with a colored outline in this
+                  facet's hue — a node that sits in the spiral. Pulses gently
+                  when revealed; a dim ember while locked. */}
               <span
-                className={`leading-none transition-[filter,color] duration-150 group-hover:brightness-150${
+                className={`flex items-center justify-center rounded-full leading-none transition-[filter] duration-150 group-hover:brightness-150${
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  fontFamily: monoFont,
-                  fontSize: locked ? 16 : 24,
+                  width: 30,
+                  height: 30,
+                  backgroundColor: "#050505",
+                  border: `1.5px solid ${locked ? "#4a4e56" : r.color}`,
                   color: locked ? "#4a4e56" : r.color,
-                  textShadow: locked ? "none" : `0 0 8px ${r.color}, 0 0 18px ${r.color}`,
+                  fontFamily: monoFont,
+                  fontSize: 14,
+                  boxShadow: locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
                 }}
               >
                 {"\u2605"}
-              </span>
-              <span
-                className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
-                style={{
-                  fontFamily: monoFont,
-                  color: r.color,
-                  opacity: locked ? 0 : 1,
-                  transition: "opacity 1s ease",
-                }}
-              >
-                {r.label}
               </span>
             </div>
           )
@@ -838,31 +855,24 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {/* A brighter, colored star in the nebula — the person's own
-                  hue, gently pulsing when revealed; a dim ember while locked. */}
+              {/* A star set inside a black disc outlined in this person's hue —
+                  a node in the spiral. Slightly larger than a read node. */}
               <span
-                className={`leading-none transition-[filter,color] duration-150 group-hover:brightness-150${
+                className={`flex items-center justify-center rounded-full leading-none transition-[filter] duration-150 group-hover:brightness-150${
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  fontFamily: monoFont,
-                  fontSize: locked ? 18 : 27,
+                  width: 34,
+                  height: 34,
+                  backgroundColor: "#050505",
+                  border: `1.5px solid ${locked ? "#4a4e56" : pp.color}`,
                   color: locked ? "#4a4e56" : pp.color,
-                  textShadow: locked ? "none" : `0 0 9px ${pp.color}, 0 0 20px ${pp.color}`,
+                  fontFamily: monoFont,
+                  fontSize: 16,
+                  boxShadow: locked ? "none" : `0 0 11px ${pp.color}, 0 0 22px ${pp.color}66`,
                 }}
               >
                 {"\u2605"}
-              </span>
-              <span
-                className="mt-1.5 max-w-24 truncate text-[12px] uppercase tracking-[1px]"
-                style={{
-                  fontFamily: monoFont,
-                  color: pp.color,
-                  opacity: locked ? 0 : 1,
-                  transition: "opacity 1s ease",
-                }}
-              >
-                {pp.person.name}
               </span>
             </div>
           )
