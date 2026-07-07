@@ -788,16 +788,14 @@ export function SpiralUniverse({
           transition: "transform .4s cubic-bezier(.3,.8,.3,1)",
         }}
       >
-        {/* Dark radial backdrop so the core reads cleanly over the glyph trail */}
+        {/* Circle outline only — the fill is transparent so the creature sits
+            directly on the universe with no grey disc behind it. */}
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
             width: 172,
             height: 172,
-            // A solid, opaque disc — your own "self avatar screen". Fully
-            // contained inside the stroke (no glow, no bleed into the
-            // surrounding universe).
-            backgroundColor: "var(--background)",
+            backgroundColor: "transparent",
             border: "1px solid oklch(0.95 0 0 / 0.55)",
           }}
         />
