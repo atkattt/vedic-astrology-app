@@ -189,10 +189,13 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
+              // Mostly-transparent tint so the effect reads as blurred glass
+              // rather than a flat grey panel — the heavy backdrop blur does
+              // the work of making the CTA legible.
               background:
-                "linear-gradient(to top, rgba(120,120,120,0.82), rgba(120,120,120,0.6) 45%, rgba(120,120,120,0.2) 80%, transparent)",
-              backdropFilter: "blur(16px) saturate(120%)",
-              WebkitBackdropFilter: "blur(16px) saturate(120%)",
+                "linear-gradient(to top, rgba(150,150,150,0.22), rgba(150,150,150,0.12) 45%, rgba(150,150,150,0.04) 80%, transparent)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              WebkitBackdropFilter: "blur(30px) saturate(140%)",
               maskImage:
                 "linear-gradient(to top, #000 55%, rgba(0,0,0,0.4) 80%, transparent)",
               WebkitMaskImage:
