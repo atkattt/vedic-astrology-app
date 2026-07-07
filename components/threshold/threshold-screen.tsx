@@ -180,31 +180,38 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
       {/* The handoff CTA — fixed at the bottom, fades/rises in only when the
           read finishes. It waits; it never forces the transition. */}
       {ready && (
-        <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-20">
-          {/* Frosted glass shelf at the bottom of the screen. Split into two
-              layers because combining `mask-image` with `backdrop-filter`
-              silently disables the blur in Chrome/Safari. */}
-          {/* Layer 1: the actual backdrop blur. No mask, so the blur is really
-              applied — the story text sliding behind it becomes a soft haze. */}
+        <>
+          {/* Frosted glass shelf — kept in its OWN fixed element, OUTSIDE the
+              animated CTA wrapper below. The rise-in animation applies a
+              `transform` to its host, and a transformed ancestor disables
+              `backdrop-filter` on descendants, so the shelf must not live
+              inside it. Two layers because combining `mask-image` with
+              `backdrop-filter` also disables the blur in Chrome/Safari. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              backdropFilter: "blur(24px) saturate(140%)",
-              WebkitBackdropFilter: "blur(24px) saturate(140%)",
-            }}
-          />
-          {/* Layer 2: a frosted tint on top, faded at the top edge via a
-              gradient so the shelf blends into the story above. Safe to mask
-              since this layer has no backdrop-filter. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to top, rgba(198,200,206,0.72), rgba(190,192,198,0.5) 45%, rgba(180,182,190,0.16) 85%, transparent)",
-            }}
-          />
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-56"
+          >
+            {/* Layer 1: the actual backdrop blur — no mask, so it truly applies
+                and the story sliding behind it becomes a soft haze. */}
+            <div
+              className="absolute inset-x-0 bottom-0 top-16"
+              style={{
+                backdropFilter: "blur(24px) saturate(140%)",
+                WebkitBackdropFilter: "blur(24px) saturate(140%)",
+              }}
+            />
+            {/* Layer 2: a frosted tint that fades out toward the top so the
+                shelf blends into the story above. */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(198,200,206,0.72), rgba(190,192,198,0.5) 45%, rgba(180,182,190,0.16) 85%, transparent)",
+              }}
+            />
+          </div>
+
+          <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-20">
           <button
             onClick={onEnter}
             className="relative z-10 rounded-full border px-9 py-3.5 text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
@@ -234,7 +241,8 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               your chart is ready
             </p>
           )}
-        </div>
+          </div>
+        </>
       )}
     </main>
   )
