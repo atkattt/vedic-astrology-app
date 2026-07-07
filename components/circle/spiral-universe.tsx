@@ -7,6 +7,7 @@ import type { Person, Relationship } from "@/lib/db/schema"
 import { chartRead } from "@/lib/spiral/chart-read"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
+import { ACCENT_COLORS } from "@/lib/spiral/accent-colors"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
 import { saveRevealRadius } from "@/app/actions/progress"
 
@@ -130,8 +131,9 @@ const READ_T = [0.24, 0.3, 0.36, 0.42, 0.48]
 
 // Each read facet gets its own distinct star color (cool cosmic hues, no
 // purple/violet), so the inner arm reads as a little constellation of
-// differently-colored facets rather than identical white dots.
-const READ_COLORS = ["#e8c15a", "#e8896a", "#6ad0e8", "#7ae8a8", "#e86a9c"]
+// differently-colored facets rather than identical white dots. Pulled from the
+// shared accent palette so the landing-page fog embers match exactly.
+const READ_COLORS = ACCENT_COLORS
 
 // PEOPLE live ON the spiral arm too, further out than the reads. The first
 // person added sits innermost; each subsequent one is placed further along.

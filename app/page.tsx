@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Eye } from "lucide-react"
 import SwirlCloudSky from "@/components/SwirlCloudSky"
 import AsciiRippleSky from "@/components/AsciiRippleSky"
+import AmbientCreature from "@/components/self/ambient-creature"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -33,8 +34,14 @@ export default async function WelcomePage() {
       <AsciiRippleSky />
 
       <div className="relative z-10 flex flex-col items-center text-center">
+        {/* A morphing preview of the self you'll grow — the being showing off
+            what it can become, above the begin button. */}
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.05s" }}>
+          <AmbientCreature size={200} />
+        </div>
+
         <div
-          className="animate-fade-in-up mt-10 flex flex-col items-center gap-4"
+          className="animate-fade-in-up mt-4 flex flex-col items-center gap-4"
           style={{ animationDelay: "0.2s" }}
         >
           <Link

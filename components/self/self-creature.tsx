@@ -23,6 +23,7 @@ import {
   type StageCell,
   type StageGrid,
 } from "@/lib/self/avatar-stages"
+import { rollIndex } from "@/lib/self/mutation"
 
 /**
  * SelfCreature — the evolving ASCII "you".
@@ -288,12 +289,8 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   unitsRef.current = mutationUnits
 
   // Pick a fresh variant index for a unit, guaranteed different from `cur`.
-  const rollVariant = (count: number, cur: number) => {
-    if (count <= 1) return 0
-    let n = Math.floor(Math.random() * count)
-    if (n === cur) n = (n + 1) % count
-    return n
-  }
+  // Shared with the landing-page AmbientCreature via lib/self/mutation.
+  const rollVariant = rollIndex
 
   // ----- mutation tick: swap 1–2 cells every 500–900ms -----------------------
   useEffect(() => {
