@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config"
 
 /**
  * Refreshes the Supabase auth session on every request and forwards the
@@ -9,8 +10,8 @@ import { NextResponse, type NextRequest } from "next/server"
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = SUPABASE_URL
+  const supabaseAnonKey = SUPABASE_ANON_KEY
 
   // If Supabase isn't configured yet, don't crash the whole app in
   // middleware — just pass the request through untouched. Pages that need
