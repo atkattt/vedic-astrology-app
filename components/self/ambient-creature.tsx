@@ -6,53 +6,36 @@ import { RIPPLE_STAGGER_MS, randomScramble } from "@/lib/self/mutation"
 /**
  * AmbientCreature — a "demo mode" of the self being for the landing page.
  *
- * It sits inside the same black disc + thin near-white outline used on /self,
- * and cycles playfully through small forms as a preview of the self you'll
- * grow:
- *   - creature faces/emoticons in three detail tiers (minimal → detailed), and
- *   - short world-words ("you", "self", "spiral", "hi", "?") rendered as large
- *     ASCII-art letterforms DRAWN OUT of the creature's own palette glyphs via
- *     a tiny 3x5 pixel font.
+ * It sits inside the same black disc + near-white outline used on /self, and
+ * cycles through a fixed narrative of small forms as a preview of the self
+ * you'll grow. The word order is always the same:
  *
- * Every form is laid out on a fixed-cell grid and the whole grid is optically
- * centered in the disc (so nothing sits off-center), with the font-size scaled
- * per form so even the longest word fits with margin. Transitions reuse the
- * being's ripple/stagger mutation feel (lib/self/mutation): cells resolve one
- * by one, each flickering through a scramble glyph before settling.
+ *   YOU → face → face → ARE → face → HERE → face → (repeat)
  *
- * Deterministic first paint (a fixed "you") so SSR and client match; morphing,
- * blinking and breathing begin after mount. Animation pauses while the tab is
- * hidden and collapses to quiet swaps under prefers-reduced-motion.
+ * Words render in a pixel typeface (Pixelify Sans, our stand-in for Geist
+ * Pixel) in uppercase; faces are emoticons picked at random from three detail
+ * tiers each pass, so the rhythm is fixed but the faces stay fresh.
+ *
+ * Transitions:
+ *   - faces resolve with the being's ripple/stagger mutation feel (each grid
+ *     cell flickers through a scramble glyph before settling), and
+ *   - words do a quick per-character "pixel-in" resolve (~200ms) so they feel
+ *     like the same organism reshaping, not a slide swapping.
+ *
+ * Everything is scaled to occupy roughly the middle ~55% of the disc, always
+ * optically centered. Deterministic first paint ("YOU") so SSR/client match;
+ * morphing, blinking and breathing begin after mount. Animation pauses while
+ * the tab is hidden and collapses to quiet swaps under prefers-reduced-motion.
  */
 
 const NEUTRAL = "#e8e4da"
-const MONO = "'Geist Pixel', ui-monospace, monospace"
+const PIXEL_FONT = "var(--font-pixelify-sans), ui-monospace, monospace"
+const MONO = "ui-monospace, monospace"
 
-// The glyphs an "on" pixel of a word can be drawn from — the creature's palette.
-const PALETTE = ["*", "+", ":", "✦", "·"]
-
-// ---- 3x5 pixel font --------------------------------------------------------
-// Each letter is 3 wide, 5 tall. '#' = on pixel (becomes a palette glyph),
-// space = off. Letters are joined horizontally with a 1-column gap.
-const FONT: Record<string, string[]> = {
-  a: ["###", "#.#", "###", "#.#", "#.#"],
-  b: ["##.", "#.#", "##.", "#.#", "##."],
-  e: ["###", "#..", "##.", "#..", "###"],
-  f: ["###", "#..", "##.", "#..", "#.."],
-  g: ["###", "#..", "#.#", "#.#", "###"],
-  h: ["#.#", "#.#", "###", "#.#", "#.#"],
-  i: ["###", ".#.", ".#.", ".#.", "###"],
-  l: ["#..", "#..", "#..", "#..", "###"],
-  o: ["###", "#.#", "#.#", "#.#", "###"],
-  p: ["###", "#.#", "###", "#..", "#.."],
-  r: ["##.", "#.#", "##.", "#.#", "#.#"],
-  s: ["###", "#..", "###", "..#", "###"],
-  u: ["#.#", "#.#", "#.#", "#.#", "###"],
-  y: ["#.#", "#.#", ".#.", ".#.", ".#."],
-  "?": ["###", "..#", ".##", "...", ".#."],
-}
-
-const WORDS = ["you", "self", "spiral", "hi", "?"]
+// Fixed word beats, always in this order.
+const WORDS = ["YOU", "ARE", "HERE"]
+// Scramble glyphs for the word pixel-in resolve.
+const WORD_SCRAMBLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ*+:#".split("")
 
 // ---- emoticon repertoire, in three detail tiers ----------------------------
 const EMOTES_T1 = ["[ . . ]", "( · · )", "{ - - }", "[ ˚ ˚ ]"]
@@ -64,32 +47,11 @@ const EMOTES_T3 = [
   " /\\_/\\\n( o.o )\n > ^ <",
 ]
 
-type FormSpec = { id: string; kind: "word" | "emote"; value: string }
-type Grid = { cells: string[]; rows: number; cols: number; fontPx: number }
+type WordForm = { kind: "word"; chars: string[]; fontPx: number }
+type EmoteForm = { kind: "emote"; cells: string[]; rows: number; cols: number; fontPx: number }
+type Form = WordForm | EmoteForm
 
-const INITIAL: FormSpec = { id: "w:you", kind: "word", value: "you" }
-
-/** Build a word's 2D cell grid from the pixel font (palette glyphs on "on"). */
-function buildWordCells(word: string): { cells: string[]; rows: number; cols: number } {
-  const letters = [...word].map((ch) => FONT[ch] ?? FONT["?"])
-  const rows = 5
-  const cols = letters.length * 3 + (letters.length - 1) // 1-col gap between letters
-  const cells = Array<string>(rows * cols).fill(" ")
-  let x = 0
-  letters.forEach((pat, li) => {
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < 3; c++) {
-        if (pat[r][c] === "#") {
-          // Deterministic palette pick → identical SSR/client first paint.
-          const g = PALETTE[(li * 7 + r * 3 + c) % PALETTE.length]
-          cells[r * cols + (x + c)] = g
-        }
-      }
-    }
-    x += 4 // 3 wide + 1 gap
-  })
-  return { cells, rows, cols }
-}
+const INITIAL_WORD = "YOU"
 
 /** Build an emoticon's grid, preserving internal spacing, padded to a rectangle. */
 function buildEmoteCells(art: string): { cells: string[]; rows: number; cols: number } {
@@ -104,42 +66,53 @@ function buildEmoteCells(art: string): { cells: string[]; rows: number; cols: nu
   return { cells, rows, cols }
 }
 
-/** Fit a grid of the given dimensions into the disc, returning a font size. */
-function fitFont(rows: number, cols: number, size: number): number {
-  const usable = size * 0.75 * 0.82 // disc is size*0.75; keep an inner margin
+/** Target box for content: roughly the middle ~55% of the disc diameter. */
+function targetBox(size: number) {
+  return size * 0.75 * 0.55
+}
+
+/** Fit a rows×cols glyph grid into the target box, returning a font size. */
+function fitGridFont(rows: number, cols: number, size: number): number {
+  const usable = targetBox(size)
   const byWidth = usable / (cols * 0.62)
   const byHeight = usable / (rows * 1.02)
-  return Math.min(byWidth, byHeight, size * 0.16) // cap so tiny forms stay tidy
+  return Math.min(byWidth, byHeight, size * 0.2)
 }
 
-function buildForm(spec: FormSpec, size: number): Grid {
-  const { cells, rows, cols } =
-    spec.kind === "word" ? buildWordCells(spec.value) : buildEmoteCells(spec.value)
-  return { cells, rows, cols, fontPx: fitFont(rows, cols, size) }
+/** Fit a single-line word into the target box, returning a font size. */
+function fitWordFont(len: number, size: number): number {
+  const usable = targetBox(size)
+  const byWidth = usable / (Math.max(1, len) * 0.66)
+  const byHeight = usable * 0.9
+  return Math.min(byWidth, byHeight, size * 0.26)
 }
 
-/** Pick the next form: mostly emoticons (tiers 1-2, occasional 3), some words. */
-function pickForm(currentId: string): FormSpec {
-  for (let tries = 0; tries < 12; tries++) {
-    let spec: FormSpec
-    if (Math.random() < 0.45) {
-      const value = WORDS[Math.floor(Math.random() * WORDS.length)]
-      spec = { id: `w:${value}`, kind: "word", value }
-    } else {
-      const roll = Math.random()
-      const tier = roll < 0.4 ? EMOTES_T1 : roll < 0.85 ? EMOTES_T2 : EMOTES_T3
-      const idx = Math.floor(Math.random() * tier.length)
-      const value = tier[idx]
-      spec = { id: `e:${value}`, kind: "emote", value }
-    }
-    if (spec.id !== currentId) return spec
-  }
-  return INITIAL
+function buildWord(word: string, size: number): WordForm {
+  return { kind: "word", chars: [...word], fontPx: fitWordFont(word.length, size) }
+}
+
+function buildEmote(art: string, size: number): EmoteForm {
+  const { cells, rows, cols } = buildEmoteCells(art)
+  return { kind: "emote", cells, rows, cols, fontPx: fitGridFont(rows, cols, size) }
+}
+
+/** Pick a random face, weighted toward tiers 1-2 with occasional tier 3. */
+function pickFace(): string {
+  const roll = Math.random()
+  const tier = roll < 0.4 ? EMOTES_T1 : roll < 0.85 ? EMOTES_T2 : EMOTES_T3
+  return tier[Math.floor(Math.random() * tier.length)]
+}
+
+function randWordGlyph() {
+  return WORD_SCRAMBLE[Math.floor(Math.random() * WORD_SCRAMBLE.length)]
 }
 
 export default function AmbientCreature({ size = 200 }: { size?: number }) {
-  const [grid, setGrid] = useState<Grid>(() => buildForm(INITIAL, size))
-  const curId = useRef(INITIAL.id)
+  const [form, setForm] = useState<Form>(() => buildWord(INITIAL_WORD, size))
+  // Step in the fixed cycle. Position 0 (YOU) is the initial paint, so the
+  // first morph advances to step 1 (a face).
+  const step = useRef(1)
+  const wordBeat = useRef(1) // next word index: after YOU comes ARE, then HERE
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   useEffect(() => {
@@ -164,38 +137,77 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
       timers.current.push(t)
     }
 
-    function morph() {
-      const spec = pickForm(curId.current)
-      curId.current = spec.id
-      const target = buildForm(spec, size)
+    // Cycle: steps 0,3,5 are words (YOU, ARE, HERE); 1,2,4,6 are faces.
+    function isWordStep(s: number) {
+      return s === 0 || s === 3 || s === 5
+    }
 
+    function morph() {
+      const s = step.current % 7
+      step.current = (step.current + 1) % 7
+      if (isWordStep(s)) {
+        const word = WORDS[wordBeat.current % WORDS.length]
+        wordBeat.current++
+        morphToWord(word)
+      } else {
+        morphToFace(pickFace())
+      }
+    }
+
+    // ---- word: quick per-character pixel-in resolve (~200ms) ---------------
+    function morphToWord(word: string) {
+      const target = buildWord(word, size)
       if (reduce) {
-        setGrid(target)
+        setForm(target)
         scheduleNext()
         return
       }
+      // Seed all characters scrambled, then settle them left-to-right fast.
+      setForm({ ...target, chars: target.chars.map(randWordGlyph) })
+      const per = Math.min(60, 200 / target.chars.length)
+      let maxDelay = 0
+      target.chars.forEach((ch, i) => {
+        const delay = i * per + 40
+        const t = setTimeout(() => {
+          if (!alive) return
+          setForm((prev) => {
+            if (prev.kind !== "word") return prev
+            const chars = [...prev.chars]
+            chars[i] = ch
+            return { ...prev, chars }
+          })
+        }, delay)
+        timers.current.push(t)
+        maxDelay = Math.max(maxDelay, delay)
+      })
+      const done = setTimeout(() => alive && scheduleNext(), maxDelay + 240)
+      timers.current.push(done)
+    }
 
-      // Reshape to the target grid immediately, seeding every "on" cell with a
-      // scramble glyph so the new form resolves IN rather than hard-cutting.
-      const seeded: Grid = {
+    // ---- face: ripple/stagger mutation resolve -----------------------------
+    function morphToFace(art: string) {
+      const target = buildEmote(art, size)
+      if (reduce) {
+        setForm(target)
+        scheduleNext()
+        return
+      }
+      setForm({
         ...target,
         cells: target.cells.map((c) => (c === " " ? " " : randomScramble(c))),
-      }
-      setGrid(seeded)
-
+      })
       const active = target.cells
         .map((c, i) => (c === " " ? -1 : i))
         .filter((i) => i >= 0)
         .sort(() => Math.random() - 0.5)
-
-      // Adaptive stagger so dense words don't take too long to resolve.
       const per = Math.min(RIPPLE_STAGGER_MS / 2, 700 / Math.max(1, active.length))
       let maxDelay = 0
       active.forEach((idx, k) => {
         const base = k * per
         const t1 = setTimeout(() => {
           if (!alive) return
-          setGrid((prev) => {
+          setForm((prev) => {
+            if (prev.kind !== "emote") return prev
             const cells = [...prev.cells]
             cells[idx] = randomScramble(cells[idx])
             return { ...prev, cells }
@@ -203,7 +215,8 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
         }, base)
         const t2 = setTimeout(() => {
           if (!alive) return
-          setGrid((prev) => {
+          setForm((prev) => {
+            if (prev.kind !== "emote") return prev
             const cells = [...prev.cells]
             cells[idx] = target.cells[idx]
             return { ...prev, cells }
@@ -212,7 +225,6 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
         timers.current.push(t1, t2)
         maxDelay = Math.max(maxDelay, base + 130)
       })
-
       const done = setTimeout(() => alive && scheduleNext(), maxDelay + 260)
       timers.current.push(done)
     }
@@ -225,14 +237,6 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
   }, [size])
 
   const disc = size * 0.75
-  const cellW = grid.fontPx * 0.62
-  const lineH = grid.fontPx * 1.02
-
-  // Chunk the flat cell array into rows for rendering.
-  const rows: string[][] = []
-  for (let r = 0; r < grid.rows; r++) {
-    rows.push(grid.cells.slice(r * grid.cols, (r + 1) * grid.cols))
-  }
 
   return (
     <div
@@ -242,22 +246,21 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
     >
       <style>{AMBIENT_KEYFRAMES}</style>
 
-      {/* The black disc with a thin near-white outline — matching /self. */}
+      {/* The black disc — a 2px near-white outline with a slow breathing halo,
+          so the circle itself feels alive rather than a static ring. */}
       <div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
           width: disc,
           height: disc,
           backgroundColor: "var(--background)",
-          border: "1px solid oklch(0.95 0 0 / 0.55)",
+          border: "2px solid oklch(0.95 0 0 / 0.6)",
+          animation: "ambientHalo 4s ease-in-out infinite",
         }}
       />
 
       {/* The morphing being — breathes (outer) and blinks (inner). */}
-      <div
-        className="relative"
-        style={{ animation: "ambientBreathe 4.5s ease-in-out infinite" }}
-      >
+      <div className="relative" style={{ animation: "ambientBreathe 4.5s ease-in-out infinite" }}>
         <div
           className="flex flex-col items-center"
           style={{
@@ -266,28 +269,62 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
             animation: "ambientBlink 5.4s ease-in-out infinite",
           }}
         >
-          {rows.map((row, r) => (
-            <div key={r} className="flex" style={{ height: lineH }}>
-              {row.map((ch, c) => (
-                <span
-                  key={c}
-                  style={{
-                    width: cellW,
-                    textAlign: "center",
-                    fontFamily: MONO,
-                    fontSize: `${grid.fontPx}px`,
-                    lineHeight: `${lineH}px`,
-                    userSelect: "none",
-                  }}
-                >
+          {form.kind === "word" ? (
+            <div
+              className="flex items-center justify-center"
+              style={{
+                fontFamily: PIXEL_FONT,
+                fontSize: `${form.fontPx}px`,
+                fontWeight: 600,
+                lineHeight: 1,
+                letterSpacing: `${form.fontPx * 0.06}px`,
+                userSelect: "none",
+              }}
+            >
+              {form.chars.map((ch, i) => (
+                <span key={i} style={{ display: "inline-block" }}>
                   {ch === " " ? "\u00A0" : ch}
                 </span>
               ))}
             </div>
-          ))}
+          ) : (
+            <FaceGrid form={form} />
+          )}
         </div>
       </div>
     </div>
+  )
+}
+
+function FaceGrid({ form }: { form: EmoteForm }) {
+  const cellW = form.fontPx * 0.62
+  const lineH = form.fontPx * 1.02
+  const rows: string[][] = []
+  for (let r = 0; r < form.rows; r++) {
+    rows.push(form.cells.slice(r * form.cols, (r + 1) * form.cols))
+  }
+  return (
+    <>
+      {rows.map((row, r) => (
+        <div key={r} className="flex" style={{ height: lineH }}>
+          {row.map((ch, c) => (
+            <span
+              key={c}
+              style={{
+                width: cellW,
+                textAlign: "center",
+                fontFamily: MONO,
+                fontSize: `${form.fontPx}px`,
+                lineHeight: `${lineH}px`,
+                userSelect: "none",
+              }}
+            >
+              {ch === " " ? "\u00A0" : ch}
+            </span>
+          ))}
+        </div>
+      ))}
+    </>
   )
 }
 
@@ -301,8 +338,17 @@ const AMBIENT_KEYFRAMES = `
   93% { opacity: 0.2; }
   96% { opacity: 1; }
 }
+@keyframes ambientHalo {
+  0%, 100% {
+    box-shadow: 0 0 6px 0 oklch(0.98 0 0 / 0.1), 0 0 0 0 oklch(0.98 0 0 / 0);
+  }
+  50% {
+    box-shadow: 0 0 18px 3px oklch(0.98 0 0 / 0.28), 0 0 34px 8px oklch(0.98 0 0 / 0.08);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   @keyframes ambientBreathe { 0%,100% { transform: none; } }
   @keyframes ambientBlink { 0%,100% { opacity: 1; } }
+  @keyframes ambientHalo { 0%,100% { box-shadow: 0 0 8px 1px oklch(0.98 0 0 / 0.18); } }
 }
 `
