@@ -232,6 +232,33 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   const boardW = grid.cols * cellW
   const boardH = grid.rows * rowH
 
+  // Exact centering correction for the drawn skeleton. Each stage's art is laid
+  // into the fixed grid with integer cell padding, so an even-width form (e.g.
+  // stage 1's "[..]") ends up a half-cell off the board center. Measure the
+  // skeleton's real bounding box and translate ONLY the skeleton layer by the
+  // leftover sub-cell delta so it sits perfectly centered in the circle. The
+  // accretion details are intentionally left on the stage-5 grid coordinates.
+  const skelOffset = useMemo(() => {
+    let minR = grid.rows,
+      maxR = -1,
+      minC = grid.cols,
+      maxC = -1
+    skelLines.forEach((line, r) => {
+      for (let c = 0; c < line.length; c++) {
+        if (line[c] !== " ") {
+          if (r < minR) minR = r
+          if (r > maxR) maxR = r
+          if (c < minC) minC = c
+          if (c > maxC) maxC = c
+        }
+      }
+    })
+    if (maxC < 0) return { x: 0, y: 0 }
+    const bboxCenterX = ((minC + maxC + 1) / 2) * cellW
+    const bboxCenterY = ((minR + maxR + 1) / 2) * rowH
+    return { x: boardW / 2 - bboxCenterX, y: boardH / 2 - bboxCenterY }
+  }, [skelLines, grid.rows, grid.cols, cellW, rowH, boardW, boardH])
+
   const evolving = evolvePhase !== "idle"
   const artOpacity = evolvePhase === "out" ? 0 : 1
   const artBlur = evolvePhase === "out" ? 6 : 0
@@ -292,18 +319,27 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           color,
         }}
       >
-        {/* skeleton glyphs */}
-        {skelLines.flatMap((line, r) =>
-          line.split("").map((ch, c) => {
-            if (ch === " ") return null
-            const shown = blinking && ch === "o" ? "-" : ch
-            return (
-              <span key={`s-${r}-${c}`} style={cellStyle(r, c)}>
-                {shown}
-              </span>
-            )
-          }),
-        )}
+        {/* skeleton glyphs — translated by the sub-cell delta so the drawn
+            form is perfectly centered within the circle at every stage */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: `translate(${skelOffset.x}px, ${skelOffset.y}px)`,
+          }}
+        >
+          {skelLines.flatMap((line, r) =>
+            line.split("").map((ch, c) => {
+              if (ch === " ") return null
+              const shown = blinking && ch === "o" ? "-" : ch
+              return (
+                <span key={`s-${r}-${c}`} style={cellStyle(r, c)}>
+                  {shown}
+                </span>
+              )
+            }),
+          )}
+        </div>
 
         {/* accreted details */}
         {details.map((d: PlacedDetail, i) => {
