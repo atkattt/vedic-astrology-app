@@ -300,6 +300,7 @@ export default function TerminalOnboarding({
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
                 color: l.cls === "me" ? "#000" : "#1a1a1a",
+                fontFamily: '"Geist Pixel", sans-serif',
               }}
             >
               {l.cls === "me" && (
@@ -397,7 +398,7 @@ export default function TerminalOnboarding({
                       background: "transparent",
                       border: "none",
                       color: "#000",
-                      fontFamily: "inherit",
+                      fontFamily: '"Geist Pixel", sans-serif',
                       fontSize: 16,
                       letterSpacing: 1,
                       padding: 0,
@@ -463,7 +464,7 @@ export default function TerminalOnboarding({
                 background: "transparent",
                 border: "1px solid #000",
                 color: "#000",
-                fontFamily: "inherit",
+                fontFamily: '"Geist Mono", sans-serif',
                 fontSize: 11,
                 letterSpacing: 2,
                 textTransform: "uppercase",

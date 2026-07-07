@@ -24,6 +24,7 @@ import {
   Manrope,
   Outfit,
   Geist,
+  Geist_Mono,
   Libre_Franklin,
   Rubik,
   Karla,
@@ -159,6 +160,11 @@ const geist = Geist({
   subsets: ['latin'],
   display: 'swap',
 })
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+  display: 'swap',
+})
 const libreFranklin = Libre_Franklin({
   variable: '--font-libre-franklin',
   subsets: ['latin'],
@@ -247,7 +253,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} ${fraunces.variable} bg-background`}
+      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${geistMono.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} ${fraunces.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <SpiralProvider>{children}</SpiralProvider>
