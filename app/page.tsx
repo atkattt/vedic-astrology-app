@@ -41,11 +41,16 @@ export default async function WelcomePage() {
             href="/onboarding"
             className={cn(
               buttonVariants({ size: "lg" }),
-              "h-11 rounded-full px-10 font-mono text-sm uppercase tracking-widest",
+              "h-11 rounded-[22px] px-[25px] pr-[21px] text-xs font-semibold uppercase tracking-[0.108em]",
             )}
-            style={{ color: "#2a2a2a" }}
+            style={{
+              color: "#2a2a2a",
+              fontFamily: '"Geist", sans-serif',
+              fontSize: "10px",
+              lineHeight: "0.8em",
+            }}
           >
-            Begin
+            begin
           </Link>
           <Button
             render={<Link href="/guest" />}
