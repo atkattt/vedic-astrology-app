@@ -787,7 +787,7 @@ export function SpiralUniverse({
                     : "0 0 8px rgba(200,220,240,0.85), 0 0 18px rgba(150,185,220,0.5)",
                 }}
               >
-                {"\u2726"}
+                {"\u2605"}
               </span>
               <span
                 className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
@@ -852,7 +852,7 @@ export function SpiralUniverse({
                   textShadow: locked ? "none" : `0 0 9px ${pp.color}, 0 0 20px ${pp.color}`,
                 }}
               >
-                {"\u2727"}
+                {"\u2605"}
               </span>
               <span
                 className="mt-1.5 max-w-24 truncate text-[12px] uppercase tracking-[1px]"
