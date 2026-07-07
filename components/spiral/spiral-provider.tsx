@@ -29,6 +29,13 @@ type SpiralState = {
   restore: (id: string) => void
   hasActed: (id: string) => boolean
   addTruth: (text: string, scope: TruthScope) => Truth
+  // Live count of reflection acts (kept + released). This is what the SAVE
+  // button in History commits, feeding growth to the self creature.
+  reflectionPoints: number
+  // The count captured at the last save — the creature reflects this.
+  savedReflectionPoints: number
+  hasUnsavedReflection: boolean
+  saveReflection: () => number
 }
 
 const SpiralContext = createContext<SpiralState | null>(null)
@@ -40,6 +47,7 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
   const [agreed, setAgreed] = useState<Read[]>([])
   const [disagreed, setDisagreed] = useState<DisagreedRead[]>([])
   const [truths, setTruths] = useState<Truth[]>([])
+  const [savedReflectionPoints, setSavedReflectionPoints] = useState(0)
 
   const actedIds = useMemo(() => {
     const s = new Set<string>()
@@ -80,6 +88,17 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
 
   const hasActed = useCallback((id: string) => actedIds.has(id), [actedIds])
 
+  // Every read you've kept or released is a decision about who you are — the
+  // raw material the self creature grows from.
+  const reflectionPoints = agreed.length + disagreed.length
+  const hasUnsavedReflection = reflectionPoints !== savedReflectionPoints
+
+  // Commit the current reflection so the self creature takes it in.
+  const saveReflection = useCallback(() => {
+    setSavedReflectionPoints(reflectionPoints)
+    return reflectionPoints
+  }, [reflectionPoints])
+
   const addTruth = useCallback((text: string, scope: TruthScope) => {
     const { reflection, tension } = reflectOnTruth(text, scope)
     const truth: Truth = {
@@ -106,8 +125,26 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
       restore,
       hasActed,
       addTruth,
+      reflectionPoints,
+      savedReflectionPoints,
+      hasUnsavedReflection,
+      saveReflection,
     }),
-    [queue, agreed, disagreed, truths, agree, disagree, restore, hasActed, addTruth],
+    [
+      queue,
+      agreed,
+      disagreed,
+      truths,
+      agree,
+      disagree,
+      restore,
+      hasActed,
+      addTruth,
+      reflectionPoints,
+      savedReflectionPoints,
+      hasUnsavedReflection,
+      saveReflection,
+    ],
   )
 
   return <SpiralContext.Provider value={value}>{children}</SpiralContext.Provider>

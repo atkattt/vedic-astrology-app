@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, RotateCcw, Check, X, Undo2, Heart } from "lucide-react"
+import { ArrowLeft, RotateCcw, Check, X, Undo2, Heart, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
@@ -25,9 +26,28 @@ const TABS: { id: Stance; label: string }[] = [
 ]
 
 export function HistoryView() {
-  const { agreed, disagreed, restore, disagree } = useSpiral()
+  const {
+    agreed,
+    disagreed,
+    restore,
+    disagree,
+    reflectionPoints,
+    hasUnsavedReflection,
+    saveReflection,
+  } = useSpiral()
+  const router = useRouter()
   const [tab, setTab] = useState<Stance>("all")
   const [leaving, setLeaving] = useState<string | null>(null)
+
+  // Commit the current kept/released picture and send it to the self creature,
+  // then take the user to watch it take shape.
+  function handleSave() {
+    const points = saveReflection()
+    toast("Reflection saved — your self is taking it in", {
+      description: `${points} decision${points === 1 ? "" : "s"} woven into who you are.`,
+    })
+    window.setTimeout(() => router.push("/self"), 650)
+  }
 
   // Kept first (most recently agreed at the top), then released. Both lists are
   // already stored newest-first by the provider.
@@ -112,7 +132,7 @@ export function HistoryView() {
       </div>
 
       {/* List */}
-      <div className="relative z-10 flex-1 px-5 py-6">
+      <div className="relative z-10 flex-1 px-5 pb-32 pt-6">
         {entries.length === 0 ? (
           <p className="mx-auto mt-10 max-w-xs text-pretty text-center font-serif text-sm italic text-muted-foreground">
             {tab === "kept"
@@ -197,6 +217,29 @@ export function HistoryView() {
             })}
           </ul>
         )}
+      </div>
+
+      {/* Sticky SAVE bar — commits the current reflection and feeds it to the
+          self creature that's building your portrait. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
+        <div className="mx-auto max-w-md bg-gradient-to-t from-background via-background/95 to-transparent px-5 pb-6 pt-8">
+          <button
+            onClick={handleSave}
+            disabled={!hasUnsavedReflection}
+            className={cn(
+              "pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 font-mono text-xs uppercase tracking-widest transition-colors",
+              hasUnsavedReflection
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "cursor-not-allowed border border-border bg-secondary/50 text-muted-foreground",
+            )}
+          >
+            <Sparkles className="size-4" />
+            {hasUnsavedReflection ? "Save & feed your self" : "All reflections saved"}
+          </button>
+          <p className="mt-2.5 text-center font-mono text-[10px] lowercase tracking-wide text-muted-foreground">
+            {reflectionPoints} decision{reflectionPoints === 1 ? "" : "s"} shaping who you are
+          </p>
+        </div>
       </div>
     </main>
   )

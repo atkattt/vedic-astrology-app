@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Lock } from "lucide-react"
 import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
 import { Starfield } from "@/components/starfield"
+import { useSpiral } from "@/components/spiral/spiral-provider"
 import { SelfChat } from "@/components/self/self-chat"
 import { SelfReads } from "@/components/self/self-reads"
 import { CHAT_UNLOCK_RADIUS, unlockProgress } from "@/lib/self/unlock"
@@ -38,8 +39,12 @@ export function SelfSpaceView({
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(
     () => new Set(reads ? Object.keys(reads.answers) : []),
   )
+  // Reflections saved from the History screen feed the same growth engine:
+  // every kept/released read the user committed is an extra point of self-
+  // knowledge the creature builds from.
+  const { savedReflectionPoints } = useSpiral()
   const score = engagementScore({
-    responses: respondedIds.size,
+    responses: respondedIds.size + savedReflectionPoints,
     answers: answeredIds.size,
   })
 
