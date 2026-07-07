@@ -131,12 +131,14 @@ export default function AsciiSpiral({ size = 150 }: { size?: number }) {
         fontSize: `${fontPx}px`,
         lineHeight: 0.92,
         letterSpacing: 0,
-        color: "#e8e4da",
+        // Dark glyphs to match the /onboarding ASCII sky (black-on-grey glass)
+        // instead of the old glowing-white treatment.
+        color: "#141414",
         whiteSpace: "pre",
         userSelect: "none",
         pointerEvents: "none",
         overflow: "hidden",
-        filter: "drop-shadow(0 0 9px rgba(255,255,255,0.4))",
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
       }}
     />
   )

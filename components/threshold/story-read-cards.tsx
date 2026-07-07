@@ -11,8 +11,10 @@ import { STORY_SECTIONS, type StorySection } from "@/components/threshold/story-
  * `›` prompt with a blinking cursor. Each card types when it scrolls into view.
  */
 
-const MONO =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+// Match /onboarding: Geist Mono for the meta line, Geist Pixel for the typed
+// body. Kept as named constants so both the card and its inner text share them.
+const MONO = '"Geist Mono", sans-serif'
+const PIXEL = '"Geist Pixel", sans-serif'
 const TYPE_MS = 14
 const CHARS_PER_TICK = 2
 
@@ -95,9 +97,14 @@ function StoryReadCard({
       ref={ref}
       style={{
         width: "100%",
-        border: "1px solid #1a1a1a",
-        borderRadius: 12,
-        background: "#070707",
+        // Translucent grey glass card to match the /onboarding surface.
+        border: "1px solid rgba(255,255,255,0.18)",
+        borderRadius: 18,
+        background: "rgba(120,120,120,0.30)",
+        backdropFilter: "blur(12px) saturate(120%)",
+        WebkitBackdropFilter: "blur(12px) saturate(120%)",
+        boxShadow:
+          "0 16px 40px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)",
         padding: "20px 18px 18px",
         fontFamily: MONO,
       }}
@@ -110,7 +117,7 @@ function StoryReadCard({
           fontSize: 10,
           letterSpacing: 2,
           textTransform: "uppercase",
-          color: "#4a4a4a",
+          color: "#2a2a2a",
           marginBottom: 18,
         }}
       >
@@ -126,11 +133,13 @@ function StoryReadCard({
           fontSize: 15,
           lineHeight: 1.6,
           letterSpacing: 0.4,
-          color: "#9a9a9a",
+          color: "#1a1a1a",
+          fontFamily: PIXEL,
+          fontWeight: 500,
           whiteSpace: "pre-wrap",
         }}
       >
-        <span style={{ color: "#555" }}>{"› "}</span>
+        <span style={{ color: "#333" }}>{"› "}</span>
         <TypedBody section={section} count={count} />
         {typing && (
           <span
@@ -138,7 +147,7 @@ function StoryReadCard({
               display: "inline-block",
               width: 8,
               height: 16,
-              background: "#9a9a9a",
+              background: "#1a1a1a",
               marginLeft: 1,
               verticalAlign: -3,
               animation: "srcBlink 1.05s steps(1) infinite",
@@ -164,13 +173,13 @@ function TypedBody({ section, count }: { section: StorySection; count: number })
     remaining -= slice.length
     if (seg.glow) {
       nodes.push(
-        <span key={i} style={{ color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }}>
+        <span key={i} style={{ color: "#000", fontWeight: 600 }}>
           {slice}
         </span>,
       )
     } else if (seg.dim) {
       nodes.push(
-        <span key={i} style={{ color: "#5a5a5a", fontStyle: "italic" }}>
+        <span key={i} style={{ color: "#444", fontStyle: "italic" }}>
           {slice}
         </span>,
       )
