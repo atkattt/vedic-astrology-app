@@ -194,9 +194,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               // heavy backdrop blur keeps it reading as glass. The button and
               // labels sit on top of this shelf.
               background:
-                "linear-gradient(to top, rgba(196,198,204,0.88), rgba(188,190,196,0.72) 45%, rgba(178,180,188,0.2) 85%, transparent)",
-              backdropFilter: "blur(56px) saturate(150%)",
-              WebkitBackdropFilter: "blur(56px) saturate(150%)",
+                "linear-gradient(to top, rgba(196,198,204,0.6), rgba(188,190,196,0.42) 45%, rgba(178,180,188,0.12) 85%, transparent)",
+              backdropFilter: "blur(90px) saturate(150%)",
+              WebkitBackdropFilter: "blur(90px) saturate(150%)",
               // Keep the shelf fully opaque across a tall band before easing
               // out at the very top edge only.
               maskImage:
