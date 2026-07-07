@@ -321,6 +321,8 @@ export default function TerminalOnboarding({
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
                 color: "#1a1a1a",
+                fontFamily: '"Geist Pixel", sans-serif',
+                fontWeight: 500,
               }}
             >
               {typing}
