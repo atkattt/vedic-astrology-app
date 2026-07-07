@@ -258,7 +258,10 @@ export default function TerminalOnboarding({
           // give it a glassmorphism feel while the grey tint keeps the text
           // readable against the moving background behind it.
           width: "100%",
-          height: "min(100dvh - 32px, 760px)",
+          // Subtract the page's vertical padding (main uses py-6 = 48px total)
+          // so the card fits fully inside the viewport and the flex parent can
+          // center it vertically instead of overflowing / pinning to the top.
+          height: "min(100dvh - 96px, 760px)",
           background: "rgba(120, 120, 120, 0.38)",
           backdropFilter: "blur(16px) saturate(120%)",
           WebkitBackdropFilter: "blur(16px) saturate(120%)",
