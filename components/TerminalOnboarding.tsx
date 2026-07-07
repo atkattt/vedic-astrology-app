@@ -301,6 +301,7 @@ export default function TerminalOnboarding({
                 textWrap: "pretty",
                 color: l.cls === "me" ? "#000" : "#1a1a1a",
                 fontFamily: '"Geist Pixel", sans-serif',
+                fontWeight: 500,
               }}
             >
               {l.cls === "me" && (
@@ -352,7 +353,7 @@ export default function TerminalOnboarding({
                 <div
                   style={{
                     position: "relative",
-                    borderBottom: "1px solid #4a4a4a",
+                    borderBottom: "1px solid rgba(0, 0, 0, 0)",
                     padding: "9px 2px",
                   }}
                 >
@@ -399,6 +400,7 @@ export default function TerminalOnboarding({
                       border: "none",
                       color: "#000",
                       fontFamily: '"Geist Pixel", sans-serif',
+                      fontWeight: 500,
                       fontSize: 16,
                       letterSpacing: 1,
                       padding: 0,
