@@ -405,7 +405,12 @@ export function SpiralUniverse({
         y,
         r: Math.hypot(x, y),
         color: READ_COLORS[i % READ_COLORS.length],
-        panel: { src: s.value.toLowerCase(), title: s.label, body: s.body },
+        panel: {
+          src: s.value,
+          title: s.label,
+          body: s.body,
+          accent: READ_COLORS[i % READ_COLORS.length],
+        },
         read: { id: `chart-${slug(s.label)}`, category: "about-you", text: s.body },
       }
     })
@@ -428,6 +433,7 @@ export function SpiralUniverse({
           src: "the bond between you",
           title: `${person.name} × you`,
           body: read.text,
+          accent: colorById.get(person.id) ?? PERSON_COLORS[i % PERSON_COLORS.length],
         },
         read,
       }

@@ -21,6 +21,8 @@ export type PanelData = {
   title: string
   /** The body that types out. */
   body: string
+  /** The tapped marker's color — tints the panel border + heading. */
+  accent?: string
 }
 
 const TYPE_MS = 18
@@ -45,6 +47,9 @@ export function UniverseReadPanel({
   const dragStart = useRef<number | null>(null)
 
   const open = data !== null
+  // The tapped marker's color, translated into the panel chrome. Falls back to
+  // the neutral grey when no accent is provided.
+  const accent = data?.accent ?? "#9a9a9a"
 
   const reduceMotion =
     typeof window !== "undefined" &&
@@ -126,9 +131,11 @@ export function UniverseReadPanel({
         className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[440px]"
         style={{
           background: "#070707",
-          border: "1px solid #1c1c1c",
+          border: `1px solid ${accent}`,
           borderBottom: "none",
           borderRadius: "20px 20px 0 0",
+          // A soft bloom of the marker's color along the panel's top edge.
+          boxShadow: `0 -1px 24px ${accent}40`,
           transform: open ? `translateY(${dragY}px)` : "translateY(110%)",
           transition: dragStart.current
             ? "none"
@@ -149,23 +156,23 @@ export function UniverseReadPanel({
           className="flex cursor-grab justify-center pb-1 pt-3 active:cursor-grabbing"
           style={{ touchAction: "none" }}
         >
-          <span className="block h-1 w-9 rounded-full" style={{ background: "#262626" }} />
+          <span className="block h-1 w-9 rounded-full" style={{ background: accent, opacity: 0.7 }} />
         </div>
 
         <div className="px-6 pb-7 pt-2">
-          {/* source line */}
+          {/* title — the facet name, in the marker's color, e.g. ASCENDANT */}
           <div
-            className="mb-2.5 text-[9px] uppercase tracking-[2px]"
-            style={{ color: "#5a5a5a" }}
-          >
-            {data?.src}
-          </div>
-          {/* title */}
-          <div
-            className="mb-3.5 text-[11px] uppercase tracking-[3px]"
-            style={{ color: "#9a9a9a" }}
+            className="mb-2 text-[13px] uppercase tracking-[3px]"
+            style={{ color: accent, textShadow: `0 0 12px ${accent}55` }}
           >
             {data?.title}
+          </div>
+          {/* source line — the sign, e.g. CAPRICORN · MAKARA */}
+          <div
+            className="mb-3.5 text-[10px] uppercase tracking-[2px]"
+            style={{ color: `${accent}b3` }}
+          >
+            {data?.src}
           </div>
           {/* typed body */}
           <div
