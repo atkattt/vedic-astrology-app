@@ -189,24 +189,49 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               `backdrop-filter` also disables the blur in Chrome/Safari. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-56"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-72"
           >
-            {/* Layer 1: the actual backdrop blur — no mask, so it truly applies
-                and the story sliding behind it becomes a soft haze. */}
+            {/* Progressive blur: several stacked layers, each starting lower and
+                blurring harder toward the bottom. Because each layer has a hard
+                edge but only a little more blur than the one above it, the net
+                result is a soft, feathered frost that eases into the story
+                rather than a single abrupt cutoff. (A mask can't be used here —
+                it disables `backdrop-filter` in Chrome/Safari.) */}
             <div
-              className="absolute inset-x-0 bottom-0 top-16"
+              className="absolute inset-x-0 bottom-0 top-0"
+              style={{
+                backdropFilter: "blur(2px)",
+                WebkitBackdropFilter: "blur(2px)",
+              }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 top-[28%]"
+              style={{
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+              }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 top-[48%]"
+              style={{
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+              }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 top-[64%]"
               style={{
                 backdropFilter: "blur(24px) saturate(140%)",
                 WebkitBackdropFilter: "blur(24px) saturate(140%)",
               }}
             />
-            {/* Layer 2: a frosted tint that fades out toward the top so the
-                shelf blends into the story above. */}
+            {/* Frosted tint on top, fading gently toward the top edge so the
+                shelf blends smoothly into the story above. */}
             <div
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(to top, rgba(198,200,206,0.72), rgba(190,192,198,0.5) 45%, rgba(180,182,190,0.16) 85%, transparent)",
+                  "linear-gradient(to top, rgba(198,200,206,0.72) 0%, rgba(192,194,200,0.56) 35%, rgba(186,188,196,0.34) 60%, rgba(180,182,190,0.14) 82%, transparent 100%)",
               }}
             />
           </div>
