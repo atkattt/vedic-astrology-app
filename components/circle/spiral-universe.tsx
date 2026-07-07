@@ -555,11 +555,9 @@ export function SpiralUniverse({
         touchAction: "none",
         cursor: "grab",
         userSelect: "none",
-        // Charcoal void: a near-black field that lifts faintly toward the
-        // center, so the explored core feels lit and the unexplored edges
-        // recede into darkness.
-        background:
-          "radial-gradient(120% 120% at 50% 50%, oklch(0.19 0 0) 0%, oklch(0.13 0 0) 45%, oklch(0.08 0 0) 100%)",
+        // Pure black void: the glyph spiral is the only thing that lifts out of
+        // the darkness, winding outward from the core circle infinitely.
+        background: "#000000",
       }}
     >
       {/* ===== The universe layer: everything here pans + zooms ===== */}
@@ -788,14 +786,16 @@ export function SpiralUniverse({
           transition: "transform .4s cubic-bezier(.3,.8,.3,1)",
         }}
       >
-        {/* Circle outline only — the fill is transparent so the creature sits
-            directly on the universe with no grey disc behind it. */}
+        {/* Solid black core disc: an opaque black interior that contains the
+            self creature and masks the glyph trail behind it, so the spiral
+            reads as emerging from the circle's outline and building outward
+            into the black void infinitely. */}
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
             width: 172,
             height: 172,
-            backgroundColor: "transparent",
+            backgroundColor: "#000000",
             border: "1px solid oklch(0.95 0 0 / 0.55)",
           }}
         />
