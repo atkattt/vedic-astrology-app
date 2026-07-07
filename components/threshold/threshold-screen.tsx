@@ -181,28 +181,28 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           read finishes. It waits; it never forces the transition. */}
       {ready && (
         <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-20">
-          {/* Frosted glass shelf at the bottom of the screen. A strong blur is
-              masked so it's fully opaque near the bottom (where the button and
-              label sit) and fades to nothing at the top, keeping the story
-              readable above while giving the CTA a clean, legible backdrop. */}
+          {/* Frosted glass shelf at the bottom of the screen. Split into two
+              layers because combining `mask-image` with `backdrop-filter`
+              silently disables the blur in Chrome/Safari. */}
+          {/* Layer 1: the actual backdrop blur. No mask, so the blur is really
+              applied — the story text sliding behind it becomes a soft haze. */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
-              // Solid frosted glass layer: an opaque-enough tint near the
-              // bottom fully hides the story text sliding behind it, while the
-              // heavy backdrop blur keeps it reading as glass. The button and
-              // labels sit on top of this shelf.
+              backdropFilter: "blur(24px) saturate(140%)",
+              WebkitBackdropFilter: "blur(24px) saturate(140%)",
+            }}
+          />
+          {/* Layer 2: a frosted tint on top, faded at the top edge via a
+              gradient so the shelf blends into the story above. Safe to mask
+              since this layer has no backdrop-filter. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
               background:
-                "linear-gradient(to top, rgba(196,198,204,0.6), rgba(188,190,196,0.42) 45%, rgba(178,180,188,0.12) 85%, transparent)",
-              backdropFilter: "blur(90px) saturate(150%)",
-              WebkitBackdropFilter: "blur(90px) saturate(150%)",
-              // Keep the shelf fully opaque across a tall band before easing
-              // out at the very top edge only.
-              maskImage:
-                "linear-gradient(to top, #000 78%, rgba(0,0,0,0.5) 92%, transparent)",
-              WebkitMaskImage:
-                "linear-gradient(to top, #000 78%, rgba(0,0,0,0.5) 92%, transparent)",
+                "linear-gradient(to top, rgba(198,200,206,0.72), rgba(190,192,198,0.5) 45%, rgba(180,182,190,0.16) 85%, transparent)",
             }}
           />
           <button
