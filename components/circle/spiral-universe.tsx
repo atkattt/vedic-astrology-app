@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
 import type { Person, Relationship } from "@/lib/db/schema"
-import { YOU_COLOR } from "@/lib/circle/colors"
 import { chartRead } from "@/lib/spiral/chart-read"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
@@ -119,37 +118,38 @@ type Glyph = {
   delay: number
 }
 
-// READ objects (facets of your own chart) live in the inner ring, placed by
-// angle + radius — NOT on the spiral arm. These fixed slots keep them spread
-// evenly around the avatar; chart sections fill them in order.
-const READ_LAYOUT: { angle: number; r: number }[] = [
-  { angle: -0.5, r: 172 },
-  { angle: 1.1, r: 205 },
-  { angle: 2.5, r: 158 },
-  { angle: 3.7, r: 232 },
-  { angle: 5.0, r: 190 },
-]
+// READ objects (facets of your own chart) live ON the inner spiral arm — the
+// same curve the nebula and people follow — so they read as beads strung along
+// the spiral rather than free-floating points. Their t-values sit inside the
+// base reveal radius (r = MAX_R * t, so t<=0.5 → r<=240) so all of the user's
+// own facets are reachable from the first moment.
+const READ_T = [0.24, 0.3, 0.36, 0.42, 0.48]
 
-// PEOPLE live ON the spiral arm, further out than the reads. The first person
-// added sits innermost; each subsequent one is placed further along the arm.
-const PERSON_MIN_T = 0.52
+// Each read facet gets its own distinct star color (cool cosmic hues, no
+// purple/violet), so the inner arm reads as a little constellation of
+// differently-colored facets rather than identical white dots.
+const READ_COLORS = ["#e8c15a", "#e8896a", "#6ad0e8", "#7ae8a8", "#e86a9c"]
+
+// PEOPLE live ON the spiral arm too, further out than the reads. The first
+// person added sits innermost; each subsequent one is placed further along.
+const PERSON_MIN_T = 0.58
 const PERSON_MAX_T = 1.12
 
 function personT(i: number, n: number) {
-  if (n <= 1) return 0.7
+  if (n <= 1) return 0.72
   return PERSON_MIN_T + (PERSON_MAX_T - PERSON_MIN_T) * (i / (n - 1))
 }
 
-// A read placed in the inner ring by angle + radius.
-function readPoint(angle: number, r: number) {
-  return { x: Math.cos(angle) * r, y: Math.sin(angle) * r }
-}
+// Fallback palette for people (used only when colorById has no entry), kept
+// distinct from the read colors above.
+const PERSON_COLORS = ["#8ab6e8", "#e8b84a", "#5fd0a8", "#e87a7a", "#6ac9d8", "#e8a35f"]
 
 type PlacedRead = {
   label: string
   x: number
   y: number
   r: number
+  color: string
   panel: PanelData
   read: Read
 }
@@ -373,14 +373,15 @@ export function SpiralUniverse({
   // Each carries the panel content + a Read that persists through the SAME
   // agree/disagree pipeline the bottom ReadHub uses.
   const reads = useMemo<PlacedRead[]>(() => {
-    return chartRead.sections.slice(0, READ_LAYOUT.length).map((s, i) => {
-      const { angle, r } = READ_LAYOUT[i % READ_LAYOUT.length]
-      const { x, y } = readPoint(angle, r)
+    return chartRead.sections.slice(0, READ_T.length).map((s, i) => {
+      const t = READ_T[i % READ_T.length]
+      const { x, y } = spiralPoint(t)
       return {
         label: s.label,
         x,
         y,
         r: Math.hypot(x, y),
+        color: READ_COLORS[i % READ_COLORS.length],
         panel: { src: s.value.toLowerCase(), title: s.label, body: s.body },
         read: { id: `chart-${slug(s.label)}`, category: "about-you", text: s.body },
       }
@@ -399,7 +400,7 @@ export function SpiralUniverse({
         x,
         y,
         r: Math.hypot(x, y),
-        color: colorById.get(person.id) ?? YOU_COLOR,
+        color: colorById.get(person.id) ?? PERSON_COLORS[i % PERSON_COLORS.length],
         panel: {
           src: "the bond between you",
           title: `${person.name} × you`,
@@ -781,10 +782,8 @@ export function SpiralUniverse({
                 style={{
                   fontFamily: monoFont,
                   fontSize: locked ? 16 : 24,
-                  color: locked ? "#4a4e56" : "#eef2f7",
-                  textShadow: locked
-                    ? "none"
-                    : "0 0 8px rgba(200,220,240,0.85), 0 0 18px rgba(150,185,220,0.5)",
+                  color: locked ? "#4a4e56" : r.color,
+                  textShadow: locked ? "none" : `0 0 8px ${r.color}, 0 0 18px ${r.color}`,
                 }}
               >
                 {"\u2605"}
@@ -793,7 +792,7 @@ export function SpiralUniverse({
                 className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
                 style={{
                   fontFamily: monoFont,
-                  color: "#9aa7b6",
+                  color: r.color,
                   opacity: locked ? 0 : 1,
                   transition: "opacity 1s ease",
                 }}
