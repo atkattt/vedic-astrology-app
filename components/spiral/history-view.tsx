@@ -3,16 +3,16 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, RotateCcw, Check, X } from "lucide-react"
+import { ArrowLeft, RotateCcw, Check, X, Undo2, Heart } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import type { DisagreedRead, Read } from "@/lib/spiral/reads"
 
-type Stance = "all" | "kept" | "released"
+type Stance = "all" | "kept" | "released" | "bonds"
 
 // A unified history row — a read plus whether it was kept (agreed) or released
-// (disagreed). Released rows carry the disagree reason + can be restored.
+// (disagreed). Released rows carry the disagree reason.
 type Entry =
   | { stance: "kept"; read: Read }
   | { stance: "released"; read: DisagreedRead }
@@ -21,10 +21,11 @@ const TABS: { id: Stance; label: string }[] = [
   { id: "all", label: "All" },
   { id: "kept", label: "Kept" },
   { id: "released", label: "Released" },
+  { id: "bonds", label: "Bonds" },
 ]
 
 export function HistoryView() {
-  const { agreed, disagreed, restore } = useSpiral()
+  const { agreed, disagreed, restore, disagree } = useSpiral()
   const [tab, setTab] = useState<Stance>("all")
   const [leaving, setLeaving] = useState<string | null>(null)
 
@@ -35,9 +36,32 @@ export function HistoryView() {
     const released: Entry[] = disagreed.map((read) => ({ stance: "released", read }))
     if (tab === "kept") return kept
     if (tab === "released") return released
-    return [...kept, ...released]
+    const all = [...kept, ...released]
+    if (tab === "bonds") return all.filter((e) => e.read.category === "bond")
+    return all
   }, [agreed, disagreed, tab])
 
+  const counts = useMemo(
+    () => ({
+      all: agreed.length + disagreed.length,
+      kept: agreed.length,
+      released: disagreed.length,
+      bonds: [...agreed, ...disagreed].filter((r) => r.category === "bond").length,
+    }),
+    [agreed, disagreed],
+  )
+
+  // Move a kept read back out onto the "released" side.
+  function handleRelease(read: Read) {
+    setLeaving(read.id)
+    toast("Released — moved to what you let go")
+    window.setTimeout(() => {
+      disagree(read, "used to be")
+      setLeaving(null)
+    }, 400)
+  }
+
+  // Pull a released read back onto the spiral / into what you keep.
   function handleRestore(read: DisagreedRead) {
     setLeaving(read.id)
     toast("Pulled back onto your spiral")
@@ -62,31 +86,29 @@ export function HistoryView() {
         <h1 className="mt-4 font-serif text-3xl font-light md:text-4xl">History</h1>
         <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground md:max-w-md md:text-base">
           A portrait drawn in what you claimed and what you let go — every read
-          you kept, and every one you released. Nothing here is deleted.
+          you kept, every one you released, and the bonds between. Nothing here
+          is deleted, and nothing is final: keep or release, anytime.
         </p>
       </header>
 
       {/* Stance filter */}
-      <div className="relative z-20 mt-5 flex gap-2 px-5">
-        {TABS.map((t) => {
-          const count =
-            t.id === "kept" ? agreed.length : t.id === "released" ? disagreed.length : agreed.length + disagreed.length
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors",
-                tab === t.id
-                  ? "border-foreground/40 bg-secondary text-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-              <span className="text-muted-foreground/70">{count}</span>
-            </button>
-          )
-        })}
+      <div className="relative z-20 mt-5 flex flex-wrap gap-2 px-5">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors",
+              tab === t.id
+                ? "border-foreground/40 bg-secondary text-foreground"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.id === "bonds" && <Heart className="size-3" />}
+            {t.label}
+            <span className="text-muted-foreground/70">{counts[t.id]}</span>
+          </button>
+        ))}
       </div>
 
       {/* List */}
@@ -96,14 +118,17 @@ export function HistoryView() {
             {tab === "kept"
               ? "Nothing kept yet. What resonates with you will gather here."
               : tab === "released"
-                ? "Nothing released yet. What you disagree with will be filed here."
-                : "Your history is empty. Answer the reads on your spiral and they'll gather here."}
+                ? "Nothing released yet. What you let go of will be filed here."
+                : tab === "bonds"
+                  ? "No bonds yet. Reads about the people in your orbit will gather here."
+                  : "Your history is empty. Answer the reads on your spiral and they'll gather here."}
           </p>
         ) : (
           <ul className="mx-auto flex max-w-md flex-col gap-3">
             {entries.map((entry) => {
               const { read, stance } = entry
               const kept = stance === "kept"
+              const isBond = read.category === "bond"
               return (
                 <li
                   key={`${stance}-${read.id}`}
@@ -134,24 +159,36 @@ export function HistoryView() {
                   <div className="mt-3 flex items-center justify-between gap-2 pl-[30px]">
                     <span
                       className={cn(
-                        "rounded-full px-2.5 py-1 font-mono text-[10px] lowercase tracking-wide",
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] lowercase tracking-wide",
                         kept
                           ? "bg-primary/10 text-primary/90"
                           : "bg-secondary/70 text-muted-foreground",
                       )}
                     >
+                      {isBond && <Heart className="size-2.5" />}
                       {kept
-                        ? `kept · ${read.category === "bond" ? "bond" : "about you"}`
+                        ? `kept · ${isBond ? "bond" : "about you"}`
                         : `${(read as DisagreedRead).reason}`}
                       {read.subjectName ? ` · ${read.subjectName}` : ""}
                     </span>
-                    {!kept && (
+
+                    {/* Every row can flip its stance: kept → release,
+                        released → bring back. */}
+                    {kept ? (
+                      <button
+                        onClick={() => handleRelease(read)}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <Undo2 className="size-3.5" />
+                        Release
+                      </button>
+                    ) : (
                       <button
                         onClick={() => handleRestore(read as DisagreedRead)}
                         className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
                       >
                         <RotateCcw className="size-3.5" />
-                        Restore
+                        Bring back
                       </button>
                     )}
                   </div>
