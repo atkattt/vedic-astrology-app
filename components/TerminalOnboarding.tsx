@@ -239,11 +239,13 @@ export default function TerminalOnboarding({
   return (
     <div
       style={{
-        background: "#787878",
+        position: "relative",
+        zIndex: 10,
         color: "#000",
         fontFamily:
           "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-        minHeight: "100dvh",
+        width: "100%",
+        maxWidth: 440,
         display: "flex",
         alignItems: "stretch",
         justifyContent: "center",
@@ -251,12 +253,23 @@ export default function TerminalOnboarding({
     >
       <div
         style={{
+          // Translucent frosted-grey glass rectangle with curved corners that
+          // floats over the animated sky. The blur + subtle border + shadow
+          // give it a glassmorphism feel while the grey tint keeps the text
+          // readable against the moving background behind it.
           width: "100%",
-          maxWidth: 420,
-          height: "100dvh",
+          height: "min(100dvh - 32px, 760px)",
+          background: "rgba(120, 120, 120, 0.38)",
+          backdropFilter: "blur(16px) saturate(120%)",
+          WebkitBackdropFilter: "blur(16px) saturate(120%)",
+          border: "1px solid rgba(255, 255, 255, 0.18)",
+          borderRadius: 28,
+          boxShadow:
+            "0 24px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
           padding: "calc(env(safe-area-inset-top, 0px) + 28px) 28px calc(env(safe-area-inset-bottom, 0px) + 28px)",
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         <div
