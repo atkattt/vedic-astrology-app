@@ -355,7 +355,7 @@ export default function TerminalOnboarding({
                 <div
                   style={{
                     position: "relative",
-                    borderBottom: "1px solid rgba(0, 0, 0, 0)",
+                    borderBottom: "1px solid rgba(0, 0, 0, 0.45)",
                     padding: "9px 2px",
                   }}
                 >
