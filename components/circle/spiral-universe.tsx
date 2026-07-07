@@ -55,18 +55,42 @@ const REVEAL_STEP = 120 // how far each answer pushes the frontier outward
 // Spiral geometry in world units, centered on (0,0).
 const TURNS = 3
 const MAX_R = 480
-// No spiral glyph is drawn within this radius — carves a clean hole where the
+// No nebula glyph is drawn within this radius — carves a clean hole where the
 // pinned avatar lives. Glyphs fade in over FADE_BAND just outside it.
-const AVATAR_CLEAR_RADIUS = 96
-const FADE_BAND = 72
-const GLYPH_STEPS = 250
+const AVATAR_CLEAR_RADIUS = 108
+const FADE_BAND = 76
+// The nebula is sampled along the spiral curve; at each sample we scatter a
+// small cloud of glyphs across the arm's width, so the sky reads as dense
+// drifting fog rather than a thin bead-trail.
+const NEBULA_SAMPLES = 240
 const GLYPH_T_START = 0.04
-const GLYPH_T_END = 1.7
+const GLYPH_T_END = 1.72
+
+// Monospace fog glyphs, weighted toward faint punctuation so bright marks
+// ( ✦ * @ ) only occasionally spark inside the cloud.
+const NEBULA_CHARS = [
+  "·", "·", "·", "·", ":", ":", ";", "'", "˚", "˙",
+  "+", "=", "/", "*", "×", "@", ".", "·", ":", "'",
+]
+// Cool moonlit-fog tones (pale blue-white → dim slate) chosen per glyph.
+const NEBULA_TONES = ["#cdd8e4", "#b3c2d2", "#9cadc0", "#8496ab", "#6f8299"]
 
 function spiralPoint(t: number) {
   const theta = t * TURNS * Math.PI * 2 - Math.PI / 2
   const r = MAX_R * t
   return { x: r * Math.cos(theta), y: r * Math.sin(theta) }
+}
+
+// Deterministic PRNG (mulberry32) so the scattered nebula is identical on the
+// server and client — random-looking, but stable across hydration.
+function mulberry32(seed: number) {
+  let s = seed >>> 0
+  return () => {
+    s = (s + 0x6d2b79f5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 /**
@@ -86,7 +110,12 @@ type Glyph = {
   r: number
   char: string
   size: number
+  /** lit opacity target once inside the frontier */
   max: number
+  /** cool tone color for this glyph when lit */
+  tone: string
+  /** shimmer animation duration (s) + negative start delay for stagger */
+  shimmerDur: number
   delay: number
 }
 
@@ -278,27 +307,63 @@ export function SpiralUniverse({
     ? Math.min(220, Math.max(120, (stageRef.current?.clientHeight ?? 720) * 0.2))
     : 0
 
-  // The spiral arm, as a trail of ASCII glyphs winding outward from the core.
+  // The nebula: a dense field of ASCII glyphs scattered along AND across the
+  // spiral arm, forming cloudy limbs with organic clumping (density noise)
+  // rather than an even trail. Deterministic (seeded RNG + spiralPoint), so
+  // SSR and the client render the exact same cloud.
   const glyphs = useMemo<Glyph[]>(() => {
-    const chars = ["+", "*", "✦"]
+    const rand = mulberry32(0x5eed)
     const out: Glyph[] = []
-    for (let i = 0; i <= GLYPH_STEPS; i++) {
-      const t = GLYPH_T_START + (GLYPH_T_END - GLYPH_T_START) * (i / GLYPH_STEPS)
-      const { x, y } = spiralPoint(t)
-      const dist = Math.hypot(x, y)
-      if (dist < AVATAR_CLEAR_RADIUS) continue
-      const rawEdge = Math.min(1, Math.max(0, (dist - AVATAR_CLEAR_RADIUS) / FADE_BAND))
-      const edgeFade = rawEdge * rawEdge * (3 - 2 * rawEdge) // smoothstep
-      out.push({
-        key: i,
-        x,
-        y,
-        r: dist,
-        char: chars[i % chars.length],
-        size: 7 + Math.min(t, 1.4) * 9,
-        max: (0.16 + Math.min(t, 1) * 0.34) * edgeFade,
-        delay: -((i * 0.07) % 3.2),
-      })
+    let key = 0
+    const along = (MAX_R * (GLYPH_T_END - GLYPH_T_START)) / NEBULA_SAMPLES
+    // Two interleaved arms (half a turn apart) so the fog wraps around the moon
+    // as a cloud rather than a single thin thread.
+    const ARMS = [0, Math.PI]
+    for (const armPhase of ARMS) {
+      for (let s = 0; s <= NEBULA_SAMPLES; s++) {
+        const t = GLYPH_T_START + (GLYPH_T_END - GLYPH_T_START) * (s / NEBULA_SAMPLES)
+        const theta = t * TURNS * Math.PI * 2 - Math.PI / 2 + armPhase
+        const rr = MAX_R * t
+        const cx = rr * Math.cos(theta)
+        const cy = rr * Math.sin(theta)
+        // unit tangent + perpendicular to the curve at this point
+        const tx = Math.cos(theta)
+        const ty = Math.sin(theta)
+        const px = -ty
+        const py = tx
+        // density noise → clumpy, cloudy arms instead of a uniform ribbon
+        const dens = 0.35 + 0.65 * Math.abs(Math.sin(t * 5.1 + armPhase + 1.3) * Math.sin(t * 2.3 + 0.7))
+        // wide arms that overlap into a continuous cloud, widening outward
+        const armWidth = 30 + t * 74
+        const count = 2 + Math.round(dens * 3.2)
+        for (let k = 0; k < count; k++) {
+          // triangular (gaussian-ish) perpendicular offset → denser near the
+          // curve spine, thinning toward the arm edges
+          const gp = rand() + rand() - 1
+          const perp = gp * armWidth
+          const off = (rand() - 0.5) * along * 2.2
+          const x = cx + px * perp + tx * off
+          const y = cy + py * perp + ty * off
+          const dist = Math.hypot(x, y)
+          if (dist < AVATAR_CLEAR_RADIUS) continue
+          const rawEdge = Math.min(1, Math.max(0, (dist - AVATAR_CLEAR_RADIUS) / FADE_BAND))
+          const edgeFade = rawEdge * rawEdge * (3 - 2 * rawEdge) // smoothstep
+          // brighter near the spine, fainter toward the arm edge
+          const widthFade = 1 - Math.min(1, Math.abs(perp) / (armWidth * 1.2)) * 0.7
+          out.push({
+            key: key++,
+            x,
+            y,
+            r: dist,
+            char: NEBULA_CHARS[Math.floor(rand() * NEBULA_CHARS.length)],
+            size: 7 + Math.min(t, 1.5) * 7 + rand() * 4,
+            max: (0.34 + rand() * 0.54) * edgeFade * widthFade,
+            tone: NEBULA_TONES[Math.floor(rand() * NEBULA_TONES.length)],
+            shimmerDur: 4 + rand() * 4.5,
+            delay: -(rand() * 6),
+          })
+        }
+      }
     }
     return out
   }, [])
@@ -555,9 +620,9 @@ export function SpiralUniverse({
         touchAction: "none",
         cursor: "grab",
         userSelect: "none",
-        // Pure black void: the glyph spiral is the only thing that lifts out of
-        // the darkness, winding outward from the core circle infinitely.
-        background: "#000000",
+        // Pure black void — no gradient lift. The only light in this sky is the
+        // cool nebula glow that blooms inside the revealed frontier.
+        background: "#050505",
       }}
     >
       {/* ===== The universe layer: everything here pans + zooms ===== */}
@@ -567,58 +632,78 @@ export function SpiralUniverse({
         className="absolute left-0 top-0"
         style={{ width: 0, height: 0, transformOrigin: "0 0", willChange: "transform" }}
       >
-        {/* Frontier pulse: a soft, fog-like bloom that swells at the current
-            reveal radius whenever it expands, marking the edge of what you've
-            uncovered. Rather than a hard ring it's an organic, blurred halo —
-            a radial gradient that glows toward its rim, with a slightly
-            irregular (non-circular) shape so it reads as drifting fog rather
-            than a geometric outline. Keyed on revealRadius so it remounts +
-            re-animates on each step. */}
-        <span
-          key={`frontier-${revealRadius}`}
-          className="animate-frontier-pulse absolute"
-          style={{
-            left: px2(-revealRadius * 1.18),
-            top: px2(-revealRadius * 1.18),
-            width: px2(revealRadius * 2.36),
-            height: px2(revealRadius * 2.36),
-            // Organic, lava-lamp-ish blob outline (not a perfect circle).
-            borderRadius: "46% 54% 52% 48% / 52% 47% 53% 48%",
-            // Fog: transparent core, a diffuse luminous band near the frontier
-            // edge, fading back out — no hard stroke anywhere.
-            background:
-              "radial-gradient(circle, transparent 56%, oklch(0.92 0 0 / 0.10) 72%, oklch(0.95 0 0 / 0.22) 82%, oklch(0.92 0 0 / 0.08) 92%, transparent 100%)",
-            filter: "blur(14px)",
-          }}
-        />
+        {/* ── Nebula, glow underlay ──────────────────────────────────────
+            One blurred layer holding EVERY glyph. Lit (inside-frontier) glyphs
+            carry a soft cool bloom; locked ones sit at opacity 0. Because the
+            whole layer shares a single blur filter, the moonlit-fog glow costs
+            one filter pass instead of a shadow per glyph. When the frontier
+            grows, new glyphs fade their bloom in over ~1.2s (spread by radius),
+            so the fog visibly rolls outward. */}
+        <div
+          className="absolute left-0 top-0 select-none"
+          style={{ width: 0, height: 0, filter: "blur(9px)" }}
+        >
+          {glyphs.map((g) => {
+            const lit = g.r <= revealRadius
+            const spread = justRevealed(g.r)
+              ? Math.min(0.6, Math.max(0, (g.r - prevRevealRef.current) / REVEAL_STEP) * 0.6)
+              : 0
+            return (
+              <span
+                key={`bloom-${g.key}`}
+                className="absolute"
+                style={{
+                  left: px2(g.x),
+                  top: px2(g.y),
+                  fontFamily: monoFont,
+                  fontSize: px2(g.size * 1.35),
+                  lineHeight: 1,
+                  color: "#a6c6e6",
+                  transform: "translate(-50%, -50%)",
+                  opacity: lit ? Math.min(0.72, g.max * 1.7) : 0,
+                  transition: "opacity 1.2s ease",
+                  transitionDelay: `${spread}s`,
+                }}
+              >
+                {g.char}
+              </span>
+            )
+          })}
+        </div>
 
-        {/* Spiral arm — a trail of pulsating glyphs winding out from the core.
-            Glyphs beyond the revealed frontier are barely-there points of light
-            (locked stars); answering reads expands the frontier and they
-            materialize up to their full pulse amplitude.
-            Positions are deterministic (spiralPoint), so SSR and client agree. */}
+        {/* ── Nebula, crisp layer ────────────────────────────────────────
+            The readable glyphs on top of the bloom.
+              • inside the frontier → lit cool tone with a slow, staggered
+                opacity shimmer; warms from dim ember to its tone over ~1.2s
+                (delayed by radius) as the frontier passes over it.
+              • outside → barely-there embers: very dim, desaturated, no glow.
+            Positions are deterministic (seeded RNG), so SSR + client agree. */}
         {glyphs.map((g) => {
-          const locked = g.r > revealRadius
+          const lit = g.r <= revealRadius
+          const spread = justRevealed(g.r)
+            ? Math.min(0.6, Math.max(0, (g.r - prevRevealRef.current) / REVEAL_STEP) * 0.6)
+            : 0
           return (
             <span
               key={`glyph-${g.key}`}
-              className="animate-glyph-pulse absolute select-none"
+              className={lit ? "animate-nebula-shimmer absolute select-none" : "absolute select-none"}
               style={{
-                // Round to 2 decimals: the browser's CSSOM rounds sub-pixel
-                // values when it parses the server HTML, so full-precision
-                // floats hydrate as a mismatch. 0.01px is imperceptible and
-                // serializes identically on server and client.
+                // Round to 2 decimals so full-precision floats don't hydrate as
+                // a CSSOM-rounded mismatch (imperceptible at 0.01px).
                 left: px2(g.x),
                 top: px2(g.y),
                 fontFamily: monoFont,
                 fontSize: px2(g.size),
                 lineHeight: 1,
-                color: "oklch(0.62 0 0)",
+                color: lit ? g.tone : "#4b515b",
                 transform: "translate(-50%, -50%)",
-                // @ts-expect-error custom property consumed by the pulse keyframes
-                "--glyph-max": locked ? 0.12 : g.max,
-                transition: "color 1s ease",
+                opacity: lit ? undefined : Math.min(0.22, g.max * 0.6),
+                // @ts-expect-error custom property consumed by the shimmer keyframes
+                "--glyph-max": g.max,
+                animationDuration: `${g.shimmerDur}s`,
                 animationDelay: `${g.delay}s`,
+                transition: "color 1.2s ease",
+                transitionDelay: `${spread}s`,
               }}
             >
               {g.char}
@@ -687,13 +772,19 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
+              {/* A bright star living in the nebula — pulses gently when
+                  revealed; a dim label-less ember when still locked. */}
               <span
-                className="flex size-[26px] items-center justify-center rounded-full text-[11px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
+                className={`leading-none transition-[filter,color] duration-150 group-hover:brightness-150${
+                  locked ? "" : " animate-object-pulse"
+                }`}
                 style={{
-                  border: "1px solid #6a6a6a",
-                  color: "#e8e4da",
-                  backgroundColor: "#080808",
-                  boxShadow: locked ? "none" : "0 0 10px rgba(245,245,245,0.2)",
+                  fontFamily: monoFont,
+                  fontSize: locked ? 16 : 24,
+                  color: locked ? "#4a4e56" : "#eef2f7",
+                  textShadow: locked
+                    ? "none"
+                    : "0 0 8px rgba(200,220,240,0.85), 0 0 18px rgba(150,185,220,0.5)",
                 }}
               >
                 {"\u2726"}
@@ -702,7 +793,7 @@ export function SpiralUniverse({
                 className="mt-1.5 text-[10px] uppercase tracking-[1.5px]"
                 style={{
                   fontFamily: monoFont,
-                  color: "#8a8a8a",
+                  color: "#9aa7b6",
                   opacity: locked ? 0 : 1,
                   transition: "opacity 1s ease",
                 }}
@@ -748,19 +839,23 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
+              {/* A brighter, colored star in the nebula — the person's own
+                  hue, gently pulsing when revealed; a dim ember while locked. */}
               <span
-                className="flex size-[34px] items-center justify-center rounded-full text-[13px] transition-transform duration-150 group-hover:scale-[1.18] group-hover:brightness-125 group-active:scale-[1.18]"
+                className={`leading-none transition-[filter,color] duration-150 group-hover:brightness-150${
+                  locked ? "" : " animate-object-pulse"
+                }`}
                 style={{
-                  border: `1.5px solid ${pp.color}`,
-                  color: pp.color,
-                  backgroundColor: "#080808",
-                  boxShadow: locked ? "none" : `0 0 14px ${pp.color}`,
+                  fontFamily: monoFont,
+                  fontSize: locked ? 18 : 27,
+                  color: locked ? "#4a4e56" : pp.color,
+                  textShadow: locked ? "none" : `0 0 9px ${pp.color}, 0 0 20px ${pp.color}`,
                 }}
               >
-                {"\u2605"}
+                {"\u2727"}
               </span>
               <span
-                className="mt-1.5 max-w-24 truncate text-[12px] tracking-[1px]"
+                className="mt-1.5 max-w-24 truncate text-[12px] uppercase tracking-[1px]"
                 style={{
                   fontFamily: monoFont,
                   color: pp.color,
@@ -780,23 +875,23 @@ export function SpiralUniverse({
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 z-[60]"
         style={{
-          width: 230,
-          height: 230,
+          width: 248,
+          height: 248,
           transform: `translate(-50%, calc(-50% - ${avatarLift}px))`,
           transition: "transform .4s cubic-bezier(.3,.8,.3,1)",
         }}
       >
-        {/* Solid black core disc: an opaque black interior that contains the
-            self creature and masks the glyph trail behind it, so the spiral
-            reads as emerging from the circle's outline and building outward
-            into the black void infinitely. */}
+        {/* The moon of this sky: an opaque black disc with a crisp near-white
+            outline. It contains the self creature and masks the nebula behind
+            it, so the fog reads as emerging from the circle's rim and building
+            outward into the black void infinitely. */}
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
-            width: 172,
-            height: 172,
-            backgroundColor: "#000000",
-            border: "1px solid oklch(0.95 0 0 / 0.55)",
+            width: 188,
+            height: 188,
+            backgroundColor: "#050505",
+            border: "1.5px solid #e8e4da",
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
@@ -805,7 +900,7 @@ export function SpiralUniverse({
             score={engagementScore}
             seed={userId}
             color={reactColor ?? NEUTRAL_COLOR}
-            size={230}
+            size={248}
           />
         </div>
         {/* Tap target over the face → opens the chart read sheet */}
