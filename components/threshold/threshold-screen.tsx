@@ -189,20 +189,19 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
-              // Mostly-transparent tint so the effect reads as blurred glass
-              // rather than a flat grey panel — the heavy backdrop blur does
-              // the work of making the CTA legible. A light highlight at the
-              // very bottom sells the frosted-glass sheen.
+              // A frosted tint with enough opacity to mute the story text
+              // sliding behind it, paired with a heavy backdrop blur so the
+              // shelf reads as glass rather than a flat grey panel.
               background:
-                "linear-gradient(to top, rgba(180,180,180,0.16), rgba(160,160,160,0.1) 45%, rgba(150,150,150,0.03) 80%, transparent)",
+                "linear-gradient(to top, rgba(190,192,198,0.62), rgba(180,182,190,0.42) 45%, rgba(170,172,180,0.12) 82%, transparent)",
               backdropFilter: "blur(48px) saturate(150%)",
               WebkitBackdropFilter: "blur(48px) saturate(150%)",
               // Keep the blur fully opaque across a taller band before easing
               // out, so the button and label sit on solid frosted glass.
               maskImage:
-                "linear-gradient(to top, #000 70%, rgba(0,0,0,0.5) 88%, transparent)",
+                "linear-gradient(to top, #000 72%, rgba(0,0,0,0.5) 90%, transparent)",
               WebkitMaskImage:
-                "linear-gradient(to top, #000 70%, rgba(0,0,0,0.5) 88%, transparent)",
+                "linear-gradient(to top, #000 72%, rgba(0,0,0,0.5) 90%, transparent)",
             }}
           />
           <button
@@ -212,6 +211,11 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               ...glowText,
               fontFamily: '"Geist Mono", sans-serif',
               borderColor: "#000",
+              // Solid frosted fill so the story text behind the pill is fully
+              // hidden and the label stays crisp and readable.
+              background: "rgba(226,228,232,0.9)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
             }}
           >
             {"enter the spiral \u23CE"}
