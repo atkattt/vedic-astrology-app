@@ -180,15 +180,23 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
       {/* The handoff CTA — fixed at the bottom, fades/rises in only when the
           read finishes. It waits; it never forces the transition. */}
       {ready && (
-        <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-10">
+        <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-20">
+          {/* Frosted glass shelf at the bottom of the screen. A strong blur is
+              masked so it's fully opaque near the bottom (where the button and
+              label sit) and fades to nothing at the top, keeping the story
+              readable above while giving the CTA a clean, legible backdrop. */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "linear-gradient(to top, rgba(120,120,120,0.7), rgba(120,120,120,0.45) 55%, transparent)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
+                "linear-gradient(to top, rgba(120,120,120,0.82), rgba(120,120,120,0.6) 45%, rgba(120,120,120,0.2) 80%, transparent)",
+              backdropFilter: "blur(16px) saturate(120%)",
+              WebkitBackdropFilter: "blur(16px) saturate(120%)",
+              maskImage:
+                "linear-gradient(to top, #000 55%, rgba(0,0,0,0.4) 80%, transparent)",
+              WebkitMaskImage:
+                "linear-gradient(to top, #000 55%, rgba(0,0,0,0.4) 80%, transparent)",
             }}
           />
           <button
