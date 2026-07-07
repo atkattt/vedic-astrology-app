@@ -33,26 +33,6 @@ export default async function WelcomePage() {
       <AsciiRippleSky />
 
       <div className="relative z-10 flex flex-col items-center text-center">
-        <h1
-          className="animate-fade-in-up text-balance"
-          style={{
-            fontFamily: '"JetBrains Mono", sans-serif',
-            fontWeight: '700',
-            textTransform: 'lowercase',
-            letterSpacing: '-0.03em',
-            lineHeight: '0.9em',
-            fontSize: '39px',
-            paddingBottom: '0',
-            marginBottom: '-30px',
-            animationDelay: "0.1s",
-            color: '#f5f5f5'
-          }}
-        >
-          spiral
-          <br />
-          <span className="text-primary">inward</span>
-        </h1>
-
         <div
           className="animate-fade-in-up mt-10 flex flex-col items-center gap-4"
           style={{ animationDelay: "0.2s" }}
