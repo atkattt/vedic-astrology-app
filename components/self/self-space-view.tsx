@@ -12,7 +12,7 @@ import { engagementScore } from "@/lib/self/avatar-stages"
 import type { ReadResponse, SelfReadsData } from "@/lib/self/reads-data"
 
 const MONO =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  "'Geist Pixel', ui-monospace, monospace"
 
 export function SelfSpaceView({
   revealRadius,

@@ -1,4 +1,4 @@
-const fraunces = "var(--font-fraunces), Georgia, serif"
+const fraunces = "'Geist Pixel', ui-monospace, monospace"
 
 /**
  * Shared "what this is / where it's going" story copy. The words live here in

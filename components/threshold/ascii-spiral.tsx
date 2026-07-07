@@ -127,7 +127,7 @@ export default function AsciiSpiral({ size = 150 }: { size?: number }) {
         alignItems: "center",
         justifyContent: "center",
         fontFamily:
-          "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+          "'Geist Pixel', ui-monospace, monospace",
         fontSize: `${fontPx}px`,
         lineHeight: 0.92,
         letterSpacing: 0,

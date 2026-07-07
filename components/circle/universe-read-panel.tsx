@@ -27,7 +27,7 @@ const TYPE_MS = 18
 const START_DELAY = 180
 
 const mono =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  "'Geist Pixel', ui-monospace, monospace"
 
 export function UniverseReadPanel({
   data,

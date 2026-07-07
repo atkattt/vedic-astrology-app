@@ -10,7 +10,7 @@ import {
 } from "@/lib/self/reads-data"
 
 const MONO =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  "'Geist Pixel', ui-monospace, monospace"
 const GLOW = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
 
 export function SelfReads({

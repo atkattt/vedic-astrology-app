@@ -119,7 +119,7 @@ const CAPTION_MS = 1900
 const ACCRETE_MS = 800
 
 const MONO =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  "'Geist Pixel', ui-monospace, monospace"
 
 const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature(
   { score, stage, seed, size = 230, color = "#e8e4da" },

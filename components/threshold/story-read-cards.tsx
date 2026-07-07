@@ -11,9 +11,9 @@ import { STORY_SECTIONS, type StorySection } from "@/components/threshold/story-
  * `›` prompt with a blinking cursor. Each card types when it scrolls into view.
  */
 
-// Match /onboarding: Geist Mono for the meta line, Geist Pixel for the typed
-// body. Kept as named constants so both the card and its inner text share them.
-const MONO = '"Geist Mono", sans-serif'
+// Everything renders in Geist Pixel now. Kept as named constants so both the
+// card and its inner text share the same typeface.
+const MONO = '"Geist Pixel", sans-serif'
 const PIXEL = '"Geist Pixel", sans-serif'
 const TYPE_MS = 14
 const CHARS_PER_TICK = 2

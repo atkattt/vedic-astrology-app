@@ -538,7 +538,7 @@ export function SpiralUniverse({
   }, [apply, zoomAt])
 
   const monoFont =
-    "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    "'Geist Pixel', ui-monospace, monospace"
 
   // Progress HUD: how many real objects (reads + people) sit inside the
   // revealed frontier vs. how many exist in total.
@@ -892,7 +892,7 @@ function HudButton({
       aria-label={label}
       className="flex size-9 items-center justify-center rounded-lg text-base text-muted-foreground transition-colors hover:text-foreground"
       style={{
-        fontFamily: "var(--font-space-mono), 'Space Mono', ui-monospace, monospace",
+        fontFamily: "'Geist Pixel', ui-monospace, monospace",
         backgroundColor: "#0d0d0d",
         border: "1px solid #262626",
       }}

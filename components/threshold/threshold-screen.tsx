@@ -142,7 +142,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               "found you" label). */}
           <p
             className="mt-6 h-4 text-[11px] uppercase tracking-[0.25em] transition-colors"
-            style={{ fontFamily: '"Geist Mono", sans-serif', color: "#1a1a1a" }}
+            style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#1a1a1a" }}
             aria-live="polite"
           >
             {ready ? (
@@ -245,7 +245,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             className="relative z-10 rounded-full border text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
             style={{
               ...glowText,
-              fontFamily: '"Geist Mono", sans-serif',
+              fontFamily: '"Geist Pixel", sans-serif',
               borderColor: "#000",
               // Transparent pill — the frosted glass shelf beneath supplies the
               // backdrop, so the story text never shows through the label.
@@ -261,14 +261,14 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           {error ? (
             <p
               className="relative z-10 mt-3 max-w-xs text-center text-[10px] normal-case leading-relaxed tracking-[0.15em]"
-              style={{ fontFamily: '"Geist Mono", sans-serif', color: "#ff0000" }}
+              style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#ff0000" }}
             >
               {error}
             </p>
           ) : (
             <p
               className="relative z-10 mt-3 text-[10px] uppercase tracking-[0.25em]"
-              style={{ fontFamily: '"Geist Mono", sans-serif', color: "#2a2a2a" }}
+              style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#2a2a2a" }}
             >
               your chart is ready
             </p>

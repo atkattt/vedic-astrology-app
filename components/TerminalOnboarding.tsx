@@ -245,7 +245,7 @@ export default function TerminalOnboarding({
         // Match the BEGIN button: Geist family at semibold weight. Set here on
         // the root container so every child (log lines, inputs, buttons, which
         // all use fontFamily "inherit") picks up the same typeface.
-        fontFamily: '"Geist", sans-serif',
+        fontFamily: '"Geist Pixel", sans-serif',
         fontWeight: 600,
         width: "100%",
         maxWidth: 440,
@@ -468,7 +468,7 @@ export default function TerminalOnboarding({
                 background: "transparent",
                 border: "1px solid #000",
                 color: "#000",
-                fontFamily: '"Geist Mono", sans-serif',
+                fontFamily: '"Geist Pixel", sans-serif',
                 fontSize: 11,
                 letterSpacing: 2,
                 textTransform: "uppercase",

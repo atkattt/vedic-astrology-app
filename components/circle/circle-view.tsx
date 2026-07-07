@@ -126,7 +126,7 @@ export function CircleView({
                   backgroundColor: "#070707",
                   border: "1px solid #1a1a1a",
                   fontFamily:
-                    "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                    "'Geist Pixel', ui-monospace, monospace",
                 }}
               >
                 {/* Terminal meta line, mirroring the read cards' header */}

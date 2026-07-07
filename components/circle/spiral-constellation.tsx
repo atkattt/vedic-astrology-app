@@ -160,7 +160,7 @@ export function SpiralConstellation({
                     fill={owner.color}
                     style={{
                       fontSize: 28,
-                      fontFamily: "var(--font-space-mono), ui-monospace, monospace",
+                      fontFamily: "'Geist Pixel', ui-monospace, monospace",
                       filter: `drop-shadow(0 0 5px ${owner.color}) drop-shadow(0 0 10px ${owner.color})`,
                     }}
                   >
@@ -180,7 +180,7 @@ export function SpiralConstellation({
                 className="animate-glyph-pulse"
                 style={{
                   fontSize: g.size,
-                  fontFamily: "var(--font-space-mono), ui-monospace, monospace",
+                  fontFamily: "'Geist Pixel', ui-monospace, monospace",
                   ["--glyph-max" as string]: g.glyphMax,
                   animationDelay: `${g.delay}s`,
                 }}

@@ -8,7 +8,7 @@ import { useSpiral } from "@/components/spiral/spiral-provider"
 import { REASON_TAGS, type Read, type ReasonTag } from "@/lib/spiral/reads"
 
 const MONO =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  "'Geist Pixel', ui-monospace, monospace"
 
 type Phase = "idle" | "agreeing" | "reasons" | "leaving"
 

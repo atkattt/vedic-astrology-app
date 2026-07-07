@@ -45,7 +45,7 @@ export default async function WelcomePage() {
             )}
             style={{
               color: "#2a2a2a",
-              fontFamily: '"Geist", sans-serif',
+              fontFamily: '"Geist Pixel", sans-serif',
               fontSize: "10px",
               lineHeight: "0.8em",
             }}
