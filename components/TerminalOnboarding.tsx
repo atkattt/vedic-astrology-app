@@ -242,8 +242,11 @@ export default function TerminalOnboarding({
         position: "relative",
         zIndex: 10,
         color: "#000",
-        fontFamily:
-          "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        // Match the BEGIN button: Geist family at semibold weight. Set here on
+        // the root container so every child (log lines, inputs, buttons, which
+        // all use fontFamily "inherit") picks up the same typeface.
+        fontFamily: '"Geist", sans-serif',
+        fontWeight: 600,
         width: "100%",
         maxWidth: 440,
         display: "flex",
