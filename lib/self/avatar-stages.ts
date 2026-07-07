@@ -45,6 +45,115 @@ export const STAGE_ART: Record<number, string> = {
 
 export const MAX_STAGE = 5
 
+/* ==========================================================================
+ * LIVING TEXT — character-level mutation model.
+ *
+ * Beyond the plain ASCII strings above, each stage is ALSO described as a grid
+ * of CELLS. A cell is a single monospace position with a set of interchangeable
+ * glyph VARIANTS, e.g. an eye can be any of  . · ˙ ° *  and a bracket family can
+ * be  [ ] ↔ { } ↔ ( ). Over time the renderer swaps individual cells to random
+ * sibling variants, so the being looks like it is made of living text.
+ *
+ * `variants[0]` of every cell reproduces the exact glyph in the STAGE_* string
+ * above, so the cell grid and the plain art stay in perfect sync — the plain
+ * strings remain the source of truth for geometry / accretion, while the cell
+ * grid only decides WHICH variant of each glyph is shown at a given tick.
+ *
+ * Cells that share a non-empty `group` mutate in lockstep (both brackets swap
+ * to the same family; both eyes always match; the whole mouth re-forms as one).
+ * ======================================================================== */
+
+export type StageCell = {
+  /** interchangeable glyphs; index 0 is the canonical/base look */
+  variants: string[]
+  /** cells with the same group share a variant index (mutate together) */
+  group?: string
+  /** eyes: honour the blink loop by showing "-" while blinking */
+  blink?: boolean
+}
+
+/** A stage as rows of cells; `null` is an empty (space) position. */
+export type StageGrid = (StageCell | null)[][]
+
+// ---- cell factories (kept tiny so stages read like little pictures) --------
+const _ = null
+const brkL = (): StageCell => ({ variants: ["[", "{", "("], group: "brk" })
+const brkR = (): StageCell => ({ variants: ["]", "}", ")"], group: "brk" })
+const parL = (): StageCell => ({ variants: ["(", "{", "["], group: "brk" })
+const parR = (): StageCell => ({ variants: [")", "}", "]"], group: "brk" })
+const eyeDot = (): StageCell => ({
+  variants: [".", "·", "˙", "°", "*"],
+  group: "eye",
+  blink: true,
+})
+const eyeOpen = (): StageCell => ({
+  variants: ["o", "O", "•", "˚", "*"],
+  group: "eye",
+  blink: true,
+})
+const earSlash = (): StageCell => ({ variants: ["/", "^", "|"], group: "ear" })
+const earBack = (): StageCell => ({ variants: ["\\", "^", "|"], group: "ear" })
+// mouth variants aligned by index → >_< , >.< , =_= , ·_· , -_-
+const mouthL = (): StageCell => ({
+  variants: [">", ">", "=", "·", "-"],
+  group: "mouth",
+})
+const mouthM = (): StageCell => ({
+  variants: ["_", ".", "_", "_", "_"],
+  group: "mouth",
+})
+const mouthR = (): StageCell => ({
+  variants: ["<", "<", "=", "·", "-"],
+  group: "mouth",
+})
+const bellyL = (): StageCell => ({ variants: ["(", "{", "<"], group: "belly" })
+const bellyR = (): StageCell => ({ variants: [")", "}", ">"], group: "belly" })
+const bellyV = (): StageCell => ({
+  variants: ["v", "∨", "w", "~"],
+  group: "belly",
+})
+const sideBar = (): StageCell => ({
+  variants: ["|", "!", "│", "¦"],
+  group: "side",
+})
+const floorCell = (): StageCell => ({ variants: ["_", "~", "="], group: "floor" })
+const cornerL = (): StageCell => ({ variants: ["\\", "(", "{"], group: "corner" })
+const cornerR = (): StageCell => ({ variants: ["/", ")", "}"], group: "corner" })
+
+/**
+ * The five stages as cell grids. Each row is an array of cells (or null for a
+ * blank). `variants[0]` per cell reproduces the matching STAGE_* string exactly.
+ */
+export const STAGE_GRIDS: Record<number, StageGrid> = {
+  1: [[brkL(), eyeDot(), eyeDot(), brkR()]],
+  2: [[parL(), eyeOpen(), _, eyeOpen(), parR()]],
+  3: [
+    [earSlash(), earBack(), _, earSlash(), earBack()],
+    [parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [brkL(), mouthL(), mouthM(), mouthR(), brkR()],
+  ],
+  4: [
+    [earSlash(), earBack(), _, earSlash(), earBack()],
+    [parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [brkL(), mouthL(), mouthM(), mouthR(), brkR()],
+    [_, bellyL(), bellyV(), bellyR()],
+  ],
+  5: [
+    [earSlash(), earSlash(), earBack(), _, earSlash(), earSlash(), earBack()],
+    [_, parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [_, brkL(), mouthL(), mouthM(), mouthR(), brkR()],
+    [_, sideBar(), _, _, _, sideBar()],
+    [_, cornerL(), floorCell(), floorCell(), floorCell(), cornerR()],
+  ],
+}
+
+/** Render a stage grid to its base ASCII (variant 0), for debugging / parity. */
+export function stageGridToArt(grid: StageGrid): string {
+  return grid
+    .map((row) => row.map((cell) => (cell ? cell.variants[0] : " ")).join(""))
+    .join("\n")
+}
+
 export type EngagementCounts = {
   /** number of rows in read_responses (agree OR disagree each count once) */
   responses: number
@@ -327,4 +436,19 @@ export const ZONE_OPACITY: Record<DetailZone, number> = {
   aura: 0.5,
   body: 0.72,
   edge: 0.66,
+}
+
+/**
+ * The 2–3 interchangeable glyphs a placed detail can mutate between — its own
+ * character plus the next couple of siblings from its zone palette. Kept
+ * deterministic (palette order) so a detail always mutates within the same
+ * small family rather than jumping anywhere in the zone.
+ */
+export function detailSiblings(char: string, zone: DetailZone): string[] {
+  const pal = DETAIL_PALETTE[zone]
+  const i = pal.indexOf(char)
+  if (i < 0) return [char]
+  return Array.from(
+    new Set([char, pal[(i + 1) % pal.length], pal[(i + 2) % pal.length]]),
+  )
 }

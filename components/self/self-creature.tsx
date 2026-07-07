@@ -12,12 +12,16 @@ import {
   STAGE_ART,
   STAGE_1,
   STAGE_5,
+  STAGE_GRIDS,
   MAX_STAGE,
   scoreToStage,
   buildAccretionGrid,
   buildDetails,
+  detailSiblings,
   ZONE_OPACITY,
   type PlacedDetail,
+  type StageCell,
+  type StageGrid,
 } from "@/lib/self/avatar-stages"
 
 /**
@@ -78,6 +82,36 @@ function layoutSkeleton(art: string, cols: number, rows: number): string[] {
   return out.map((a) => a.join(""))
 }
 
+/**
+ * Lay a stage's CELL grid into the same fixed envelope, using EXACTLY the same
+ * centering math as `layoutSkeleton` (a cell's `variants[0]` equals the glyph
+ * that string layout places), so every cell maps to the identical "r,c"
+ * coordinate the skeleton glyph occupies. Returns a lookup of coord → cell.
+ */
+function layoutStageCells(
+  grid: StageGrid,
+  cols: number,
+  rows: number,
+): Map<string, StageCell> {
+  const lines = grid.map((row) =>
+    row.map((cell) => (cell ? cell.variants[0] : " ")).join(""),
+  )
+  const w = Math.max(...lines.map((l) => l.length))
+  const top = Math.floor((rows - lines.length) / 2)
+  const left = Math.floor((cols - w) / 2)
+  const map = new Map<string, StageCell>()
+  grid.forEach((row, i) => {
+    const lineLeft = left + Math.floor((w - lines[i].length) / 2)
+    row.forEach((cell, j) => {
+      if (!cell) return
+      const r = top + i
+      const c = lineLeft + j
+      if (r >= 0 && r < rows && c >= 0 && c < cols) map.set(`${r},${c}`, cell)
+    })
+  })
+  return map
+}
+
 const REACTION_MS = 600
 const EVOLVE_OUT_MS = 420
 const EVOLVE_IN_MS = 480
@@ -102,6 +136,11 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   // The form currently drawn. Lags the prop during an evolution transition.
   const [displayStage, setDisplayStage] = useState(clampedStage)
   const [blinking, setBlinking] = useState(false)
+  // Character-level mutation: current variant index per "unit". A unit is a
+  // group name (grouped cells mutate in lockstep) or a single cell/detail key.
+  // Missing keys default to 0 → the canonical base glyph, so first paint (and
+  // SSR) always matches the plain art and there is no hydration mismatch.
+  const [variantState, setVariantState] = useState<Record<string, number>>({})
   const [reaction, setReaction] = useState<CreatureReaction | null>(null)
   const [evolvePhase, setEvolvePhase] = useState<"idle" | "out" | "in">("idle")
   const [showCaption, setShowCaption] = useState(false)
@@ -219,6 +258,117 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     () => layoutSkeleton(STAGE_ART[displayStage] ?? STAGE_1, grid.cols, grid.rows),
     [displayStage, grid],
   )
+  // Cell lookup for the SAME coordinates the skeleton glyphs occupy, so each
+  // drawn position knows its variant set for character-level mutation.
+  const cellMap = useMemo(
+    () => layoutStageCells(STAGE_GRIDS[displayStage] ?? STAGE_GRIDS[1], grid.cols, grid.rows),
+    [displayStage, grid],
+  )
+
+  // Every mutable "unit" = a grouped set of cells (one shared index), a lone
+  // cell, or an accreted detail. Only units with >1 variant can change.
+  const mutationUnits = useMemo(() => {
+    const list: { key: string; count: number }[] = []
+    const seen = new Set<string>()
+    cellMap.forEach((cell, coord) => {
+      if (cell.variants.length <= 1) return
+      const key = cell.group ? `g:${cell.group}` : `s:${coord}`
+      if (seen.has(key)) return
+      seen.add(key)
+      list.push({ key, count: cell.variants.length })
+    })
+    details.forEach((d) => {
+      const sib = detailSiblings(d.char, d.zone)
+      if (sib.length > 1)
+        list.push({ key: `d:${d.index}:${d.row}:${d.col}`, count: sib.length })
+    })
+    return list
+  }, [cellMap, details])
+  const unitsRef = useRef(mutationUnits)
+  unitsRef.current = mutationUnits
+
+  // Pick a fresh variant index for a unit, guaranteed different from `cur`.
+  const rollVariant = (count: number, cur: number) => {
+    if (count <= 1) return 0
+    let n = Math.floor(Math.random() * count)
+    if (n === cur) n = (n + 1) % count
+    return n
+  }
+
+  // ----- mutation tick: swap 1–2 cells every 500–900ms -----------------------
+  useEffect(() => {
+    if (reduceMotion) return
+    let alive = true
+    let timer: ReturnType<typeof setTimeout>
+    const step = () => {
+      timer = setTimeout(
+        () => {
+          if (!alive) return
+          if (typeof document === "undefined" || !document.hidden) {
+            const units = unitsRef.current
+            if (units.length) {
+              const swaps = 1 + (Math.random() < 0.5 ? 1 : 0)
+              setVariantState((prev) => {
+                const next = { ...prev }
+                for (let k = 0; k < swaps; k++) {
+                  const u = units[Math.floor(Math.random() * units.length)]
+                  next[u.key] = rollVariant(u.count, prev[u.key] ?? 0)
+                }
+                return next
+              })
+            }
+          }
+          step()
+        },
+        500 + Math.random() * 400,
+      )
+    }
+    step()
+    return () => {
+      alive = false
+      clearTimeout(timer)
+    }
+  }, [reduceMotion])
+
+  // ----- occasional shift: re-compose ~half the cells with a 150ms ripple ----
+  useEffect(() => {
+    if (reduceMotion) return
+    let alive = true
+    let timer: ReturnType<typeof setTimeout>
+    const staggers: ReturnType<typeof setTimeout>[] = []
+    const step = () => {
+      timer = setTimeout(
+        () => {
+          if (!alive) return
+          if (typeof document === "undefined" || !document.hidden) {
+            const units = unitsRef.current.filter((u) => u.count > 1)
+            const half = Math.ceil(units.length / 2)
+            const chosen = [...units]
+              .sort(() => Math.random() - 0.5)
+              .slice(0, half)
+            const per = chosen.length ? 150 / chosen.length : 0
+            chosen.forEach((u, i) => {
+              const t = setTimeout(() => {
+                setVariantState((prev) => ({
+                  ...prev,
+                  [u.key]: rollVariant(u.count, prev[u.key] ?? 0),
+                }))
+              }, Math.round(i * per))
+              staggers.push(t)
+            })
+          }
+          step()
+        },
+        6000 + Math.random() * 6000,
+      )
+    }
+    step()
+    return () => {
+      alive = false
+      clearTimeout(timer)
+      staggers.forEach(clearTimeout)
+    }
+  }, [reduceMotion])
 
   // Font sized so the whole grid fits inside the face disc with aura room.
   const inner = size * 0.62
@@ -331,7 +481,16 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           {skelLines.flatMap((line, r) =>
             line.split("").map((ch, c) => {
               if (ch === " ") return null
-              const shown = blinking && ch === "o" ? "-" : ch
+              const cell = cellMap.get(`${r},${c}`)
+              let shown = ch
+              if (cell) {
+                const key = cell.group ? `g:${cell.group}` : `s:${r},${c}`
+                const idx = variantState[key] ?? 0
+                shown = cell.variants[idx % cell.variants.length]
+                if (blinking && cell.blink) shown = "-"
+              } else if (blinking && ch === "o") {
+                shown = "-"
+              }
               return (
                 <span key={`s-${r}-${c}`} style={cellStyle(r, c)}>
                   {shown}
@@ -341,9 +500,12 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           )}
         </div>
 
-        {/* accreted details */}
+        {/* accreted details — each mutates within its own 2–3 glyph family */}
         {details.map((d: PlacedDetail, i) => {
           const fresh = !reduceMotion && d.index >= freshFrom
+          const sib = detailSiblings(d.char, d.zone)
+          const idx = variantState[`d:${d.index}:${d.row}:${d.col}`] ?? 0
+          const glyph = sib[idx % sib.length]
           return (
             <span
               key={`d-${d.row}-${d.col}-${i}`}
@@ -357,7 +519,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
                   : "none",
               }}
             >
-              {d.char}
+              {glyph}
             </span>
           )
         })}
