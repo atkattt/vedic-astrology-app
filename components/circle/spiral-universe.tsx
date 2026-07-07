@@ -804,13 +804,13 @@ export function SpiralUniverse({
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 24,
+                  height: 24,
                   backgroundColor: "#050505",
                   border: `1.5px solid ${locked ? "#4a4e56" : r.color}`,
                   color: locked ? "#4a4e56" : r.color,
                   fontFamily: monoFont,
-                  fontSize: 14,
+                  fontSize: 11,
                   boxShadow: locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
                 }}
               >
@@ -862,13 +862,13 @@ export function SpiralUniverse({
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  width: 34,
-                  height: 34,
+                  width: 27,
+                  height: 27,
                   backgroundColor: "#050505",
                   border: `1.5px solid ${locked ? "#4a4e56" : pp.color}`,
                   color: locked ? "#4a4e56" : pp.color,
                   fontFamily: monoFont,
-                  fontSize: 16,
+                  fontSize: 13,
                   boxShadow: locked ? "none" : `0 0 11px ${pp.color}, 0 0 22px ${pp.color}66`,
                 }}
               >
