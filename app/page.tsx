@@ -16,6 +16,18 @@ export default async function WelcomePage() {
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 py-16">
+      {/* Extremely light grid: sits at the very back (z-0) behind the sky
+          layers, giving a faint blueprint texture to the void. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
+
       {/* Sky field: clouds (z-0) behind the ASCII ripple (z-1), one shared wave */}
       <SwirlCloudSky />
       <AsciiRippleSky />

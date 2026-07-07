@@ -61,9 +61,19 @@ export default function AsciiRippleSky() {
     let raf = 0
     let start = performance.now()
 
+    // Whole-field glow breathe: the entire ASCII sky brightens and dims on a
+    // slow sine so the glyphs "glow in and out" together. Ranges from a dim
+    // GLOW_MIN floor up to full brightness at the peak of each ~9s cycle.
+    const GLOW_MIN = 0.15
+    const GLOW_PERIOD = 9 // seconds per full glow-in / glow-out cycle
+
     function frame(now: number) {
       const t = (now - start) / 1000
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // 0 -> 1 -> 0 breathe, eased toward the extremes for a softer swell.
+      const wave = (Math.sin((t / GLOW_PERIOD) * Math.PI * 2) + 1) / 2
+      const glow = GLOW_MIN + (1 - GLOW_MIN) * wave
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -75,9 +85,10 @@ export default function AsciiRippleSky() {
 
           // Grayscale gradient that fades from black up to grey (never full
           // white). Brightness follows the ripple value, capped at GREY_MAX so
-          // the peaks settle into a soft grey rather than glowing white.
+          // the peaks settle into a soft grey rather than glowing white. The
+          // whole-field `glow` breathe then scales every glyph up and down.
           const GREY_MAX = 150
-          const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX)
+          const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX * glow)
           ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
 
           const scale = SPIRAL_SCALE[idx]
