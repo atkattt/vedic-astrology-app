@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Eye } from "lucide-react"
+import SwirlCloudSky from "@/components/SwirlCloudSky"
 import AsciiRippleSky from "@/components/AsciiRippleSky"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -15,21 +16,20 @@ export default async function WelcomePage() {
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 py-16">
-      {/* Extremely light grid: sits at the very back (z-0) on the light grey
-          background, giving a faint blueprint texture. Dark, very-low-opacity
-          lines so they read on a light surface. */}
+      {/* Extremely light grid: sits at the very back (z-0) behind the sky
+          layers, giving a faint blueprint texture to the void. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0"
         style={{
           backgroundImage:
-            "linear-gradient(to right, rgba(30,32,45,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(30,32,45,0.05) 1px, transparent 1px)",
+            "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
         }}
       />
 
-      {/* ASCII ripple sky (z-1): dark glyphs that glow in and out over the
-          light grey background and grid. */}
+      {/* Sky field: clouds (z-0) behind the ASCII ripple (z-1), one shared wave */}
+      <SwirlCloudSky />
       <AsciiRippleSky />
 
       <div className="relative z-10 flex flex-col items-center text-center">

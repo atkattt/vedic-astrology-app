@@ -83,14 +83,12 @@ export default function AsciiRippleSky() {
           const ch = ramp[idx]
           if (ch === " ") continue
 
-          // Light theme: glyphs are DARK ink on the light grey background. They
-          // start near the background tone (barely visible) and darken as the
-          // ripple value and the whole-field `glow` breathe rise, so the sky
-          // appears to glow in and out. BG_LUM matches --background (~oklch
-          // 0.95); DARK_DEPTH is how far toward black the peaks reach.
-          const BG_LUM = 242
-          const DARK_DEPTH = 205
-          const lum = Math.round(BG_LUM - Math.pow(n, 1.5) * DARK_DEPTH * glow)
+          // Grayscale gradient that fades from black up to grey (never full
+          // white). Brightness follows the ripple value, capped at GREY_MAX so
+          // the peaks settle into a soft grey rather than glowing white. The
+          // whole-field `glow` breathe then scales every glyph up and down.
+          const GREY_MAX = 150
+          const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX * glow)
           ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
 
           const scale = SPIRAL_SCALE[idx]
