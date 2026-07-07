@@ -3,29 +3,40 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, RotateCcw } from "lucide-react"
+import { ArrowLeft, RotateCcw, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
-import type { DisagreedRead } from "@/lib/spiral/reads"
+import type { DisagreedRead, Read } from "@/lib/spiral/reads"
 
-type Tab = "all" | "about-you" | "bond"
+type Stance = "all" | "kept" | "released"
 
-const TABS: { id: Tab; label: string }[] = [
+// A unified history row — a read plus whether it was kept (agreed) or released
+// (disagreed). Released rows carry the disagree reason + can be restored.
+type Entry =
+  | { stance: "kept"; read: Read }
+  | { stance: "released"; read: DisagreedRead }
+
+const TABS: { id: Stance; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "about-you", label: "About you" },
-  { id: "bond", label: "Bonds" },
+  { id: "kept", label: "Kept" },
+  { id: "released", label: "Released" },
 ]
 
 export function HistoryView() {
-  const { disagreed, restore } = useSpiral()
-  const [tab, setTab] = useState<Tab>("all")
+  const { agreed, disagreed, restore } = useSpiral()
+  const [tab, setTab] = useState<Stance>("all")
   const [leaving, setLeaving] = useState<string | null>(null)
 
-  const filtered = useMemo(() => {
-    if (tab === "all") return disagreed
-    return disagreed.filter((r) => r.category === tab)
-  }, [disagreed, tab])
+  // Kept first (most recently agreed at the top), then released. Both lists are
+  // already stored newest-first by the provider.
+  const entries = useMemo<Entry[]>(() => {
+    const kept: Entry[] = agreed.map((read) => ({ stance: "kept", read }))
+    const released: Entry[] = disagreed.map((read) => ({ stance: "released", read }))
+    if (tab === "kept") return kept
+    if (tab === "released") return released
+    return [...kept, ...released]
+  }, [agreed, disagreed, tab])
 
   function handleRestore(read: DisagreedRead) {
     setLeaving(read.id)
@@ -50,64 +61,103 @@ export function HistoryView() {
         </Link>
         <h1 className="mt-4 font-serif text-3xl font-light md:text-4xl">History</h1>
         <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground md:max-w-md md:text-base">
-          A portrait in negative space — everything you said no to. Nothing here
-          is deleted, only filed.
+          A portrait drawn in what you claimed and what you let go — every read
+          you kept, and every one you released. Nothing here is deleted.
         </p>
       </header>
 
-      {/* Tabs */}
+      {/* Stance filter */}
       <div className="relative z-20 mt-5 flex gap-2 px-5">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "rounded-full border px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors",
-              tab === t.id
-                ? "border-foreground/40 bg-secondary text-foreground"
-                : "border-border text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const count =
+            t.id === "kept" ? agreed.length : t.id === "released" ? disagreed.length : agreed.length + disagreed.length
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors",
+                tab === t.id
+                  ? "border-foreground/40 bg-secondary text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+              <span className="text-muted-foreground/70">{count}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* List */}
       <div className="relative z-10 flex-1 px-5 py-6">
-        {filtered.length === 0 ? (
+        {entries.length === 0 ? (
           <p className="mx-auto mt-10 max-w-xs text-pretty text-center font-serif text-sm italic text-muted-foreground">
-            Nothing filed here yet. What you disagree with will gather in this
-            place.
+            {tab === "kept"
+              ? "Nothing kept yet. What resonates with you will gather here."
+              : tab === "released"
+                ? "Nothing released yet. What you disagree with will be filed here."
+                : "Your history is empty. Answer the reads on your spiral and they'll gather here."}
           </p>
         ) : (
           <ul className="mx-auto flex max-w-md flex-col gap-3">
-            {filtered.map((read) => (
-              <li
-                key={read.id}
-                className={cn(
-                  "rounded-2xl border border-border bg-popover/70 p-4 backdrop-blur-sm",
-                  leaving === read.id && "animate-card-fade-out",
-                )}
-              >
-                <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/90">
-                  {read.text}
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="rounded-full bg-secondary/70 px-2.5 py-1 font-mono text-[10px] lowercase tracking-wide text-muted-foreground">
-                    {read.reason}
-                    {read.subjectName ? ` · ${read.subjectName}` : ""}
-                  </span>
-                  <button
-                    onClick={() => handleRestore(read)}
-                    className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <RotateCcw className="size-3.5" />
-                    Restore
-                  </button>
-                </div>
-              </li>
-            ))}
+            {entries.map((entry) => {
+              const { read, stance } = entry
+              const kept = stance === "kept"
+              return (
+                <li
+                  key={`${stance}-${read.id}`}
+                  className={cn(
+                    "rounded-2xl border bg-popover/70 p-4 backdrop-blur-sm",
+                    kept ? "border-primary/40" : "border-border",
+                    leaving === read.id && "animate-card-fade-out",
+                  )}
+                >
+                  {/* Stance marker + read text */}
+                  <div className="flex items-start gap-2.5">
+                    <span
+                      className={cn(
+                        "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border",
+                        kept
+                          ? "border-primary/50 text-primary"
+                          : "border-muted-foreground/40 text-muted-foreground",
+                      )}
+                      aria-hidden
+                    >
+                      {kept ? <Check className="size-3" /> : <X className="size-3" />}
+                    </span>
+                    <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/90">
+                      {read.text}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-2 pl-[30px]">
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-1 font-mono text-[10px] lowercase tracking-wide",
+                        kept
+                          ? "bg-primary/10 text-primary/90"
+                          : "bg-secondary/70 text-muted-foreground",
+                      )}
+                    >
+                      {kept
+                        ? `kept · ${read.category === "bond" ? "bond" : "about you"}`
+                        : `${(read as DisagreedRead).reason}`}
+                      {read.subjectName ? ` · ${read.subjectName}` : ""}
+                    </span>
+                    {!kept && (
+                      <button
+                        onClick={() => handleRestore(read as DisagreedRead)}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <RotateCcw className="size-3.5" />
+                        Restore
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
