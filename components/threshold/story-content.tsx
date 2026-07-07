@@ -14,6 +14,10 @@ export type StorySegment = {
   glow?: boolean
   /** render dim + italic (used for the editable origin-story placeholder) */
   dim?: boolean
+  /** optional font size override */
+  fontSize?: number | string
+  /** optional line height override */
+  lineHeight?: number | string
 }
 
 export type StorySection = {
@@ -27,10 +31,13 @@ export const STORY_SECTIONS: StorySection[] = [
     body: [
       {
         text: "Spiral Inward begins with the exact moment you arrived, and draws a first sketch of who that made you — through the Vedic lens, and a few others layered quietly beneath it.\n\nIt does not tell you who you are. It ",
+        fontSize: 13,
+        lineHeight: "0.3em",
       },
-      { text: "proposes", glow: true },
+      { text: "proposes", glow: true, fontSize: 12 },
       {
         text: ", and waits for you to answer. Everything you agree with sharpens the picture. Everything you reject becomes a portrait drawn in negative space.",
+        fontSize: 12,
       },
     ],
   },
@@ -39,8 +46,9 @@ export const STORY_SECTIONS: StorySection[] = [
     body: [
       {
         text: "You'll add the people who matter, and see the shape of each bond. You'll tell the sky things no chart could know, and watch them sit beside what the stars suggested — kept as tension when they disagree, never corrected.\n\nOver time the spiral becomes less the sky's guess and more ",
+        fontSize: 12,
       },
-      { text: "yours", glow: true },
+      { text: "yours", glow: true, fontSize: 12 },
       { text: "." },
     ],
   },
