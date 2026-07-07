@@ -116,42 +116,30 @@ export default function AsciiSpiral({ size = 150 }: { size?: number }) {
   const fontPx = (size / cols) * 1.05
 
   return (
-    <div
+    <pre
+      ref={ref}
+      aria-hidden="true"
       style={{
+        margin: 0,
         width: size,
         height: size,
-        borderRadius: "50%",
-        border: "2px solid #fff",
-        background: "#000",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        fontFamily:
+          "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: `${fontPx}px`,
+        lineHeight: 0.92,
+        letterSpacing: 0,
+        // Dark glyphs to match the /onboarding ASCII sky (black-on-grey glass)
+        // instead of the old glowing-white treatment.
+        color: "#141414",
+        whiteSpace: "pre",
+        userSelect: "none",
+        pointerEvents: "none",
+        overflow: "hidden",
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
       }}
-    >
-      <pre
-        ref={ref}
-        aria-hidden="true"
-        style={{
-          margin: 0,
-          width: size,
-          height: size,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily:
-            "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: `${fontPx}px`,
-          lineHeight: 0.92,
-          letterSpacing: 0,
-          // White glyphs on the black circular background
-          color: "#fff",
-          whiteSpace: "pre",
-          userSelect: "none",
-          pointerEvents: "none",
-          overflow: "hidden",
-          filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
-        }}
-      />
-    </div>
+    />
   )
 }
