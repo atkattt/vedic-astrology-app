@@ -189,19 +189,20 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
-              // A frosted tint with enough opacity to mute the story text
-              // sliding behind it, paired with a heavy backdrop blur so the
-              // shelf reads as glass rather than a flat grey panel.
+              // Solid frosted glass layer: an opaque-enough tint near the
+              // bottom fully hides the story text sliding behind it, while the
+              // heavy backdrop blur keeps it reading as glass. The button and
+              // labels sit on top of this shelf.
               background:
-                "linear-gradient(to top, rgba(190,192,198,0.62), rgba(180,182,190,0.42) 45%, rgba(170,172,180,0.12) 82%, transparent)",
-              backdropFilter: "blur(48px) saturate(150%)",
-              WebkitBackdropFilter: "blur(48px) saturate(150%)",
-              // Keep the blur fully opaque across a taller band before easing
-              // out, so the button and label sit on solid frosted glass.
+                "linear-gradient(to top, rgba(196,198,204,0.88), rgba(188,190,196,0.72) 45%, rgba(178,180,188,0.2) 85%, transparent)",
+              backdropFilter: "blur(56px) saturate(150%)",
+              WebkitBackdropFilter: "blur(56px) saturate(150%)",
+              // Keep the shelf fully opaque across a tall band before easing
+              // out at the very top edge only.
               maskImage:
-                "linear-gradient(to top, #000 72%, rgba(0,0,0,0.5) 90%, transparent)",
+                "linear-gradient(to top, #000 78%, rgba(0,0,0,0.5) 92%, transparent)",
               WebkitMaskImage:
-                "linear-gradient(to top, #000 72%, rgba(0,0,0,0.5) 90%, transparent)",
+                "linear-gradient(to top, #000 78%, rgba(0,0,0,0.5) 92%, transparent)",
             }}
           />
           <button
@@ -211,11 +212,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               ...glowText,
               fontFamily: '"Geist Mono", sans-serif',
               borderColor: "#000",
-              // Solid frosted fill so the story text behind the pill is fully
-              // hidden and the label stays crisp and readable.
-              background: "rgba(226,228,232,0.9)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              // Transparent pill — the frosted glass shelf beneath supplies the
+              // backdrop, so the story text never shows through the label.
+              background: "transparent",
             }}
           >
             {"enter the spiral \u23CE"}
