@@ -132,44 +132,34 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
 
       {/* Sticky hero — stays pinned while the story scrolls beneath it. */}
       <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-10 pt-16">
-        {/* A translucent grey wash so the scrolling story passes cleanly under
-            the hero without hiding the sky. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(120,120,120,0.55), rgba(120,120,120,0.35) 55%, transparent)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
-          }}
-        />
-
         <div className="relative z-10 flex flex-col items-center">
           {/* Spiral drawn in ASCII — matches the SelfAvatar glyph palette,
               winding infinitely inward into a dark core. */}
           <AsciiSpiral size={150} />
 
-          {/* Cycling status line */}
+          {/* Cycling status line — shows the loading stages, or the error
+              message if the read faltered. On success it stays empty (no
+              "found you" label). */}
           <p
             className="mt-6 h-4 text-[11px] uppercase tracking-[0.25em] transition-colors"
             style={{ fontFamily: '"Geist Mono", sans-serif', color: "#1a1a1a" }}
             aria-live="polite"
           >
             {ready ? (
-              <span style={{ ...glowText, fontWeight: 600 }}>
-                {error ? "\u2726 the read faltered" : "\u2726 found you"}
-              </span>
+              error ? (
+                <span style={{ ...glowText, fontWeight: 600 }}>
+                  {"\u2726 the read faltered"}
+                </span>
+              ) : null
             ) : (
               STAGES[stage]
             )}
           </p>
 
-          {/* Thin loading bar with a travelling dark sweep */}
-          <div className="relative mt-5 h-px w-44 overflow-hidden bg-black/20">
-            {ready ? (
-              <div className="h-full w-full" style={{ background: "#000" }} />
-            ) : (
+          {/* Thin loading bar with a travelling dark sweep. Hidden entirely once
+              the read is ready so no solid line remains under the status. */}
+          {!ready && (
+            <div className="relative mt-5 h-px w-44 overflow-hidden bg-black/20">
               <div
                 className="animate-bar-sweep absolute inset-y-0 w-1/4"
                 style={{
@@ -177,20 +167,13 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
                     "linear-gradient(90deg, transparent, rgba(0,0,0,0.7), transparent)",
                 }}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Scrollable story body */}
       <div className="relative z-10 mx-auto max-w-md px-7 pb-44">
-        <p
-          className="text-[10px] uppercase tracking-[0.3em]"
-          style={{ fontFamily: '"Geist Mono", sans-serif', color: "#2a2a2a" }}
-        >
-          While the sky reads you
-        </p>
-
         <StoryReadCards />
       </div>
 
