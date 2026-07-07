@@ -239,11 +239,16 @@ export default function TerminalOnboarding({
   return (
     <div
       style={{
-        background: "#000",
-        color: "#e8e4da",
-        fontFamily:
-          "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-        minHeight: "100dvh",
+        position: "relative",
+        zIndex: 10,
+        color: "#000",
+        // Match the BEGIN button: Geist family at semibold weight. Set here on
+        // the root container so every child (log lines, inputs, buttons, which
+        // all use fontFamily "inherit") picks up the same typeface.
+        fontFamily: '"Geist Pixel", sans-serif',
+        fontWeight: 600,
+        width: "100%",
+        maxWidth: 440,
         display: "flex",
         alignItems: "stretch",
         justifyContent: "center",
@@ -251,12 +256,26 @@ export default function TerminalOnboarding({
     >
       <div
         style={{
+          // Translucent frosted-grey glass rectangle with curved corners that
+          // floats over the animated sky. The blur + subtle border + shadow
+          // give it a glassmorphism feel while the grey tint keeps the text
+          // readable against the moving background behind it.
           width: "100%",
-          maxWidth: 420,
-          height: "100dvh",
+          // Subtract the page's vertical padding (main uses py-6 = 48px total)
+          // so the card fits fully inside the viewport and the flex parent can
+          // center it vertically instead of overflowing / pinning to the top.
+          height: "min(100dvh - 96px, 760px)",
+          background: "rgba(120, 120, 120, 0.38)",
+          backdropFilter: "blur(16px) saturate(120%)",
+          WebkitBackdropFilter: "blur(16px) saturate(120%)",
+          border: "1px solid rgba(255, 255, 255, 0.18)",
+          borderRadius: 28,
+          boxShadow:
+            "0 24px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)",
           padding: "calc(env(safe-area-inset-top, 0px) + 28px) 28px calc(env(safe-area-inset-bottom, 0px) + 28px)",
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         <div
@@ -280,11 +299,13 @@ export default function TerminalOnboarding({
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
-                color: l.cls === "me" ? "#e8e4da" : "#9a958a",
+                color: l.cls === "me" ? "#000" : "#1a1a1a",
+                fontFamily: '"Geist Pixel", sans-serif',
+                fontWeight: 500,
               }}
             >
               {l.cls === "me" && (
-                <span style={{ color: "#6a6660" }}>{"› "}</span>
+                <span style={{ color: "#333" }}>{"› "}</span>
               )}
               {l.text === "" ? "\u00A0" : l.text}
             </div>
@@ -299,7 +320,9 @@ export default function TerminalOnboarding({
                 letterSpacing: ".3px",
                 whiteSpace: "pre-wrap",
                 textWrap: "pretty",
-                color: "#9a958a",
+                color: "#1a1a1a",
+                fontFamily: '"Geist Pixel", sans-serif',
+                fontWeight: 500,
               }}
             >
               {typing}
@@ -308,7 +331,7 @@ export default function TerminalOnboarding({
                   display: "inline-block",
                   width: 10,
                   height: 19,
-                  background: "#e8e4da",
+                  background: "#000",
                   marginLeft: 2,
                   verticalAlign: -3,
                   animation: "siBlink 1.05s steps(1) infinite",
@@ -332,7 +355,7 @@ export default function TerminalOnboarding({
                 <div
                   style={{
                     position: "relative",
-                    borderBottom: "1px solid #2a2a2a",
+                    borderBottom: "1px solid rgba(0, 0, 0, 0.45)",
                     padding: "9px 2px",
                   }}
                 >
@@ -346,7 +369,7 @@ export default function TerminalOnboarding({
                         top: 9,
                         fontSize: 16,
                         letterSpacing: 1,
-                        color: "#4a4a4a",
+                        color: "#3a3a3a",
                         pointerEvents: "none",
                         whiteSpace: "pre",
                       }}
@@ -377,13 +400,14 @@ export default function TerminalOnboarding({
                       width: "100%",
                       background: "transparent",
                       border: "none",
-                      color: "#fff",
-                      fontFamily: "inherit",
+                      color: "#000",
+                      fontFamily: '"Geist Pixel", sans-serif',
+                      fontWeight: 500,
                       fontSize: 16,
                       letterSpacing: 1,
                       padding: 0,
                       outline: "none",
-                      caretColor: "#cfcbc1",
+                      caretColor: "#000",
                     }}
                   />
                 </div>
@@ -402,9 +426,9 @@ export default function TerminalOnboarding({
                         setTimeout(() => inputRef.current?.focus(), 30);
                       }}
                       style={{
-                        background: selected ? "#e8e4da" : "transparent",
-                        border: `1px solid ${selected ? "#e8e4da" : "#3a3a3a"}`,
-                        color: selected ? "#000" : "#9a958a",
+                        background: selected ? "#000" : "transparent",
+                        border: `1px solid ${selected ? "#000" : "#4a4a4a"}`,
+                        color: selected ? "#fff" : "#1a1a1a",
                         fontFamily: "inherit",
                         fontSize: 11,
                         letterSpacing: 2,
@@ -430,7 +454,7 @@ export default function TerminalOnboarding({
                   marginTop: 10,
                   fontSize: 11,
                   letterSpacing: 1,
-                  color: "#5a5650",
+                  color: "#222",
                   cursor: "pointer",
                 }}
               >
@@ -442,9 +466,9 @@ export default function TerminalOnboarding({
               style={{
                 marginTop: 14,
                 background: "transparent",
-                border: "1px solid #3a3a3a",
-                color: "#cfcbc1",
-                fontFamily: "inherit",
+                border: "1px solid #000",
+                color: "#000",
+                fontFamily: '"Geist Pixel", sans-serif',
                 fontSize: 11,
                 letterSpacing: 2,
                 textTransform: "uppercase",
@@ -466,8 +490,8 @@ export default function TerminalOnboarding({
               marginTop: 14,
               alignSelf: "flex-start",
               background: "transparent",
-              border: "1px solid #3a3a3a",
-              color: "#cfcbc1",
+              border: "1px solid #000",
+              color: "#000",
               fontFamily: "inherit",
               fontSize: 11,
               letterSpacing: 2,

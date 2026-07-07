@@ -20,9 +20,13 @@ import { SKY_CELL, skyField } from "@/lib/sky-field"
  */
 
 type RGB = [number, number, number]
-const PALETTE: Record<"day" | "night", { sky: RGB; sky2: RGB; cloud: RGB }> = {
-  day: { sky: [126, 170, 214], sky2: [150, 190, 226], cloud: [252, 253, 255] },
-  night: { sky: [10, 14, 30], sky2: [20, 26, 48], cloud: [172, 182, 220] },
+// The app's void: a near-black base (#050505 → #0d0d0d) with a dim, moonlit
+// grey cloud bloom. No blue, no day/night split — this matches the greyscale
+// nebula treatment of the /circle universe.
+const VOID: { sky: RGB; sky2: RGB; cloud: RGB } = {
+  sky: [5, 5, 5],
+  sky2: [13, 13, 13],
+  cloud: [128, 134, 148],
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
@@ -36,9 +40,7 @@ export default function SwirlCloudSky() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const hour = new Date().getHours()
-    const isNight = hour < 6 || hour >= 19
-    const PA = isNight ? PALETTE.night : PALETTE.day
+    const PA = VOID
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches
@@ -168,50 +170,27 @@ export default function SwirlCloudSky() {
       ctx.drawImage(buffer, 0, 0, W, H)
     }
 
-    function renderNight(t: number) {
-      // clear sky gradient
-      const g = ctx.createLinearGradient(0, 0, 0, H)
-      g.addColorStop(
-        0,
-        `rgb(${PA.sky[0]}, ${PA.sky[1]}, ${PA.sky[2]})`,
-      )
-      g.addColorStop(
-        1,
-        `rgb(${PA.sky2[0]}, ${PA.sky2[1]}, ${PA.sky2[2]})`,
-      )
-      ctx.fillStyle = g
-      ctx.fillRect(0, 0, W, H)
-      // ~160 hash-stable stars with a gentle twinkle
-      for (let i = 0; i < 160; i++) {
-        const hx = Math.sin(i * 12.9898) * 43758.5453
-        const hy = Math.sin(i * 78.233) * 12543.113
-        const sx = (hx - Math.floor(hx)) * W
-        const sy = (hy - Math.floor(hy)) * H
-        const tw = 0.5 + 0.5 * Math.sin(t * 1.4 + i)
-        ctx.fillStyle = `rgba(220, 226, 255, ${0.35 + tw * 0.5})`
-        ctx.fillRect(sx, sy, 1.4, 1.4)
-      }
-    }
-
     let raf = 0
     let last = 0
     const start = performance.now()
 
     function loop(now: number) {
+      // Pause the (expensive) cloud render entirely while the tab is hidden.
+      if (typeof document !== "undefined" && document.hidden) {
+        raf = requestAnimationFrame(loop)
+        return
+      }
       // clouds are expensive — cap near 30fps
       if (now - last > 33) {
         const t = (now - start) / 1000
-        if (isNight) renderNight(t)
-        else renderDay(t)
+        renderDay(t)
         last = now
       }
       raf = requestAnimationFrame(loop)
     }
 
     if (reduceMotion) {
-      // single static frame
-      if (isNight) renderNight(0)
-      else renderDay(0)
+      renderDay(0) // single static frame
     } else {
       raf = requestAnimationFrame(loop)
     }

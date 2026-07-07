@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase/config"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = SUPABASE_URL
+const supabaseAnonKey = SUPABASE_ANON_KEY
 
 let client: SupabaseClient | null = null
 

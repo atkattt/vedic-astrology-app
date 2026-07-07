@@ -267,7 +267,7 @@ export default function SelfAvatar({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontFamily: "'Geist Pixel', ui-monospace, monospace",
         fontSize: `${fontPx}px`,
         lineHeight: 0.92,
         letterSpacing: 0,

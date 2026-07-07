@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { SKY_CELL, skyField } from "@/lib/sky-field"
+import { ACCENT_COLORS } from "@/lib/spiral/accent-colors"
 
 /**
  * A full-screen, infinitely animating ASCII "ripple sky" rendered to a canvas.
@@ -35,6 +36,25 @@ export default function AsciiRippleSky() {
       "(prefers-reduced-motion: reduce)",
     ).matches
 
+    // ---- accent embers ----------------------------------------------------
+    // A small fraction of fog glyphs slowly pulse through the /circle universe
+    // accent hues (grey → color glow over ~3s → grey), staggered by a stable
+    // per-cell phase so only a few points of color ever breathe at once.
+    const ACCENT_RGB = ACCENT_COLORS.map((hex): [number, number, number] => [
+      parseInt(hex.slice(1, 3), 16),
+      parseInt(hex.slice(3, 5), 16),
+      parseInt(hex.slice(5, 7), 16),
+    ])
+    const ACCENT_FRACTION = 0.1 // ~10% of glyphs are accent cells
+    const ACCENT_MIN_PERIOD = 6 // s — full grey→color→grey cycle range
+    const ACCENT_MAX_PERIOD = 10
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+    // Stable hash of a grid coordinate → [0,1).
+    const hash2 = (x: number, y: number) => {
+      const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453
+      return s - Math.floor(s)
+    }
+
     let cols = 0
     let rows = 0
     let dpr = 1
@@ -61,9 +81,24 @@ export default function AsciiRippleSky() {
     let raf = 0
     let start = performance.now()
 
+    // Whole-field glow breathe: the entire ASCII sky brightens and dims on a
+    // slow sine so the glyphs "glow in and out" together. Ranges from a dim
+    // GLOW_MIN floor up to full brightness at the peak of each ~9s cycle.
+    const GLOW_MIN = 0.15
+    const GLOW_PERIOD = 9 // seconds per full glow-in / glow-out cycle
+
     function frame(now: number) {
+      // Pause drawing while the tab is hidden (keep a cheap rAF alive to resume).
+      if (typeof document !== "undefined" && document.hidden) {
+        if (!reduceMotion) raf = requestAnimationFrame(frame)
+        return
+      }
       const t = (now - start) / 1000
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // 0 -> 1 -> 0 breathe, eased toward the extremes for a softer swell.
+      const wave = (Math.sin((t / GLOW_PERIOD) * Math.PI * 2) + 1) / 2
+      const glow = GLOW_MIN + (1 - GLOW_MIN) * wave
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -75,10 +110,36 @@ export default function AsciiRippleSky() {
 
           // Grayscale gradient that fades from black up to grey (never full
           // white). Brightness follows the ripple value, capped at GREY_MAX so
-          // the peaks settle into a soft grey rather than glowing white.
+          // the peaks settle into a soft grey rather than glowing white. The
+          // whole-field `glow` breathe then scales every glyph up and down.
           const GREY_MAX = 150
-          const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX)
-          ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
+          const lum = Math.round(Math.pow(n, 1.5) * GREY_MAX * glow)
+
+          // Accent ember: if this cell is one of the ~10% accent cells, blend
+          // its grey toward an accent hue on a slow, narrow pulse.
+          if (hash2(c, r) < ACCENT_FRACTION) {
+            const [ar, ag, ab] =
+              ACCENT_RGB[Math.floor(hash2(c + 1.3, r + 7.7) * ACCENT_RGB.length) % ACCENT_RGB.length]
+            const phase = hash2(c + 4.1, r + 2.3)
+            const period =
+              ACCENT_MIN_PERIOD + hash2(c + 9.2, r + 5.5) * (ACCENT_MAX_PERIOD - ACCENT_MIN_PERIOD)
+            const cyc = (t / period + phase) % 1
+            // pow(3) keeps each glyph grey most of the cycle, blooming to color
+            // only briefly — an ember, not a light show.
+            const bump = Math.pow(Math.max(0, Math.sin(cyc * Math.PI)), 3)
+            if (bump > 0.01) {
+              // lift brightness a touch at the peak so the color reads as a glow
+              const k = bump * (0.85 + 0.15 * glow)
+              const rr = Math.round(lerp(lum, ar, k))
+              const gg = Math.round(lerp(lum, ag, k))
+              const bb = Math.round(lerp(lum, ab, k))
+              ctx.fillStyle = `rgb(${rr}, ${gg}, ${bb})`
+            } else {
+              ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
+            }
+          } else {
+            ctx.fillStyle = `rgb(${lum}, ${lum}, ${lum})`
+          }
 
           const scale = SPIRAL_SCALE[idx]
           if (scale && scale < 1) {

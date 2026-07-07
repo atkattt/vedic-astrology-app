@@ -16,7 +16,7 @@ import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makeBondRead, makePersonRead } from "@/lib/spiral/reads"
 
 const MONO =
-  "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+  "'Geist Pixel', ui-monospace, monospace"
 // Glowing-white accent — never gold.
 const GLOW = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
 

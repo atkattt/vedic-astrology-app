@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Starfield } from "@/components/starfield"
+import SwirlCloudSky from "@/components/SwirlCloudSky"
+import AsciiRippleSky from "@/components/AsciiRippleSky"
 import { StoryReadCards } from "@/components/threshold/story-read-cards"
 import AsciiSpiral from "@/components/threshold/ascii-spiral"
 import {
@@ -21,8 +22,9 @@ const STAGES = [
   "drawing the spiral…",
 ]
 
-// Glowing-white accent — never gold. Reused for emphasis words and the CTA.
-const glowText = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
+// Solid-black accent to match the onboarding glass aesthetic (black text on a
+// translucent grey card — no glow). Reused for emphasis words and the CTA.
+const glowText = { color: "#000" }
 
 export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   const [stage, setStage] = useState(0)
@@ -111,97 +113,168 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   }, [])
 
   return (
-    <main className="relative min-h-[100dvh] overflow-y-auto bg-background">
-      <Starfield count={70} />
+    <main className="relative min-h-[100dvh] overflow-y-auto">
+      {/* Faint blueprint grid behind the sky layers — matches /onboarding. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
+
+      {/* Same animated sky field as /onboarding and the welcome screen:
+          clouds (z-0) behind the ASCII ripple (z-1), sharing one wave. */}
+      <SwirlCloudSky />
+      <AsciiRippleSky />
 
       {/* Sticky hero — stays pinned while the story scrolls beneath it. */}
       <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-10 pt-16">
-        {/* A subtle black wash so the scrolling story passes cleanly under. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background to-transparent"
-        />
-
-        <div className="relative z-10 flex flex-col items-center">
+        <div className="relative z-10 flex flex-col items-center" style={{ gap: "0px" }}>
           {/* Spiral drawn in ASCII — matches the SelfAvatar glyph palette,
               winding infinitely inward into a dark core. */}
           <AsciiSpiral size={150} />
 
-          {/* Cycling status line */}
+          {/* Cycling status line — shows the loading stages, or the error
+              message if the read faltered. On success it stays empty (no
+              "found you" label). */}
           <p
-            className="mt-6 h-4 font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground transition-colors"
+            className="mt-6 h-4 text-[11px] uppercase tracking-[0.25em] transition-colors"
+            style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#1a1a1a" }}
             aria-live="polite"
           >
             {ready ? (
-              <span style={glowText}>
-                {error ? "\u2726 the read faltered" : "\u2726 found you"}
-              </span>
+              error ? (
+                <span style={{ ...glowText, fontWeight: 600, fontFamily: '"Geist Pixel", sans-serif' }}>
+                  {"the read faltered"}
+                </span>
+              ) : (
+                <span />
+              )
             ) : (
-              STAGES[stage]
+              <span>{STAGES[stage]}</span>
             )}
           </p>
 
-          {/* Thin loading bar with a travelling light sweep */}
-          <div className="relative mt-5 h-px w-44 overflow-hidden bg-foreground/15">
-            {ready ? (
-              <div
-                className="h-full w-full"
-                style={{
-                  background: "#f5f5f5",
-                  boxShadow: "0 0 12px rgba(255,255,255,0.6)",
-                }}
-              />
-            ) : (
+          {/* Thin loading bar with a travelling dark sweep. Hidden entirely once
+              the read is ready so no solid line remains under the status. */}
+          {!ready && (
+            <div className="relative mt-5 h-px w-44 overflow-hidden bg-black/20">
               <div
                 className="animate-bar-sweep absolute inset-y-0 w-1/4"
                 style={{
                   background:
-                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent)",
+                    "linear-gradient(90deg, transparent, rgba(0,0,0,0.7), transparent)",
                 }}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Scrollable story body */}
       <div className="relative z-10 mx-auto max-w-md px-7 pb-44">
-        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70">
-          While the sky reads you
-        </p>
-
         <StoryReadCards />
       </div>
 
       {/* The handoff CTA — fixed at the bottom, fades/rises in only when the
           read finishes. It waits; it never forces the transition. */}
       {ready && (
-        <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-10">
+        <>
+          {/* Frosted glass shelf — kept in its OWN fixed element, OUTSIDE the
+              animated CTA wrapper below. The rise-in animation applies a
+              `transform` to its host, and a transformed ancestor disables
+              `backdrop-filter` on descendants, so the shelf must not live
+              inside it. Two layers because combining `mask-image` with
+              `backdrop-filter` also disables the blur in Chrome/Safari. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/90 to-transparent"
-          />
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-20 h-52"
+          >
+            {/* Progressive blur. Each layer covers the whole shelf but carries
+                its own soft mask gradient, so instead of a hard top edge every
+                layer fades in gradually. Stacking several with increasing blur
+                strength produces one continuous, feathered frost with no
+                visible step lines. */}
+            <div
+              className="absolute inset-0"
+              style={{
+                backdropFilter: "blur(3px)",
+                WebkitBackdropFilter: "blur(3px)",
+                maskImage: "linear-gradient(to top, #000 40%, transparent 78%)",
+                WebkitMaskImage:
+                  "linear-gradient(to top, #000 40%, transparent 78%)",
+              }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                maskImage: "linear-gradient(to top, #000 30%, transparent 66%)",
+                WebkitMaskImage:
+                  "linear-gradient(to top, #000 30%, transparent 66%)",
+              }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                backdropFilter: "blur(16px) saturate(140%)",
+                WebkitBackdropFilter: "blur(16px) saturate(140%)",
+                maskImage: "linear-gradient(to top, #000 22%, transparent 54%)",
+                WebkitMaskImage:
+                  "linear-gradient(to top, #000 22%, transparent 54%)",
+              }}
+            />
+            {/* Frosted tint on top, fading gently toward the top edge so the
+                shelf blends smoothly into the story above. */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(198,200,206,0.7) 0%, rgba(192,194,200,0.5) 40%, rgba(186,188,196,0.24) 68%, transparent 100%)",
+              }}
+            />
+          </div>
+
+          <div className="animate-rise-in fixed inset-x-0 bottom-0 z-30 flex flex-col items-center px-6 pb-8 pt-20">
           <button
             onClick={onEnter}
-            className="relative z-10 rounded-full border px-9 py-3.5 font-mono text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
+            className="relative z-10 rounded-full border text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
             style={{
               ...glowText,
-              borderColor: "rgba(255,255,255,0.55)",
-              boxShadow: "0 0 24px rgba(255,255,255,0.12)",
+              fontFamily: '"Geist Pixel", sans-serif',
+              borderColor: "#000",
+              // Transparent pill — the frosted glass shelf beneath supplies the
+              // backdrop, so the story text never shows through the label.
+              background: "transparent",
+              paddingRight: "21px",
+              paddingLeft: "29px",
+              paddingTop: "14px",
+              paddingBottom: "14px",
             }}
           >
-            {"enter the spiral \u23CE"}
+            {"enter the spiral "}
           </button>
           {error ? (
-            <p className="relative z-10 mt-3 max-w-xs text-center font-mono text-[10px] normal-case leading-relaxed tracking-[0.15em] text-destructive">
+            <p
+              className="relative z-10 mt-3 max-w-xs text-center text-[10px] normal-case leading-relaxed tracking-[0.15em]"
+              style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#ff0000" }}
+            >
               {error}
             </p>
           ) : (
-            <p className="relative z-10 mt-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+            <p
+              className="relative z-10 mt-3 text-[10px] uppercase tracking-[0.25em]"
+              style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#2a2a2a" }}
+            >
               your chart is ready
             </p>
           )}
-        </div>
+          </div>
+        </>
       )}
     </main>
   )

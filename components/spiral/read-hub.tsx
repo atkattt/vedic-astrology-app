@@ -128,7 +128,7 @@ export default function ReadHub({
   }, [done, whyOpen]);
 
   const mono =
-    "var(--font-space-mono), 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+    "'Geist Pixel', ui-monospace, monospace";
 
   return (
     <div
