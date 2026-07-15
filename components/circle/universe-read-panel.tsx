@@ -50,6 +50,7 @@ export function UniverseReadPanel({
 }) {
   const [dragY, setDragY] = useState(0)
   const dragStart = useRef<number | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const open = data !== null
   // The tapped marker's color, translated into the panel chrome. Falls back to
@@ -60,6 +61,26 @@ export function UniverseReadPanel({
   useEffect(() => {
     if (data) setDragY(0)
   }, [data])
+
+  // Height of the "sky" — the dark region between the viewport top and the
+  // panel's top edge. The stage fills it so the creature centers vertically
+  // between the two. Re-measured whenever the panel's content resizes.
+  const [skyH, setSkyH] = useState(0)
+  useEffect(() => {
+    if (!open) return
+    const el = panelRef.current
+    if (!el) return
+    const measure = () =>
+      setSkyH(Math.max(0, window.innerHeight - el.offsetHeight))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    window.addEventListener("resize", measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener("resize", measure)
+    }
+  }, [open, data])
 
   // ----- swipe-down to dismiss (on the grab handle) -----
   const onGrabDown = useCallback((e: React.PointerEvent) => {
@@ -97,6 +118,7 @@ export function UniverseReadPanel({
 
       {/* Panel */}
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}
@@ -119,14 +141,15 @@ export function UniverseReadPanel({
           fontFamily: mono,
         }}
       >
-        {/* The stage: creature + sigil standing on the panel's top edge. The
-            wrapper's bottom sits exactly at the panel top (translateY(-100%)),
-            so the panel edge IS the creature's floor. */}
-        {stage && open && (
+        {/* The stage: the creature in the sky above the panel. The wrapper
+            spans the FULL region between the viewport top and the panel's top
+            edge (measured skyH), and flex-centers the creature so it floats
+            exactly midway between the two. */}
+        {stage && open && skyH > 0 && (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center"
-            style={{ transform: "translateY(-100%)" }}
+            className="pointer-events-none absolute inset-x-0 bottom-full flex flex-col items-center justify-center"
+            style={{ height: skyH }}
           >
             {stage}
           </div>
