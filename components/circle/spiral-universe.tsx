@@ -691,11 +691,13 @@ export function SpiralUniverse({
                   left: px2(g.x),
                   top: px2(g.y),
                   fontFamily: monoFont,
-                  fontSize: px2(g.size * 1.35),
+                  // Larger + brighter than the crisp glyph so the revealed
+                  // region reads as luminous fog, not just brighter points.
+                  fontSize: px2(g.size * 1.7),
                   lineHeight: 1,
-                  color: "#a6c6e6",
+                  color: "#bdd6ee",
                   transform: "translate(-50%, -50%)",
-                  opacity: lit ? Math.min(0.72, g.max * 1.7) : 0,
+                  opacity: lit ? Math.min(1, g.max * 3.4) : 0,
                   transition: "opacity 1.2s ease",
                   transitionDelay: `${spread}s`,
                 }}
@@ -733,8 +735,11 @@ export function SpiralUniverse({
                 color: lit ? g.tone : "#4b515b",
                 transform: "translate(-50%, -50%)",
                 opacity: lit ? undefined : Math.min(0.22, g.max * 0.6),
+                // Lit glyphs run at ~2x their scattered base brightness so the
+                // revealed fog is clearly luminous; unrevealed embers keep the
+                // untouched dim path above.
                 // @ts-expect-error custom property consumed by the shimmer keyframes
-                "--glyph-max": g.max,
+                "--glyph-max": lit ? Math.min(1, g.max * 2) : g.max,
                 animationDuration: `${g.shimmerDur}s`,
                 animationDelay: `${g.delay}s`,
                 transition: "color 1.2s ease",
