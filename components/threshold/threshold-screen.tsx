@@ -26,11 +26,13 @@ const STAGES = [
 const glowText = { color: "#000" }
 
 const LOADER_GLYPHS = ["·", ":", "+", "*", "#", "✦", "=", "/", "\\"]
-const LOADER_WIDTH = 9
+const DISPLAY_WIDTH = "READY?".length
 
 /** A single, stable-width ASCII line that mutates continuously until unmounted. */
 function AsciiLineLoader() {
-  const [glyphs, setGlyphs] = useState(() => Array.from({ length: LOADER_WIDTH }, (_, i) => LOADER_GLYPHS[i]))
+  const [glyphs, setGlyphs] = useState(() =>
+    Array.from({ length: DISPLAY_WIDTH }, (_, i) => LOADER_GLYPHS[i]),
+  )
 
   useEffect(() => {
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
@@ -58,21 +60,30 @@ function AsciiLineLoader() {
   return (
     <span
       aria-label="Reading your chart"
-      className="font-mono"
       style={{
-        display: "block",
-        width: "9ch",
+        display: "flex",
         color: "#fff",
-        fontFamily: '"Geist Pixel", monospace',
-        fontSize: 20,
+        fontFamily: '"Geist Pixel", sans-serif',
+        fontSize: 22,
         lineHeight: 1,
-        letterSpacing: "0.12em",
         textAlign: "center",
         whiteSpace: "nowrap",
         textShadow: "0 0 8px rgba(255,255,255,0.35)",
       }}
     >
-      <span aria-hidden="true">{glyphs.join("")}</span>
+      {glyphs.map((glyph, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          style={{
+            display: "inline-grid",
+            width: "0.9em",
+            placeItems: "center",
+          }}
+        >
+          {glyph}
+        </span>
+      ))}
     </span>
   )
 }
