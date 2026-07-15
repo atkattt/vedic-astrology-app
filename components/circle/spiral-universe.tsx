@@ -1033,10 +1033,15 @@ export function SpiralUniverse({
             type="button"
             onClick={goHome}
             aria-label="Return to you"
-            className="flex h-12 flex-col items-center justify-center rounded-lg px-3 text-muted-foreground transition-colors hover:text-foreground animate-in fade-in duration-300"
-            style={{ fontFamily: monoFont, backgroundColor: "#0d0d0d", border: "1px solid #262626" }}
+            className="flex h-12 flex-col items-center justify-center rounded-lg px-3 animate-in fade-in duration-300"
+            style={{
+              fontFamily: monoFont,
+              backgroundColor: "#0d0d0d",
+              border: "1px solid #fff",
+              color: "#fff",
+            }}
           >
-            <span className="text-[11px] leading-none opacity-70">{"[..]"}</span>
+            <span className="text-[11px] leading-none">{"[..]"}</span>
             <span className="mt-1 text-[9px] lowercase leading-none tracking-widest">you</span>
           </button>
         )}
