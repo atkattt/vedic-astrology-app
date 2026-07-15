@@ -56,6 +56,11 @@ function centerBlock(lines: string[]): string {
  * Compose a face from parts by weighted rules:
  *   enclosure ~70%, ears ~25%, mouth ~50%, extras ~10%.
  * Eyes usually match (occasionally a wink/mismatch).
+ *
+ * The eye line is ALWAYS anchored at the vertical center: blank rows are padded
+ * above/below so the count of rows above the eyes equals the count below. Since
+ * the whole block is also flex-centered in the disc, the eyes therefore always
+ * land at the exact disc center, no matter which optional parts appear.
  */
 function composeFace(): string {
   const eye = pick(EYES)
@@ -73,11 +78,24 @@ function composeFace(): string {
       })()
     : eyeCore
 
-  const lines: string[] = []
-  if (hasEars) lines.push(pick(EARS))
-  lines.push(eyeLine)
-  if (hasMouth) lines.push(pick(MOUTHS))
-  if (hasExtra) lines.push(pick(EXTRAS))
+  const above: string[] = []
+  const below: string[] = []
+  if (hasEars) above.push(pick(EARS))
+  if (hasMouth) below.push(pick(MOUTHS))
+  if (hasExtra) below.push(pick(EXTRAS))
+
+  // Pad with blank rows so the eye line sits in the exact vertical middle.
+  const diff = below.length - above.length
+  const topPad = Math.max(0, diff)
+  const botPad = Math.max(0, -diff)
+
+  const lines: string[] = [
+    ...Array<string>(topPad).fill(""),
+    ...above,
+    eyeLine,
+    ...below,
+    ...Array<string>(botPad).fill(""),
+  ]
 
   return centerBlock(lines)
 }
