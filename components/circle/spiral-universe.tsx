@@ -1363,7 +1363,7 @@ export function SpiralUniverse({
                   score={engagementScore}
                   seed={userId}
                   color={reactColor ?? panel.data.accent ?? NEUTRAL_COLOR}
-                  size={Math.round(creatureSize * 2.25)}
+                  size={Math.round(creatureSize * 3.375)}
                   breatheDuration={activeMood.breatheDuration}
                   blinkMinMs={activeMood.blinkMinMs}
                   blinkMaxMs={activeMood.blinkMaxMs}
