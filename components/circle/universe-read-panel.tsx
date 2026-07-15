@@ -35,10 +35,17 @@ export function UniverseReadPanel({
   data,
   onJudge,
   onClose,
+  spotlight,
 }: {
   data: PanelData | null
   onJudge: (agree: boolean) => void
   onClose: () => void
+  /**
+   * Viewport-space circle (the creature's disc) to leave UNdimmed: the scrim
+   * gets a soft radial hole here so the creature and its breathing glow stay
+   * fully visible while the panel is open.
+   */
+  spotlight?: { x: number; y: number; r: number } | null
 }) {
   const [typed, setTyped] = useState("")
   const [done, setDone] = useState(false)
@@ -120,6 +127,14 @@ export function UniverseReadPanel({
           backdropFilter: "blur(2px)",
           opacity: open ? 1 : 0,
           pointerEvents: open ? "auto" : "none",
+          // Spotlight: a soft-edged hole over the creature's disc so it is
+          // never dimmed, covered, or lost in shadow while the panel is open.
+          ...(spotlight
+            ? {
+                WebkitMaskImage: `radial-gradient(circle at ${spotlight.x}px ${spotlight.y}px, transparent ${spotlight.r}px, black ${spotlight.r + 28}px)`,
+                maskImage: `radial-gradient(circle at ${spotlight.x}px ${spotlight.y}px, transparent ${spotlight.r}px, black ${spotlight.r + 28}px)`,
+              }
+            : {}),
         }}
       />
 

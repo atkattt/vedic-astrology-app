@@ -458,9 +458,13 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           filter: `drop-shadow(0 0 10px ${color}) blur(${artBlur}px)`,
           transform: `scale(${evolveScale})`,
           transformOrigin: "center",
+          // `color` eases ~500ms so attunement tints (a read's accent while
+          // its panel is open, the absorbed afterglow on agree, the drain back
+          // to neutral) glide instead of snapping. filter matches so the
+          // drop-shadow glow re-tints in step with the glyphs.
           transition: evolving
-            ? `opacity ${EVOLVE_OUT_MS}ms ease, filter ${EVOLVE_OUT_MS}ms ease, transform ${EVOLVE_OUT_MS}ms ease`
-            : "opacity .3s ease, filter .3s ease, transform .3s ease",
+            ? `opacity ${EVOLVE_OUT_MS}ms ease, filter ${EVOLVE_OUT_MS}ms ease, transform ${EVOLVE_OUT_MS}ms ease, color .5s ease`
+            : "opacity .3s ease, filter .5s ease, transform .3s ease, color .5s ease",
           animation: reaction ? reactionAnim : breatheAnim,
           pointerEvents: "none",
           color,

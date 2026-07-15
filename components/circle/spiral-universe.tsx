@@ -16,6 +16,20 @@ import { saveRevealRadius } from "@/app/actions/progress"
 const NEUTRAL_COLOR = "#e8e4da"
 const AGREE_COLOR = "#8fc9a3"
 const DISAGREE_COLOR = "#d98a9a"
+
+// Mix two hex colors (#rrggbb): t=0 → a, t=1 → b. Used for the attunement
+// pulses — brightening a read's accent on agree and fading its afterglow.
+function mixHex(a: string, b: string, t: number): string {
+  const pa = [1, 3, 5].map((i) => Number.parseInt(a.slice(i, i + 2), 16))
+  const pb = [1, 3, 5].map((i) => Number.parseInt(b.slice(i, i + 2), 16))
+  return `#${pa
+    .map((v, i) =>
+      Math.round(v + (pb[i] - v) * t)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`
+}
 // A tap must stay under this many pixels of movement to count as a click
 // (otherwise dragging across the universe would open panels by accident).
 const TAP_SLOP = 6
@@ -229,10 +243,13 @@ export function SpiralUniverse({
   useEffect(() => {
     onHomeChangeRef.current?.(isHome)
   }, [isHome])
-  // Screen-space upward lift applied while a read/person panel is open, so the
-  // world-anchored avatar stays visible above the panel. Not part of cam —
-  // it's a temporary camera offset that returns to 0 on close.
-  const panelLiftRef = useRef(0)
+  // Camera-offset courtesy while a read/person panel is open: we pan the view
+  // so the disc sits comfortably above the panel, remembering where the camera
+  // was so it can glide back on close.
+  const prePanelCamRef = useRef<{ x: number; y: number; scale: number } | null>(null)
+  // Viewport-space hole punched in the panel scrim so the disc (and its
+  // breathing glow) is never dimmed while a panel is open.
+  const [spotlight, setSpotlight] = useState<{ x: number; y: number; r: number } | null>(null)
   // Timer that strips the transient CSS transition off the universe transform
   // after an animated camera move (home / panel lift) finishes.
   const camAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -312,8 +329,10 @@ export function SpiralUniverse({
   const openRead = useCallback((r: PlacedRead) => {
     if (reactTimer.current) clearTimeout(reactTimer.current)
     setPanel({ data: r.panel, read: r.read })
-    setReactMood("curious") // lean in; reads stay neutral white
-    setReactColor(null)
+    setReactMood("curious") // lean in
+    // Attunement: the creature (glyphs + glow) adopts the read's accent while
+    // the panel is open — SelfCreature eases the color over ~500ms.
+    setReactColor(r.panel.accent ?? null)
   }, [])
 
   const openPerson = useCallback((p: PlacedPerson) => {
@@ -332,7 +351,16 @@ export function SpiralUniverse({
       if (agreeIt) agree(current.read)
       else disagree(current.read, "skip")
       setReactMood(agreeIt ? "agree" : "disagree")
-      setReactColor(agreeIt ? AGREE_COLOR : DISAGREE_COLOR)
+      const accent = current.data.accent ?? (agreeIt ? AGREE_COLOR : DISAGREE_COLOR)
+      if (agreeIt) {
+        // Absorbed: a saturated pulse — the accent pushed brighter — rides the
+        // happy bounce while the panel lingers.
+        setReactColor(mixHex(accent, "#ffffff", 0.3))
+      } else {
+        // Let it go: drain back to neutral (~400-500ms color ease) with the
+        // curious tilt.
+        setReactColor(null)
+      }
       // Both YES and NO are self-knowledge — both push the frontier outward and
       // materialize more of the universe. Persist for authed users so the
       // revealed world stays revealed across sessions; guests stay in memory.
@@ -342,7 +370,18 @@ export function SpiralUniverse({
         return next
       })
       if (reactTimer.current) clearTimeout(reactTimer.current)
-      reactTimer.current = setTimeout(() => closePanel(), 820)
+      reactTimer.current = setTimeout(() => {
+        if (agreeIt) {
+          // Close the panel but carry a faint tint of the absorbed read for
+          // ~2s before settling back to neutral white.
+          setPanel(null)
+          setReactMood(null)
+          setReactColor(mixHex(NEUTRAL_COLOR, accent, 0.35))
+          reactTimer.current = setTimeout(() => setReactColor(null), 2000)
+        } else {
+          closePanel()
+        }
+      }, 820)
     },
     [panel, agree, disagree, closePanel, guest],
   )
@@ -537,7 +576,7 @@ export function SpiralUniverse({
     const cx = stage.clientWidth / 2
     const cy = stage.clientHeight / 2
     const tx = cx - cam.x * cam.scale
-    const ty = cy - cam.y * cam.scale - panelLiftRef.current
+    const ty = cy - cam.y * cam.scale
     universe.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.scale})`
     // Counter-scale the avatar in the same pass so it renders at constant
     // screen size and never jitters against the camera during pinch.
@@ -598,15 +637,42 @@ export function SpiralUniverse({
     }, 700)
   }, [animateCam])
 
-  // Panel open/close → animate the temporary upward camera offset in/out.
+  // Panel open → camera courtesy: pan the view so the disc sits comfortably in
+  // the visible area above the panel (world origin lifted above stage center),
+  // remembering where the camera was. Close → glide back. While open we also
+  // punch a spotlight hole in the panel's scrim at the disc's screen position
+  // so the creature and its breathing glow are never dimmed or lost in shadow.
   useEffect(() => {
-    const lift = panelOpen
-      ? Math.min(220, Math.max(120, (stageRef.current?.clientHeight ?? 720) * 0.2))
-      : 0
-    animateCam(() => {
-      panelLiftRef.current = lift
-    }, 400)
-  }, [panelOpen, animateCam])
+    const stage = stageRef.current
+    if (panelOpen) {
+      const lift = Math.min(220, Math.max(120, (stage?.clientHeight ?? 720) * 0.2))
+      if (!prePanelCamRef.current) prePanelCamRef.current = { ...camRef.current }
+      animateCam(() => {
+        const cam = camRef.current
+        cam.x = 0
+        cam.y = lift / cam.scale
+      }, 400)
+      const rect = stage?.getBoundingClientRect()
+      if (rect) {
+        setSpotlight({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2 - lift,
+          // The counter-scaled disc renders at a constant discSize px on
+          // screen; leave room for its glow bloom.
+          r: discSize / 2 + 18,
+        })
+      }
+    } else {
+      const prev = prePanelCamRef.current
+      prePanelCamRef.current = null
+      setSpotlight(null)
+      if (prev) {
+        animateCam(() => {
+          camRef.current = { ...prev }
+        }, 400)
+      }
+    }
+  }, [panelOpen, animateCam, discSize])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -1105,7 +1171,12 @@ export function SpiralUniverse({
 
       {/* Slide-up read panel — tapping a read/person opens it; yes/no route to
           the same agree/disagree persistence as the bottom ReadHub. */}
-      <UniverseReadPanel data={panel?.data ?? null} onJudge={judge} onClose={closePanel} />
+      <UniverseReadPanel
+        data={panel?.data ?? null}
+        onJudge={judge}
+        onClose={closePanel}
+        spotlight={spotlight}
+      />
     </div>
   )
 }
