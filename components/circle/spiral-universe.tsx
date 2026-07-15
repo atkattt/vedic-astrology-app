@@ -22,7 +22,7 @@ import { choreograph } from "@/lib/self/moves"
 import {
   SECTION_ORDER,
   SECTION_COLORS,
-  sectionOf,
+  sectionFor,
   type SectionKey,
 } from "@/lib/spiral/sections"
 
@@ -438,7 +438,11 @@ export function SpiralUniverse({
   const sections = useMemo<SectionRun[]>(() => {
     const groups = new Map<SectionKey, UniverseFragment[]>()
     for (const f of fragments) {
-      const key = sectionOf(f.section)
+      // Explicit fragments.section wins; when null (column missing or not
+      // backfilled) the section is DERIVED from the trigger's planets, so
+      // authored fragments spread across the journey instead of collapsing
+      // into one section.
+      const key = sectionFor(f.section, f.condition)
       const g = groups.get(key)
       if (g) g.push(f)
       else groups.set(key, [f])
