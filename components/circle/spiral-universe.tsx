@@ -993,7 +993,9 @@ export function SpiralUniverse({
                   border: answered ? "none" : `1.5px solid ${locked ? "#4a4e56" : r.color}`,
                   color: locked ? "#4a4e56" : r.color,
                   fontFamily: monoFont,
-                  fontSize: answered ? 18 : 11,
+                  // Same glyph size answered or not — agreeing drops the badge
+                  // but never grows/shrinks the star itself.
+                  fontSize: 11,
                   textShadow: answered ? `0 0 8px ${r.color}, 0 0 18px ${r.color}` : "none",
                   boxShadow:
                     answered || locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
