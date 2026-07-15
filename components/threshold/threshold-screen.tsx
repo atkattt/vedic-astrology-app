@@ -131,11 +131,34 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
       <AsciiRippleSky />
 
       {/* Sticky hero — stays pinned while the story scrolls beneath it. */}
-      <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-10 pt-16">
+      <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-10 pt-10">
         <div className="relative z-10 flex flex-col items-center" style={{ gap: "0px" }}>
-          {/* Spiral drawn in ASCII — matches the SelfAvatar glyph palette,
-              winding infinitely inward into a dark core. */}
-          <AsciiSpiral size={150} />
+          {/* Self-avatar disc: the same black disc with a thin near-white outline
+              and breathing halo used elsewhere, holding the white loading spiral.
+              Pinned at the top so the story text boxes scroll beneath it. */}
+          <style>{`
+            @keyframes thresholdAvatarHalo {
+              0%, 100% { box-shadow: 0 0 18px oklch(0.95 0 0 / 0.10); }
+              50% { box-shadow: 0 0 30px oklch(0.95 0 0 / 0.20); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              @keyframes thresholdAvatarHalo { 0%, 100% { box-shadow: 0 0 20px oklch(0.95 0 0 / 0.14); } }
+            }
+          `}</style>
+          <div
+            className="relative flex items-center justify-center rounded-full"
+            style={{
+              width: 168,
+              height: 168,
+              backgroundColor: "#050505",
+              border: "2px solid oklch(0.95 0 0 / 0.6)",
+              boxShadow: "0 0 22px oklch(0.95 0 0 / 0.12)",
+              animation: "thresholdAvatarHalo 4.5s ease-in-out infinite",
+            }}
+            aria-hidden="true"
+          >
+            <AsciiSpiral size={150} tone="light" />
+          </div>
 
           {/* Cycling status line — shows the loading stages, or the error
               message if the read faltered. On success it stays empty (no
@@ -176,35 +199,6 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
 
       {/* Scrollable story body */}
       <div className="relative z-10 mx-auto max-w-md px-7 pb-44">
-        {/* Self-avatar disc sitting above the story cards: the same black disc
-            with a thin near-white outline + breathing halo used elsewhere, but
-            holding the white loading spiral instead of an ASCII face. */}
-        <div className="mb-8 flex justify-center">
-          <style>{`
-            @keyframes thresholdAvatarHalo {
-              0%, 100% { box-shadow: 0 0 18px oklch(0.95 0 0 / 0.10); }
-              50% { box-shadow: 0 0 30px oklch(0.95 0 0 / 0.20); }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              @keyframes thresholdAvatarHalo { 0%, 100% { box-shadow: 0 0 20px oklch(0.95 0 0 / 0.14); } }
-            }
-          `}</style>
-          <div
-            className="relative flex items-center justify-center rounded-full"
-            style={{
-              width: 168,
-              height: 168,
-              backgroundColor: "#050505",
-              border: "2px solid oklch(0.95 0 0 / 0.6)",
-              boxShadow: "0 0 22px oklch(0.95 0 0 / 0.12)",
-              animation: "thresholdAvatarHalo 4.5s ease-in-out infinite",
-            }}
-            aria-hidden="true"
-          >
-            <AsciiSpiral size={150} tone="light" />
-          </div>
-        </div>
-
         <StoryReadCards />
       </div>
 
