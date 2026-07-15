@@ -1010,16 +1010,25 @@ export function SpiralUniverse({
           className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70 text-balance"
           style={{ fontFamily: monoFont }}
         >
-          pinch to zoom · swipe to explore your universe
+          pinch to zoom · swipe to explore
         </p>
       </div>
 
-      {/* Return-home: a tiny ghost of the creature's face + "you", shown only
-          when the camera has left the home composition (panned/zoomed away,
-          which includes the disc drifting off-screen). Tapping glides the
-          camera back to scale 1, centered (~700ms). */}
-      {!isHome && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center">
+      {/* Bottom dock: one fixed slot shared by the hint text (at home) and the
+          return-home button (when away), so the button appears in the exact
+          position the text occupied. */}
+      <div className="absolute bottom-4 left-1/2 z-20 flex h-12 -translate-x-1/2 items-center justify-center">
+        {isHome ? (
+          <p
+            className="pointer-events-none max-w-64 text-center text-[9px] lowercase leading-relaxed tracking-widest text-muted-foreground/50 text-balance"
+            style={{ fontFamily: monoFont }}
+          >
+            if you get lost, a button will appear here to take you back
+          </p>
+        ) : (
+          /* Return-home: a tiny ghost of the creature's face + "you", shown
+             only when the camera has left the home composition. Tapping glides
+             the camera back to scale 1, centered (~700ms). */
           <button
             type="button"
             onClick={goHome}
@@ -1030,8 +1039,8 @@ export function SpiralUniverse({
             <span className="text-[11px] leading-none opacity-70">{"[..]"}</span>
             <span className="mt-1 text-[9px] lowercase leading-none tracking-widest">you</span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Slide-up read panel — tapping a read/person opens it; yes/no route to
           the same agree/disagree persistence as the bottom ReadHub. */}
