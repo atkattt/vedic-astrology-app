@@ -200,6 +200,16 @@ export function SpiralUniverse({
   const universeRef = useRef<HTMLDivElement | null>(null)
   const camRef = useRef({ x: 0, y: 0, scale: 1 })
   const [zoomPct, setZoomPct] = useState(100)
+  // True when the camera sits at the home composition (scale 1, origin
+  // centered). Drives the return-home "you" button's visibility.
+  const [isHome, setIsHome] = useState(true)
+  // Screen-space upward lift applied while a read/person panel is open, so the
+  // world-anchored avatar stays visible above the panel. Not part of cam —
+  // it's a temporary camera offset that returns to 0 on close.
+  const panelLiftRef = useRef(0)
+  // Timer that strips the transient CSS transition off the universe transform
+  // after an animated camera move (home / panel lift) finishes.
+  const camAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Pointer / gesture bookkeeping.
   const draggingRef = useRef(false)
@@ -305,15 +315,15 @@ export function SpiralUniverse({
   useEffect(() => {
     return () => {
       if (reactTimer.current) clearTimeout(reactTimer.current)
+      if (camAnimTimer.current) clearTimeout(camAnimTimer.current)
     }
   }, [])
 
   // When a read/bond panel is open it slides up from the bottom and can cover
-  // the centered avatar. Lift the avatar into the upper area so it stays fully
-  // visible above the panel. The amount scales with the stage height.
-  const avatarLift = panel
-    ? Math.min(220, Math.max(120, (stageRef.current?.clientHeight ?? 720) * 0.2))
-    : 0
+  // the world-anchored avatar. Instead of lifting the avatar out of the world
+  // (the old hack), smoothly offset the CAMERA upward so the avatar stays
+  // visible above the panel — then return when the panel closes.
+  const panelOpen = !!panel
 
   // World-space centers of every read/person marker, on the spiral arm. The
   // nebula carves a small clear disc around each so a marker's star sits IN the
@@ -469,6 +479,21 @@ export function SpiralUniverse({
   const openPersonRef = useRef(openPerson)
   openPersonRef.current = openPerson
 
+  // Camera bounds: the world origin may never drift further than this from the
+  // viewport center (in world units), so the view always contains part of the
+  // populated universe and can't wander into empty void.
+  const PAN_LIMIT = MAX_R * 1.2
+
+  const clampCam = useCallback(() => {
+    const cam = camRef.current
+    const d = Math.hypot(cam.x, cam.y)
+    if (d > PAN_LIMIT) {
+      const k = PAN_LIMIT / d
+      cam.x *= k
+      cam.y *= k
+    }
+  }, [PAN_LIMIT])
+
   const apply = useCallback(() => {
     const stage = stageRef.current
     const universe = universeRef.current
@@ -477,10 +502,29 @@ export function SpiralUniverse({
     const cx = stage.clientWidth / 2
     const cy = stage.clientHeight / 2
     const tx = cx - cam.x * cam.scale
-    const ty = cy - cam.y * cam.scale
+    const ty = cy - cam.y * cam.scale - panelLiftRef.current
     universe.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.scale})`
     setZoomPct(Math.round(cam.scale * 100))
+    setIsHome(Math.abs(cam.scale - 1) < 0.005 && Math.abs(cam.x) < 1 && Math.abs(cam.y) < 1)
   }, [])
+
+  // Run an animated camera move: temporarily put a transform transition on the
+  // universe layer, apply the new camera, then strip the transition so drags
+  // and pinches stay perfectly snappy afterwards.
+  const animateCam = useCallback(
+    (mutate: () => void, ms = 700) => {
+      const universe = universeRef.current
+      if (!universe) return
+      if (camAnimTimer.current) clearTimeout(camAnimTimer.current)
+      universe.style.transition = `transform ${ms}ms cubic-bezier(.3,.8,.3,1)`
+      mutate()
+      apply()
+      camAnimTimer.current = setTimeout(() => {
+        universe.style.transition = ""
+      }, ms + 60)
+    },
+    [apply],
+  )
 
   // Zoom anchored at a stage-relative point (sx,sy) — keeps that point fixed.
   const zoomAt = useCallback(
@@ -497,15 +541,29 @@ export function SpiralUniverse({
       cam.scale = newScale
       cam.x = wx - (sx - cx) / cam.scale
       cam.y = wy - (sy - cy) / cam.scale
+      clampCam()
       apply()
     },
-    [apply],
+    [apply, clampCam],
   )
 
-  const reset = useCallback(() => {
-    camRef.current = { x: 0, y: 0, scale: 1 }
-    apply()
-  }, [apply])
+  // Return home: smoothly animate the camera back to scale 1, avatar centered
+  // (~700ms ease). Replaces the old RESET button — same end state, one motion.
+  const goHome = useCallback(() => {
+    animateCam(() => {
+      camRef.current = { x: 0, y: 0, scale: 1 }
+    }, 700)
+  }, [animateCam])
+
+  // Panel open/close → animate the temporary upward camera offset in/out.
+  useEffect(() => {
+    const lift = panelOpen
+      ? Math.min(220, Math.max(120, (stageRef.current?.clientHeight ?? 720) * 0.2))
+      : 0
+    animateCam(() => {
+      panelLiftRef.current = lift
+    }, 400)
+  }, [panelOpen, animateCam])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -562,9 +620,13 @@ export function SpiralUniverse({
       const dy = e.clientY - lastRef.current.y
       lastRef.current = { x: e.clientX, y: e.clientY }
       const cam = camRef.current
+      // Zoom-gated panning: at 100% the view IS the fixed home composition —
+      // dragging does nothing. Panning unlocks only when zoomed in or out.
+      if (Math.abs(cam.scale - 1) < 0.005) return
       // Divide by scale so pan speed feels natural at every zoom level.
       cam.x -= dx / cam.scale
       cam.y -= dy / cam.scale
+      clampCam()
       apply()
     }
 
@@ -635,7 +697,7 @@ export function SpiralUniverse({
       stage.removeEventListener("wheel", onWheel)
       window.removeEventListener("resize", onResize)
     }
-  }, [apply, zoomAt])
+  }, [apply, zoomAt, clampCam])
 
   const monoFont =
     "'Geist Pixel', ui-monospace, monospace"
@@ -660,10 +722,10 @@ export function SpiralUniverse({
         background: "#050505",
       }}
     >
-      {/* ===== The universe layer: everything here pans + zooms ===== */}
+      {/* ===== The universe layer: everything here pans + zooms — including
+          the self creature, anchored at world origin (0,0). ===== */}
       <div
         ref={universeRef}
-        aria-hidden="true"
         className="absolute left-0 top-0"
         style={{ width: 0, height: 0, transformOrigin: "0 0", willChange: "transform" }}
       >
@@ -898,19 +960,20 @@ export function SpiralUniverse({
             </div>
           )
         })}
-      </div>
-
-      {/* ===== Pinned avatar: a separate layer, never transformed by the
-          camera. It lifts upward while a panel is open so it stays visible. ===== */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 z-[60]"
-        style={{
-          width: 248,
-          height: 248,
-          transform: `translate(-50%, calc(-50% - ${avatarLift}px))`,
-          transition: "transform .4s cubic-bezier(.3,.8,.3,1)",
-        }}
-      >
+        {/* ===== The avatar: anchored to the WORLD at origin (0,0) — the
+            spiral's center — so it pans and zooms with the map like every
+            other object and the empty center hole can never be exposed. Its
+            stage-based size is its world size; the camera scales it naturally. ===== */}
+        <div
+          className="pointer-events-none absolute z-[60]"
+          style={{
+            left: 0,
+            top: 0,
+            width: 248,
+            height: 248,
+            transform: "translate(-50%, -50%)",
+          }}
+        >
         {/* The moon of this sky: an opaque black disc that contains the self
             creature and masks the nebula behind it, so the fog reads as emerging
             from the circle's rim. Its outline normally sits at the neutral
@@ -936,15 +999,18 @@ export function SpiralUniverse({
             size={248}
           />
         </div>
-        {/* Tap target over the face → opens the chart read sheet */}
-        {onSelectSelf && (
-          <button
-            type="button"
-            onClick={onSelectSelf}
-            aria-label="Read your chart"
-            className="pointer-events-auto absolute left-1/2 top-1/2 size-36 -translate-x-1/2 -translate-y-1/2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        )}
+          {/* Tap target over the face → opens the chart read sheet. Still
+              works inside the transformed layer: the stage's pointerdown
+              handler skips buttons, so the native click reaches it. */}
+          {onSelectSelf && (
+            <button
+              type="button"
+              onClick={onSelectSelf}
+              aria-label="Read your chart"
+              className="pointer-events-auto absolute left-1/2 top-1/2 size-36 -translate-x-1/2 -translate-y-1/2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          )}
+        </div>
       </div>
 
       {/* ===== HUD ===== */}
@@ -964,7 +1030,7 @@ export function SpiralUniverse({
           className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/40"
           style={{ fontFamily: monoFont }}
         >
-          Drag to move · scroll / pinch to zoom
+          scroll / pinch to zoom · drag to move when zoomed
         </p>
       </div>
 
@@ -987,14 +1053,22 @@ export function SpiralUniverse({
         >
           +
         </HudButton>
-        <button
-          type="button"
-          onClick={reset}
-          className="h-9 rounded-lg px-3 text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-          style={{ fontFamily: monoFont, backgroundColor: "#0d0d0d", border: "1px solid #262626" }}
-        >
-          Reset
-        </button>
+        {/* Return-home: a tiny ghost of the creature's face + "you", shown
+            only when the camera has left the home composition (panned/zoomed
+            away, which includes the disc drifting off-screen). Tapping glides
+            the camera back to scale 1, centered (~700ms). Replaces RESET. */}
+        {!isHome && (
+          <button
+            type="button"
+            onClick={goHome}
+            aria-label="Return to you"
+            className="flex h-12 flex-col items-center justify-center rounded-lg px-3 text-muted-foreground transition-colors hover:text-foreground animate-in fade-in duration-300"
+            style={{ fontFamily: monoFont, backgroundColor: "#0d0d0d", border: "1px solid #262626" }}
+          >
+            <span className="text-[11px] leading-none opacity-70">{"[..]"}</span>
+            <span className="mt-1 text-[9px] lowercase leading-none tracking-widest">you</span>
+          </button>
+        )}
       </div>
 
       {/* Slide-up read panel — tapping a read/person opens it; yes/no route to
