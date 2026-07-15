@@ -116,8 +116,6 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
   const prevArt = useRef<string>("")
 
   useEffect(() => {
-    ;(window as unknown as Record<string, unknown>).__ambientMounted = true
-    ;(window as unknown as Record<string, unknown>).__ambientMorphs = 0
     let alive = true
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
     const clearAll = () => {
@@ -140,8 +138,6 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
     }
 
     function morph() {
-      const w = window as unknown as Record<string, unknown>
-      w.__ambientMorphs = ((w.__ambientMorphs as number) ?? 0) + 1
       // Compose a fresh face, never repeating the previous composition.
       let art = composeFace()
       for (let guard = 0; guard < 8 && art === prevArt.current; guard++) art = composeFace()
