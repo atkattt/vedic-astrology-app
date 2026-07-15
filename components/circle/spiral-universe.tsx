@@ -8,6 +8,7 @@ import { chartRead } from "@/lib/spiral/chart-read"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
 import { ACCENT_COLORS } from "@/lib/spiral/accent-colors"
+import { scoreToStage } from "@/lib/self/avatar-stages"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
 import { saveRevealRadius } from "@/app/actions/progress"
 
@@ -57,10 +58,20 @@ const REVEAL_STEP = 120 // how far each answer pushes the frontier outward
 const TURNS = 3
 const MAX_R = 480
 // No nebula glyph is drawn within this radius — carves a clean hole where the
-// avatar disc lives. Sized so the hole never peeks around the constant-size
-// disc: clear-radius × MAX_SCALE ≤ disc screen radius (~94px). The disc's
-// opaque background hides glyphs behind it at low zoom — intended.
-const AVATAR_CLEAR_RADIUS = 46
+// avatar disc lives. Sized for the SMALLEST disc (stage 1 ≈ 120px diameter) so
+// the hole never peeks around the constant-size disc at any stage:
+// clear-radius × MAX_SCALE ≤ min disc screen radius (60px). Bigger discs simply
+// cover more glyphs with their opaque background — intended.
+const AVATAR_CLEAR_RADIUS = 28
+
+// ---- Stage-driven disc sizing --------------------------------------------
+// The creature's disc grows with its evolution: stage 1 ≈ 120px diameter,
+// +20px per stage to ≈ 200px at stage 5, then +2px per accretion detail,
+// capped at 240px. The creature glyph scales with the disc (constant ratio,
+// keeping the skeleton at roughly 45-55% of the disc).
+function discSizeFor(stage: number, detailCount: number): number {
+  return Math.min(240, 120 + (stage - 1) * 20 + detailCount * 2)
+}
 const FADE_BAND = 76
 // The nebula is sampled along the spiral curve; at each sample we scatter a
 // small cloud of glyphs across the arm's width, so the sky reads as dense
@@ -274,6 +285,15 @@ export function SpiralUniverse({
   // The evolving self creature at the center. Its stage comes from real
   // engagement; its brief reactions mirror the universe's read reactions.
   const creatureRef = useRef<SelfCreatureHandle>(null)
+
+  // Disc size follows the creature's evolution (see discSizeFor). detailCount
+  // mirrors SelfCreature's own accretion rule: one detail per growth point.
+  const creatureStage = scoreToStage(engagementScore)
+  const creatureDetails = Math.max(0, Math.floor(engagementScore))
+  const discSize = discSizeFor(creatureStage, creatureDetails)
+  // Constant ratio (the previous 248/188 proportion) keeps the skeleton at
+  // roughly half the disc at every stage.
+  const creatureSize = Math.round(discSize * (248 / 188))
   useEffect(() => {
     if (!reactMood) return
     if (reactMood === "agree") creatureRef.current?.react("agree")
@@ -986,8 +1006,8 @@ export function SpiralUniverse({
           style={{
             left: 0,
             top: 0,
-            width: 248,
-            height: 248,
+            width: creatureSize,
+            height: creatureSize,
             transform: "translate(-50%, -50%)",
             transformOrigin: "center",
           }}
@@ -1000,12 +1020,14 @@ export function SpiralUniverse({
         <div
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
-            width: 188,
-            height: 188,
+            width: discSize,
+            height: discSize,
             backgroundColor: "#050505",
             border: `1.5px solid ${panel?.data.accent ?? NEUTRAL_COLOR}`,
             boxShadow: panel?.data.accent ? `0 0 18px ${panel.data.accent}55` : "none",
-            transition: "border-color .5s ease, box-shadow .5s ease",
+            // width/height ease makes stage-evolution growth a smooth swell.
+            transition:
+              "border-color .5s ease, box-shadow .5s ease, width .8s cubic-bezier(.3,.8,.3,1), height .8s cubic-bezier(.3,.8,.3,1)",
           }}
         />
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
@@ -1014,7 +1036,7 @@ export function SpiralUniverse({
             score={engagementScore}
             seed={userId}
             color={reactColor ?? NEUTRAL_COLOR}
-            size={248}
+            size={creatureSize}
           />
         </div>
           {/* Tap target over the face → opens the chart read sheet. Still
