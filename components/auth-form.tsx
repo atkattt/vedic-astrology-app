@@ -101,27 +101,25 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     )
   }
 
+  // Sign-up only shows Google OAuth.
+  if (isSignUp) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        disabled={googleLoading}
+        onClick={handleGoogle}
+        className="h-12 w-full rounded-full font-mono text-xs lowercase tracking-widest bg-transparent px-16"
+      >
+        {googleLoading ? "one moment…" : "continue with google"}
+      </Button>
+    )
+  }
+
+  // Sign-in shows email/password form with Google as secondary.
   return (
     <form onSubmit={handleSubmit} className="flex w-full flex-col gap-5">
-      {isSignUp && (
-        <div className="flex flex-col gap-2">
-          <Label
-            htmlFor="name"
-            className="font-mono text-xs uppercase tracking-widest text-muted-foreground"
-          >
-            Your name
-          </Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Maya"
-            autoComplete="name"
-            className="h-12 bg-input/40"
-          />
-        </div>
-      )}
-
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="email"
@@ -173,11 +171,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         disabled={loading}
         className="mt-2 h-12 rounded-full font-mono text-sm uppercase tracking-widest"
       >
-        {loading
-          ? "One moment…"
-          : isSignUp
-            ? "Create your chart"
-            : "Enter"}
+        {loading ? "One moment…" : "Enter"}
       </Button>
 
       <div className="flex items-center gap-3" aria-hidden="true">
@@ -194,33 +188,19 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         size="lg"
         disabled={googleLoading || loading}
         onClick={handleGoogle}
-        className="h-12 rounded-full font-mono text-xs lowercase tracking-widest bg-transparent"
+        className="h-12 rounded-full font-mono text-xs lowercase tracking-widest bg-transparent px-16"
       >
         {googleLoading ? "one moment…" : "continue with google"}
       </Button>
 
       <p className="text-center font-mono text-xs text-muted-foreground">
-        {isSignUp ? (
-          <>
-            Already mapped?{" "}
-            <Link
-              href="/sign-in"
-              className="text-foreground underline-offset-4 hover:underline"
-            >
-              Sign in
-            </Link>
-          </>
-        ) : (
-          <>
-            New here?{" "}
-            <Link
-              href="/sign-up"
-              className="text-foreground underline-offset-4 hover:underline"
-            >
-              Begin your chart
-            </Link>
-          </>
-        )}
+        New here?{" "}
+        <Link
+          href="/sign-up"
+          className="text-foreground underline-offset-4 hover:underline"
+        >
+          Begin your chart
+        </Link>
       </p>
     </form>
   )

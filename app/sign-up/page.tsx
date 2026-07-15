@@ -23,13 +23,6 @@ export default async function SignUpPage() {
           Spiral <span className="italic text-primary">Inward</span>
         </Link>
 
-        <h1 className="mb-1 text-center font-serif text-3xl font-light">
-          Begin your chart
-        </h1>
-        <p className="mb-8 text-center font-mono text-xs uppercase tracking-widest text-muted-foreground">
-          Map the people you carry with you
-        </p>
-
         <AuthForm mode="sign-up" />
       </div>
     </main>
