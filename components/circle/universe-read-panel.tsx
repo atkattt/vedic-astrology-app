@@ -15,14 +15,17 @@ import { useCallback, useEffect, useRef, useState } from "react"
  */
 
 export type PanelData = {
-  /** Small uppercase source line, e.g. "capricorn · makara". */
+  /** Small dim metadata line under the title — the trigger in plain words,
+      e.g. "saturn in the 8th". */
   src: string
-  /** Spaced uppercase title, e.g. "THE ASCENDANT" or "MARA × YOU". */
+  /** The fragment's authored lowercase title, e.g. "the underworld door". */
   title: string
-  /** The body that types out. */
+  /** The authored body, shown EXACTLY as written; types out. */
   body: string
   /** The tapped marker's color — tints the panel border + heading. */
   accent?: string
+  /** The read's sigil — short ASCII floated above the creature on stage. */
+  symbol?: string
 }
 
 const TYPE_MS = 18
@@ -175,20 +178,24 @@ export function UniverseReadPanel({
         </div>
 
         <div className="px-6 pb-7 pt-2">
-          {/* title — the facet name, in the marker's color, e.g. ASCENDANT */}
+          {/* title — the fragment's authored lowercase title, as written */}
           <div
-            className="mb-2 text-[13px] uppercase tracking-[3px]"
+            className="mb-2 text-[13px] lowercase tracking-[2px]"
             style={{ color: accent, textShadow: `0 0 12px ${accent}55` }}
           >
             {data?.title}
           </div>
-          {/* source line — the sign, e.g. CAPRICORN · MAKARA */}
-          <div
-            className="mb-3.5 text-[10px] uppercase tracking-[2px]"
-            style={{ color: `${accent}b3` }}
-          >
-            {data?.src}
-          </div>
+          {/* metadata — the trigger in plain words, e.g. "saturn in the 8th" */}
+          {data?.src ? (
+            <div
+              className="mb-3.5 text-[10px] lowercase tracking-[1.5px]"
+              style={{ color: "#6f6a60" }}
+            >
+              {data.src}
+            </div>
+          ) : (
+            <div className="mb-3.5" />
+          )}
           {/* typed body */}
           <div
             className="whitespace-pre-wrap text-[15px] leading-relaxed"

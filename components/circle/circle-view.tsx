@@ -10,6 +10,7 @@ import { AddPersonDialog } from "@/components/circle/add-person-dialog"
 import { ConnectDialog } from "@/components/circle/connect-dialog"
 import { PersonDetail, type Bond } from "@/components/circle/person-detail"
 import { SpiralUniverse } from "@/components/circle/spiral-universe"
+import type { UniverseFragment } from "@/lib/spiral/universe-reads"
 
 import type { Mood } from "@/components/circle/SelfAvatar"
 import { buildColorMap } from "@/lib/circle/colors"
@@ -22,6 +23,9 @@ export function CircleView({
   initialRevealRadius,
   engagementScore = 0,
   userId,
+  matchedReads,
+  initialResponses,
+  guestFragments,
 }: {
   userName: string
   initialRevealRadius: number
@@ -29,6 +33,12 @@ export function CircleView({
   engagementScore?: number
   /** stable per-user seed so the creature regrows the exact same being */
   userId?: string
+  /** authed: matched fragments from the /self pipeline — the read objects */
+  matchedReads?: UniverseFragment[]
+  /** authed: saved agree/disagree per fragment id, from read_responses */
+  initialResponses?: Record<string, "agree" | "disagree">
+  /** guest: raw fragments, matched client-side against the stashed chart */
+  guestFragments?: UniverseFragment[]
 }) {
   const router = useRouter()
   const { guest, people, relationships } = useCircleData()
@@ -201,6 +211,9 @@ export function CircleView({
           guest={guest}
           initialRevealRadius={initialRevealRadius}
           onHomeChange={setAtHome}
+          matchedReads={matchedReads}
+          initialResponses={initialResponses}
+          guestFragments={guestFragments}
         />
         {/* Hint overlay when the circle is still empty — shown on top of the
             universe so the creature is always visible in the background. */}

@@ -327,4 +327,27 @@
   .animate-current-bloom {
     animation: current-bloom 0.8s ease-out;
   }
+
+  /* Read-open scene: the creature leaves its disc and stands on the panel's
+     top edge, gently bouncing/shuffling side to side along its "floor". */
+  @keyframes stage-shuffle {
+    0% { transform: translateX(-10px) translateY(0); }
+    25% { transform: translateX(0) translateY(-5px); }
+    50% { transform: translateX(10px) translateY(0); }
+    75% { transform: translateX(0) translateY(-5px); }
+    100% { transform: translateX(-10px) translateY(0); }
+  }
+  .animate-stage-shuffle {
+    animation: stage-shuffle 4.5s ease-in-out infinite;
+  }
+
+  /* The read's sigil floating in the dark above the creature: a slow shimmer,
+     opacity + glow breathing together. */
+  @keyframes sigil-shimmer {
+    0%, 100% { opacity: 0.55; filter: drop-shadow(0 0 4px currentColor); }
+    50% { opacity: 1; filter: drop-shadow(0 0 12px currentColor); }
+  }
+  .animate-sigil-shimmer {
+    animation: sigil-shimmer 2.8s ease-in-out infinite;
+  }
 }
