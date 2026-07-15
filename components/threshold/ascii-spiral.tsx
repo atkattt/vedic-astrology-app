@@ -48,11 +48,16 @@ export default function AsciiSpiral({
     const el = ref.current
     if (!el) return
 
-    let frame = 0
+    // Time-based motion: driving the field off real elapsed seconds (rather
+    // than a per-frame integer counter) keeps the angular velocity constant
+    // regardless of display refresh rate and immune to dropped frames, so the
+    // spiral glides smoothly. The sine field is fully periodic, so it loops
+    // forever with no seam.
+    let start = 0
 
     const field = (t: number) => {
       // gentle breath so the spiral feels alive, not mechanical
-      const breathe = Math.sin(t * 0.04) * 0.5 + 0.5
+      const breathe = Math.sin(t * 2.4) * 0.5 + 0.5
       const arms = 2
       const tightness = 0.62
       const grid: number[][] = []
@@ -70,7 +75,7 @@ export default function AsciiSpiral({
           const ang = Math.atan2(ny, nx)
 
           // Spiral arms: +t winds them inward toward the dark center.
-          const s = Math.sin(arms * ang + d * tightness + t * 0.07)
+          const s = Math.sin(arms * ang + d * tightness + t * 4.2)
           let arm = Math.max(0, s)
           arm = Math.pow(arm, 1.5)
 
@@ -92,8 +97,8 @@ export default function AsciiSpiral({
       return grid
     }
 
-    const draw = () => {
-      const grid = field(frame)
+    const draw = (t: number) => {
+      const grid = field(t)
       let out = ""
       for (const row of grid) {
         for (const v of row)
@@ -103,14 +108,19 @@ export default function AsciiSpiral({
       el.textContent = out
     }
 
-    const loop = () => {
-      frame++
-      draw()
+    const loop = (now: number) => {
+      if (start === 0) start = now
+      // Pause work while the tab is hidden; resume seamlessly (periodic field).
+      if (typeof document !== "undefined" && document.hidden) {
+        rafRef.current = requestAnimationFrame(loop)
+        return
+      }
+      draw((now - start) / 1000)
       rafRef.current = requestAnimationFrame(loop)
     }
 
     if (reduceMotion) {
-      draw()
+      draw(0)
     } else {
       rafRef.current = requestAnimationFrame(loop)
     }
