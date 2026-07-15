@@ -9,7 +9,7 @@
  */
 const FALLBACK_SUPABASE_URL = "https://euqkklpnvegrjecagzye.supabase.co"
 const FALLBACK_SUPABASE_ANON_KEY =
-  "sb_publishable_sb_publishable_okLhy4SZpnUot3Z0kt4Vjg_NUcBbanR"
+  "sb_publishable_okLhy4SZpnUot3Z0kt4Vjg_NUcBbanR"
 
 export const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL
