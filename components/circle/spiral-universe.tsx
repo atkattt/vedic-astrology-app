@@ -38,7 +38,8 @@ const TAP_SLOP = 6
  */
 
 const MIN_SCALE = 0.4
-const MAX_SCALE = 4
+// Capped at 2x: beyond that, CSS-scaled glyph text pixelates badly.
+const MAX_SCALE = 2
 
 // ---- Layer 4: progressive reveal ----------------------------------------
 // The universe starts mostly in void. Each answered read pushes a circular
@@ -56,8 +57,10 @@ const REVEAL_STEP = 120 // how far each answer pushes the frontier outward
 const TURNS = 3
 const MAX_R = 480
 // No nebula glyph is drawn within this radius — carves a clean hole where the
-// pinned avatar lives. Glyphs fade in over FADE_BAND just outside it.
-const AVATAR_CLEAR_RADIUS = 108
+// avatar disc lives. Sized so the hole never peeks around the constant-size
+// disc: clear-radius × MAX_SCALE ≤ disc screen radius (~94px). The disc's
+// opaque background hides glyphs behind it at low zoom — intended.
+const AVATAR_CLEAR_RADIUS = 46
 const FADE_BAND = 76
 // The nebula is sampled along the spiral curve; at each sample we scatter a
 // small cloud of glyphs across the arm's width, so the sky reads as dense
@@ -201,6 +204,10 @@ export function SpiralUniverse({
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const universeRef = useRef<HTMLDivElement | null>(null)
+  // The avatar wrapper gets an inverse counter-scale (1/cam.scale) applied in
+  // the same render pass as the camera transform, so the creature's disc stays
+  // a constant screen size at every zoom without jitter during pinch.
+  const avatarRef = useRef<HTMLDivElement | null>(null)
   const camRef = useRef({ x: 0, y: 0, scale: 1 })
   // True when the camera sits at the home composition (scale 1, origin
   // centered). Drives the return-home "you" button's visibility and lets the
@@ -512,6 +519,11 @@ export function SpiralUniverse({
     const tx = cx - cam.x * cam.scale
     const ty = cy - cam.y * cam.scale - panelLiftRef.current
     universe.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.scale})`
+    // Counter-scale the avatar in the same pass so it renders at constant
+    // screen size and never jitters against the camera during pinch.
+    if (avatarRef.current) {
+      avatarRef.current.style.transform = `translate(-50%, -50%) scale(${1 / cam.scale})`
+    }
     setIsHome(Math.abs(cam.scale - 1) < 0.005 && Math.abs(cam.x) < 1 && Math.abs(cam.y) < 1)
   }, [])
 
@@ -523,11 +535,15 @@ export function SpiralUniverse({
       const universe = universeRef.current
       if (!universe) return
       if (camAnimTimer.current) clearTimeout(camAnimTimer.current)
-      universe.style.transition = `transform ${ms}ms cubic-bezier(.3,.8,.3,1)`
+      const easing = `transform ${ms}ms cubic-bezier(.3,.8,.3,1)`
+      universe.style.transition = easing
+      // The avatar's counter-scale must ease in lockstep with the camera.
+      if (avatarRef.current) avatarRef.current.style.transition = easing
       mutate()
       apply()
       camAnimTimer.current = setTimeout(() => {
         universe.style.transition = ""
+        if (avatarRef.current) avatarRef.current.style.transition = ""
       }, ms + 60)
     },
     [apply],
@@ -961,10 +977,11 @@ export function SpiralUniverse({
           )
         })}
         {/* ===== The avatar: anchored to the WORLD at origin (0,0) — the
-            spiral's center — so it pans and zooms with the map like every
-            other object and the empty center hole can never be exposed. Its
-            stage-based size is its world size; the camera scales it naturally. ===== */}
+            spiral's center — so it pans with the map, but counter-scaled by
+            1/cameraScale (set imperatively in apply()) so the disc, creature,
+            and outline render at a constant screen size at every zoom. ===== */}
         <div
+          ref={avatarRef}
           className="pointer-events-none absolute z-[60]"
           style={{
             left: 0,
@@ -972,6 +989,7 @@ export function SpiralUniverse({
             width: 248,
             height: 248,
             transform: "translate(-50%, -50%)",
+            transformOrigin: "center",
           }}
         >
         {/* The moon of this sky: an opaque black disc that contains the self
