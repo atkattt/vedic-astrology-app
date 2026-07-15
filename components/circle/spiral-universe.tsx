@@ -69,12 +69,16 @@ const MAX_SCALE = 2
 // "revealed frontier" outward from center; objects/stars now inside it
 // materialize (fade up, desaturate→color, scale into place). Objects beyond
 // the frontier stay dimly visible but locked (not clickable, no label).
-// Starting frontier: covers ALL of the user's own read-facets (inner ring,
-// max radius ~232) so their own chart is reachable from the first moment —
-// locking your own facets behind progress would be confusing. Only PEOPLE,
-// placed further out on the arm (radius >= 250), reveal progressively.
+// Starting frontier: covers the innermost reads from the first moment; with
+// many fragments the outer beads (and all PEOPLE, radius >= ~278) start
+// beyond it and reveal progressively as reads are answered.
 const BASE_REVEAL_RADIUS = 240
-const REVEAL_STEP = 120 // how far each answer pushes the frontier outward
+// How far each answer pushes the frontier outward. Deliberately small (~1/3
+// of the old 120) so it takes several reads to noticeably grow the fog — but
+// the judge also guarantees the NEXT unanswered read is always pulled just
+// inside the frontier (capped at 2 steps), so progress never stalls while
+// whole regions stay unrevealed.
+const REVEAL_STEP = 40
 
 // Spiral geometry in world units, centered on (0,0).
 const TURNS = 3
@@ -159,16 +163,30 @@ type Glyph = {
 }
 
 // READ objects — the user's MATCHED FRAGMENTS (same pipeline as /self) — live
-// ON the inner spiral arm, beads strung along the curve. Kept in a TIGHT ring
-// just outside the creature's disc so the initial universe feels compact, with
-// the unrevealed spiral stretching far beyond — visible room to grow into.
-// Highest-weight fragment sits nearest the center; each subsequent one steps
-// outward, all within t 0.26..0.54 (people start at t 0.58).
-const READ_T_MIN = 0.26
-const READ_T_MAX = 0.54
-function readT(i: number, n: number): number {
-  const spacing = n > 1 ? Math.min(0.03, (READ_T_MAX - READ_T_MIN) / (n - 1)) : 0
-  return READ_T_MIN + i * spacing
+// ON the inner spiral arm, beads strung along the curve. Placement is fully
+// procedural for ANY fragment count: the heaviest fragment sits nearest the
+// center (t = READ_T_START) and each subsequent one walks OUTWARD along the
+// arm by a constant ARC length, so consecutive beads keep the same comfortable
+// gap whether there are 3 reads or 40. Because the gap is measured along the
+// curve (not in t), beads never bunch up as the spiral tightens; and adjacent
+// turns are ~160 world units apart radially, far more than a bead's footprint,
+// so cross-turn overlap can't happen either. The populated region stays
+// compact: even 40 beads end near t ≈ 0.62 of a spiral that runs to t = 1.72.
+const READ_T_START = 0.26
+// World-unit gap between consecutive beads: badge (~31px) + breathing room.
+const READ_ARC_GAP = 44
+function readTs(n: number): number[] {
+  const ts: number[] = []
+  let t = READ_T_START
+  for (let i = 0; i < n; i++) {
+    ts.push(t)
+    // Advance by READ_ARC_GAP of arc length. ds/dt for r = MAX_R·t,
+    // θ = 2πT·t is MAX_R·√(1 + (2πT·t)²); one Euler step is plenty accurate
+    // at this gap size (dt ≈ 0.01-0.016).
+    const dsdt = MAX_R * Math.sqrt(1 + (2 * Math.PI * TURNS * t) ** 2)
+    t += READ_ARC_GAP / dsdt
+  }
+  return ts
 }
 
 // Each read facet gets its own distinct star color (cool cosmic hues, no
@@ -386,6 +404,36 @@ export function SpiralUniverse({
     setReactColor(null)
   }, [])
 
+  // READ objects — the user's matched fragments, beaded outward along the
+  // inner arm (heaviest nearest the center; see readTs). Each carries the
+  // panel content (authored title + body EXACTLY as written, trigger in plain
+  // words, sigil) and a Read whose id IS the fragment id, so agree/disagree
+  // persists to read_responses and /self shows the same state. Declared BEFORE
+  // judge below, which reads bead radii to pace the frontier.
+  const reads = useMemo<PlacedRead[]>(() => {
+    const ts = readTs(fragments.length)
+    return fragments.map((f, i) => {
+      const { x, y } = spiralPoint(ts[i])
+      const color = READ_COLORS[i % READ_COLORS.length]
+      return {
+        label: f.title,
+        x,
+        y,
+        r: Math.hypot(x, y),
+        color,
+        panel: {
+          src: describeTrigger(f),
+          title: f.title,
+          body: f.body,
+          accent: color,
+          symbol: symbolFor(f),
+        },
+        read: { id: f.id, category: "about-you", text: f.body },
+        mood: moodForRead(f.tone, f.life_domain),
+      }
+    })
+  }, [fragments])
+
   const openRead = useCallback((r: PlacedRead) => {
     if (reactTimer.current) clearTimeout(reactTimer.current)
     setPanel({ data: r.panel, read: r.read, fragment: true, mood: r.mood })
@@ -430,10 +478,21 @@ export function SpiralUniverse({
         setReactColor(null)
       }
       // Both YES and NO are self-knowledge — both push the frontier outward and
-      // materialize more of the universe. Persist for authed users so the
-      // revealed world stays revealed across sessions; guests stay in memory.
+      // materialize more of the universe. The step is small (slow fog growth),
+      // but revealing stays slightly ahead of the read progression: if the
+      // next unanswered read would still be locked, the frontier stretches
+      // just past it (capped at 2 steps so whole regions never flood open).
+      // Persisted for authed users; guests stay in memory.
       setRevealRadius((prev) => {
-        const next = prev + REVEAL_STEP
+        let next = prev + REVEAL_STEP
+        const nextReadR = reads
+          .filter((rd) => rd.read.id !== current.read.id && !respondedIds.has(rd.read.id))
+          .map((rd) => rd.r)
+          .filter((r) => r > next)
+          .sort((a, b) => a - b)[0]
+        if (nextReadR !== undefined) {
+          next = Math.min(Math.max(next, nextReadR + 12), prev + REVEAL_STEP * 2)
+        }
         if (!guest) void saveRevealRadius(next).catch(() => {})
         return next
       })
@@ -451,7 +510,7 @@ export function SpiralUniverse({
         }
       }, 820)
     },
-    [panel, agree, disagree, closePanel, guest],
+    [panel, agree, disagree, closePanel, guest, reads, respondedIds],
   )
 
   useEffect(() => {
@@ -481,35 +540,6 @@ export function SpiralUniverse({
 
   // The mood the on-stage creature is CURRENTLY expressing.
   const activeMood = moodActive && panel?.mood ? panel.mood : NEUTRAL_MOOD
-
-  // READ objects — the user's matched fragments, placed on the inner arm.
-  // Highest weight = nearest the center. Each carries the panel content
-  // (authored title + body EXACTLY as written, trigger in plain words, sigil)
-  // and a Read whose id IS the fragment id, so agree/disagree persists to
-  // read_responses and /self shows the same state.
-  const reads = useMemo<PlacedRead[]>(() => {
-    const n = fragments.length
-    return fragments.map((f, i) => {
-      const { x, y } = spiralPoint(readT(i, n))
-      const color = READ_COLORS[i % READ_COLORS.length]
-      return {
-        label: f.title,
-        x,
-        y,
-        r: Math.hypot(x, y),
-        color,
-        panel: {
-          src: describeTrigger(f),
-          title: f.title,
-          body: f.body,
-          accent: color,
-          symbol: symbolFor(f),
-        },
-        read: { id: f.id, category: "about-you", text: f.body },
-        mood: moodForRead(f.tone, f.life_domain),
-      }
-    })
-  }, [fragments])
 
   // World-space centers of every read/person marker, on the spiral arm. The
   // nebula carves a small clear disc around each so a marker's star sits IN the
