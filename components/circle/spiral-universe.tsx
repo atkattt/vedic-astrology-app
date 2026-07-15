@@ -1020,8 +1020,8 @@ export function SpiralUniverse({
       <div className="absolute bottom-4 left-1/2 z-20 flex h-12 -translate-x-1/2 items-center justify-center">
         {isHome ? (
           <p
-            className="pointer-events-none max-w-64 text-center text-[9px] lowercase leading-relaxed tracking-widest text-muted-foreground/50 text-balance"
-            style={{ fontFamily: monoFont }}
+            className="pointer-events-none max-w-64 text-center text-[10px] lowercase leading-relaxed tracking-widest text-balance"
+            style={{ fontFamily: monoFont, color: "#fff" }}
           >
             if you get lost, a button will appear here to take you back
           </p>
