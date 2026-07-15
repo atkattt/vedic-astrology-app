@@ -11,6 +11,9 @@ export type UniverseFragment = {
   body: string
   /** optional short ASCII sigil; when null we derive one from life_domain */
   symbol: string | null
+  /** authored vibe of the read (gentle | confronting | hopeful | ...) —
+      drives the creature's behavior in the read-open scene */
+  tone: string | null
   life_domain: string | null
   trigger_type: string | null
   condition: unknown

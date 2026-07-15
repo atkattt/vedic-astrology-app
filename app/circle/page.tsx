@@ -19,6 +19,7 @@ function toUniverseFragment(row: {
   title?: unknown
   body?: unknown
   symbol?: unknown
+  tone?: unknown
   life_domain?: unknown
   trigger_type?: unknown
   condition?: unknown
@@ -29,6 +30,7 @@ function toUniverseFragment(row: {
     title: typeof row.title === "string" ? row.title : "",
     body: typeof row.body === "string" ? row.body : "",
     symbol: typeof row.symbol === "string" ? row.symbol : null,
+    tone: typeof row.tone === "string" ? row.tone : null,
     life_domain: typeof row.life_domain === "string" ? row.life_domain : null,
     trigger_type: typeof row.trigger_type === "string" ? row.trigger_type : null,
     condition: row.condition ?? null,

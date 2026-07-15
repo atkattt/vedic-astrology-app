@@ -62,6 +62,14 @@ type Props = {
   size?: number
   /** glyph + glow tint; defaults to the neutral glowing self */
   color?: string
+  /** creatureBreathe cycle in seconds — read moods slow/quicken it (default 4.5) */
+  breatheDuration?: number
+  /** blink loop tuning — read moods make blinks sleepy, rare, or quick */
+  blinkMinMs?: number
+  blinkMaxMs?: number
+  blinkHoldMs?: number
+  /** crisis reads: a faint ember-like flicker layered into the glow */
+  ember?: boolean
 }
 
 // Lay an arbitrary stage skeleton, centered, into the fixed grid envelope so it
@@ -123,7 +131,18 @@ const MONO =
   "'Geist Pixel', ui-monospace, monospace"
 
 const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature(
-  { score, stage, seed, size = 230, color = "#e8e4da" },
+  {
+    score,
+    stage,
+    seed,
+    size = 230,
+    color = "#e8e4da",
+    breatheDuration = 4.5,
+    blinkMinMs = 4000,
+    blinkMaxMs = 9000,
+    blinkHoldMs = 150,
+    ember = false,
+  },
   ref,
 ) {
   // Effective stage: score wins when present, else the explicit stage prop.
@@ -176,20 +195,21 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     [reduceMotion],
   )
 
-  // ----- blink loop ----------------------------------------------------------
+  // ----- blink loop (mood-tunable: sleepy long blinks, steady-gaze rare
+  // blinks, or quick hopeful blinks) -------------------------------------------
   useEffect(() => {
     if (reduceMotion) return
     let alive = true
     let blinkOff: ReturnType<typeof setTimeout>
     const schedule = () => {
-      const wait = 4000 + Math.random() * 5000 // 4–9s
+      const wait = blinkMinMs + Math.random() * Math.max(0, blinkMaxMs - blinkMinMs)
       return setTimeout(() => {
         if (!alive) return
         setBlinking(true)
         blinkOff = setTimeout(() => {
           setBlinking(false)
           next = schedule()
-        }, 150)
+        }, blinkHoldMs)
       }, wait)
     }
     let next = schedule()
@@ -198,7 +218,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
       clearTimeout(next)
       clearTimeout(blinkOff)
     }
-  }, [reduceMotion])
+  }, [reduceMotion, blinkMinMs, blinkMaxMs, blinkHoldMs])
 
   // ----- evolution transition on stage increase ------------------------------
   useEffect(() => {
@@ -420,7 +440,10 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     reactionAnim = `creatureAbsorb ${REACTION_MS}ms ease`
   const breatheAnim = reduceMotion
     ? "none"
-    : "creatureBreathe 4.5s ease-in-out infinite"
+    : `creatureBreathe ${breatheDuration}s ease-in-out infinite`
+  // Ember flicker (crisis reads) animates opacity only, so it can share the
+  // element with the transform-based breathe/reaction animation.
+  const emberAnim = ember && !reduceMotion ? ", creatureEmber 3.4s steps(1) infinite" : ""
 
   const cellStyle = (r: number, c: number): React.CSSProperties => ({
     position: "absolute",
@@ -465,7 +488,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           transition: evolving
             ? `opacity ${EVOLVE_OUT_MS}ms ease, filter ${EVOLVE_OUT_MS}ms ease, transform ${EVOLVE_OUT_MS}ms ease, color .5s ease`
             : "opacity .3s ease, filter .5s ease, transform .3s ease, color .5s ease",
-          animation: reaction ? reactionAnim : breatheAnim,
+          animation: (reaction ? reactionAnim : breatheAnim) + emberAnim,
           pointerEvents: "none",
           color,
         }}
@@ -623,6 +646,18 @@ const CREATURE_KEYFRAMES = `
   0% { transform: scale(1); filter: brightness(1); }
   40% { transform: scale(1.12); filter: brightness(1.8); }
   100% { transform: scale(1); filter: brightness(1); }
+}
+@keyframes creatureEmber {
+  0%, 100% { opacity: 1; }
+  7% { opacity: 0.86; }
+  11% { opacity: 0.97; }
+  23% { opacity: 0.9; }
+  27% { opacity: 1; }
+  46% { opacity: 0.93; }
+  52% { opacity: 1; }
+  71% { opacity: 0.87; }
+  76% { opacity: 0.98; }
+  88% { opacity: 0.92; }
 }
 @keyframes creatureDrift {
   0%, 100% { transform: translate(0, 0); opacity: 0.1; }

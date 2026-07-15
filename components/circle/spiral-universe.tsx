@@ -18,6 +18,7 @@ import {
   symbolFor,
   type UniverseFragment,
 } from "@/lib/spiral/universe-reads"
+import { moodForRead, NEUTRAL_MOOD, type ReadMood } from "@/lib/self/read-moods"
 
 // Neutral self color — a glowing white, NOT gold. Reactions tint away from it.
 const NEUTRAL_COLOR = "#e8e4da"
@@ -198,6 +199,8 @@ type PlacedRead = {
   color: string
   panel: PanelData
   read: Read
+  /** how the creature behaves on the panel stage — from tone + life_domain */
+  mood: ReadMood
 }
 type PlacedPerson = {
   person: Person
@@ -343,7 +346,12 @@ export function SpiralUniverse({
     data: PanelData
     read: Read
     fragment?: boolean
+    mood?: ReadMood
   } | null>(null)
+  // Mood ease-in: when a panel opens, the creature keeps NEUTRAL behavior for
+  // a beat, then eases into the read's mood (~600ms ramp via CSS transitions +
+  // animation swap) instead of an instant personality swap.
+  const [moodActive, setMoodActive] = useState(false)
   const [reactMood, setReactMood] = useState<Mood | null>(null)
   const [reactColor, setReactColor] = useState<string | null>(null)
   const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -380,7 +388,7 @@ export function SpiralUniverse({
 
   const openRead = useCallback((r: PlacedRead) => {
     if (reactTimer.current) clearTimeout(reactTimer.current)
-    setPanel({ data: r.panel, read: r.read, fragment: true })
+    setPanel({ data: r.panel, read: r.read, fragment: true, mood: r.mood })
     setReactMood("curious") // lean in
     // Attunement: the creature (glyphs + glow) adopts the read's accent while
     // the panel is open — SelfCreature eases the color over ~500ms.
@@ -459,6 +467,21 @@ export function SpiralUniverse({
   // panel's top edge, tinted the read's accent. Everything returns on close.
   const panelOpen = !!panel
 
+  // Ease into the read's mood ~600ms after the panel opens (the stage slides
+  // up in that window), and drop back to neutral the moment it closes — so the
+  // yes/no reaction plays, then the creature returns to itself.
+  useEffect(() => {
+    if (!panelOpen) {
+      setMoodActive(false)
+      return
+    }
+    const t = setTimeout(() => setMoodActive(true), 600)
+    return () => clearTimeout(t)
+  }, [panelOpen])
+
+  // The mood the on-stage creature is CURRENTLY expressing.
+  const activeMood = moodActive && panel?.mood ? panel.mood : NEUTRAL_MOOD
+
   // READ objects — the user's matched fragments, placed on the inner arm.
   // Highest weight = nearest the center. Each carries the panel content
   // (authored title + body EXACTLY as written, trigger in plain words, sigil)
@@ -483,6 +506,7 @@ export function SpiralUniverse({
           symbol: symbolFor(f),
         },
         read: { id: f.id, category: "about-you", text: f.body },
+        mood: moodForRead(f.tone, f.life_domain),
       }
     })
   }, [fragments])
@@ -1268,25 +1292,34 @@ export function SpiralUniverse({
         onClose={closePanel}
         stage={
           panel ? (
-            <div className="flex flex-col items-center">
-              {panel.data.symbol && (
-                <div
-                  className="animate-sigil-shimmer mb-5 whitespace-pre text-center text-[19px] leading-none"
-                  style={{
-                    fontFamily: monoFont,
-                    color: panel.data.accent ?? NEUTRAL_COLOR,
-                  }}
-                >
-                  {panel.data.symbol}
-                </div>
-              )}
-              <div className="animate-stage-shuffle">
+            // Outer wrapper: the spirit-domain drift (up a few px + settle).
+            // Inner wrapper: the mood's stance/walk. Both ease over ~600ms as
+            // moodActive flips (opacity/rotate/lean transition below), so the
+            // creature grows into the read's vibe instead of snapping.
+            <div
+              style={{
+                animation: activeMood.driftAnimation ?? "none",
+              }}
+            >
+              <div
+                style={{
+                  animation: activeMood.stageAnimation,
+                  // relationships: constant slight lean toward the panel text
+                  rotate: `${activeMood.leanDeg}deg`,
+                  transition: "rotate 600ms ease",
+                }}
+              >
                 <SelfCreature
                   ref={stageCreatureRef}
                   score={engagementScore}
                   seed={userId}
                   color={reactColor ?? panel.data.accent ?? NEUTRAL_COLOR}
-                  size={Math.round(creatureSize * 1.5)}
+                  size={Math.round(creatureSize * 2.25)}
+                  breatheDuration={activeMood.breatheDuration}
+                  blinkMinMs={activeMood.blinkMinMs}
+                  blinkMaxMs={activeMood.blinkMaxMs}
+                  blinkHoldMs={activeMood.blinkHoldMs}
+                  ember={activeMood.ember}
                 />
               </div>
             </div>

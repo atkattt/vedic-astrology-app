@@ -341,13 +341,51 @@
     animation: stage-shuffle 4.5s ease-in-out infinite;
   }
 
-  /* The read's sigil floating in the dark above the creature: a slow shimmer,
-     opacity + glow breathing together. */
-  @keyframes sigil-shimmer {
-    0%, 100% { opacity: 0.55; filter: drop-shadow(0 0 4px currentColor); }
-    50% { opacity: 1; filter: drop-shadow(0 0 12px currentColor); }
+  /* ---- read-mood stances (see lib/self/read-moods.ts for which reads use
+     which). All animate transform only, on the stage wrapper. ---- */
+
+  /* gentle: mostly resting — a soft sway, one small shuffle late in the
+     cycle, then back to rest. */
+  @keyframes stage-rest {
+    0%, 38% { transform: translateX(0) translateY(0); }
+    48% { transform: translateX(4px) translateY(-2px); }
+    58%, 70% { transform: translateX(-3px) translateY(0); }
+    82% { transform: translateX(5px) translateY(-1px); }
+    92%, 100% { transform: translateX(0) translateY(0); }
   }
-  .animate-sigil-shimmer {
-    animation: sigil-shimmer 2.8s ease-in-out infinite;
+
+  /* confronting: planted — long dead-still holds, then a sharp little turn
+     and lean toward the panel text (downward, where the words are), hold,
+     and square back up. */
+  @keyframes stage-planted {
+    0%, 42% { transform: rotate(0deg) translateY(0); }
+    45% { transform: rotate(-4deg) translateY(1px); }
+    47%, 62% { transform: rotate(3deg) translateY(2px); }
+    65%, 88% { transform: rotate(0deg) translateY(0); }
+    91%, 96% { transform: rotate(2.5deg) translateY(2px); }
+    100% { transform: rotate(0deg) translateY(0); }
+  }
+
+  /* hopeful: springy — small upward hops while wandering side to side, with
+     a quick happy wiggle before landing back at start. */
+  @keyframes stage-springy {
+    0% { transform: translateX(-12px) translateY(0) rotate(0deg); }
+    12% { transform: translateX(-6px) translateY(-9px) rotate(0deg); }
+    24% { transform: translateX(2px) translateY(0) rotate(0deg); }
+    36% { transform: translateX(9px) translateY(-7px) rotate(0deg); }
+    48% { transform: translateX(14px) translateY(0) rotate(0deg); }
+    58% { transform: translateX(8px) translateY(-10px) rotate(0deg); }
+    68% { transform: translateX(0px) translateY(0) rotate(0deg); }
+    76% { transform: translateX(-4px) translateY(-3px) rotate(-4deg); }
+    82% { transform: translateX(-6px) translateY(-3px) rotate(4deg); }
+    88% { transform: translateX(-8px) translateY(-3px) rotate(-3deg); }
+    100% { transform: translateX(-12px) translateY(0) rotate(0deg); }
+  }
+
+  /* spirit modifier: the whole scene drifts up a few pixels and settles —
+     lives on an OUTER wrapper so it can layer under any stance. */
+  @keyframes stage-drift {
+    0%, 55%, 100% { transform: translateY(0); }
+    70%, 80% { transform: translateY(-5px); }
   }
 }
