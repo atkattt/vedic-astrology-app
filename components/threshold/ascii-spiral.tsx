@@ -57,7 +57,7 @@ export default function AsciiSpiral({
 
     const field = (t: number) => {
       // gentle breath so the spiral feels alive, not mechanical
-      const breathe = Math.sin(t * 2.4) * 0.5 + 0.5
+      const breathe = Math.sin(t * 0.7) * 0.5 + 0.5
       const arms = 2
       const tightness = 0.62
       const grid: number[][] = []
@@ -74,8 +74,10 @@ export default function AsciiSpiral({
           }
           const ang = Math.atan2(ny, nx)
 
-          // Spiral arms: +t winds them inward toward the dark center.
-          const s = Math.sin(arms * ang + d * tightness + t * 4.2)
+          // Spiral arms wind inward toward the dark center. A slow angular
+          // velocity (matching the calm feel of the /circle self spiral) keeps
+          // each glyph on screen long enough to read as fluid, not flickery.
+          const s = Math.sin(arms * ang + d * tightness + t * 1.05)
           let arm = Math.max(0, s)
           arm = Math.pow(arm, 1.5)
 
@@ -97,8 +99,13 @@ export default function AsciiSpiral({
       return grid
     }
 
-    const draw = (t: number) => {
-      const grid = field(t)
+    // Persistent smoothed buffer. Each frame every cell eases toward its target
+    // value instead of snapping, so glyphs fade in/out gradually rather than
+    // popping — this is what removes the jitter and gives the soft, fluid feel
+    // of the /circle self spiral.
+    let buf: number[][] | null = null
+
+    const render = (grid: number[][]) => {
       let out = ""
       for (const row of grid) {
         for (const v of row)
@@ -108,19 +115,40 @@ export default function AsciiSpiral({
       el.textContent = out
     }
 
+    const draw = (t: number, ease: number) => {
+      const target = field(t)
+      if (!buf) {
+        buf = target
+      } else {
+        for (let r = 0; r < target.length; r++) {
+          const tr = target[r]
+          const br = buf[r]
+          for (let c = 0; c < tr.length; c++) br[c] += (tr[c] - br[c]) * ease
+        }
+      }
+      render(buf)
+    }
+
+    let last = 0
     const loop = (now: number) => {
       if (start === 0) start = now
       // Pause work while the tab is hidden; resume seamlessly (periodic field).
       if (typeof document !== "undefined" && document.hidden) {
+        last = now
         rafRef.current = requestAnimationFrame(loop)
         return
       }
-      draw((now - start) / 1000)
+      // Frame-rate-independent easing: ~10ms time-constant keeps the smoothing
+      // consistent whether the display runs at 60 or 120 Hz.
+      const dt = last === 0 ? 16 : Math.min(64, now - last)
+      last = now
+      const ease = 1 - Math.exp(-dt / 90)
+      draw((now - start) / 1000, ease)
       rafRef.current = requestAnimationFrame(loop)
     }
 
     if (reduceMotion) {
-      draw(0)
+      render(field(0))
     } else {
       rafRef.current = requestAnimationFrame(loop)
     }
