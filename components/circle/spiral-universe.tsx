@@ -494,38 +494,36 @@ export function SpiralUniverse({
     })
   }, [fragments])
 
-  // Progressive appearance: section 1 is present from first arrival; each
-  // next section is PLACED when the previous is cleared — major answered +
-  // at least 2 minis (or all of them, when fewer exist). Derived purely from
-  // responses, so a returning user's sky rebuilds correctly.
-  const clearedFlags = useMemo(
-    () =>
-      sections.map((s) => {
-        const [major, ...minors] = s.reads
-        if (!respondedIds.has(major.read.id)) return false
-        const need = Math.min(2, minors.length)
-        const done = minors.filter((m) => respondedIds.has(m.read.id)).length
-        return done >= need
-      }),
+  // Sections whose reads are ALL answered — the single source of truth for
+  // progression AND the full-saturation glow (see the marker renderer).
+  const fullyAnswered = useMemo(
+    () => sections.map((s) => s.reads.every((r) => respondedIds.has(r.read.id))),
     [sections, respondedIds],
   )
+
+  // Progressive appearance: section 1 is present from first arrival; the NEXT
+  // section's star appears ONLY when the current section is FULLY answered —
+  // its major and ALL of its minis. Partial completion never advances.
+  // Derived purely from responses, so a returning user's sky rebuilds
+  // correctly — including self-healing states where a section was fully
+  // answered but the next star never got unlocked in an earlier session.
   const unlockedCount = useMemo(() => {
     let n = Math.min(1, sections.length)
-    while (n < sections.length && clearedFlags[n - 1]) n++
+    while (n < sections.length && fullyAnswered[n - 1]) n++
     return n
-  }, [sections, clearedFlags])
+  }, [sections, fullyAnswered])
 
   // SPIRAL EXTENSION — the drawn spiral initially only reaches far enough to
   // hold the first 3 sections (+ a sparse fading tail implying more). When
-  // section 3 is completed the spiral GROWS: fog glyphs draw in progressively
-  // outward (the ~2s luminous crawl below) to hold sections 4-6.
+  // section 3 FULLY completes the spiral GROWS: fog glyphs draw in
+  // progressively outward (the ~2s luminous crawl below) to hold sections 4-6.
   const initialTEnd = useMemo(() => {
     const holdIdx = Math.min(2, sections.length - 1)
     const endT = sections[holdIdx]?.endT ?? READ_T_START
     return Math.min(GLYPH_T_END, advanceT(endT, SPIRAL_TAIL_ARC))
   }, [sections])
   const spiralExtended =
-    sections.length <= 3 || (clearedFlags.length > 2 && unlockedCount > 3)
+    sections.length <= 3 || (sections.length > 3 && unlockedCount > 3)
   const visibleTEnd = spiralExtended ? GLYPH_T_END : initialTEnd
 
   // Live growth: when spiralExtended flips during the session (not on a
@@ -565,13 +563,6 @@ export function SpiralUniverse({
     for (let i = 0; i < unlockedCount; i++) out.push(...sections[i].reads)
     return out
   }, [sections, unlockedCount])
-
-  // Sections whose reads are ALL answered wear a subtle full-saturation glow
-  // (see the marker renderer).
-  const fullyAnswered = useMemo(
-    () => sections.map((s) => s.reads.every((r) => respondedIds.has(r.read.id))),
-    [sections, respondedIds],
-  )
 
   // The frontier always expands to CONTAIN every placed section (its
   // outermost read + margin). When a new section is placed, this stretch is
@@ -972,6 +963,35 @@ export function SpiralUniverse({
       camRef.current = { x: 0, y: 0, scale: 1 }
     }, 700)
   }, [animateCam])
+
+  // THE UNLOCK MOMENT — when the last read of a section is answered during
+  // this session (unlockedCount rises past its mount value), the next star
+  // blooms in further along the arm; the camera acknowledges with a gentle
+  // partial drift toward it (~40% of the way, no zoom), holds a beat while
+  // the flare/reveal plays, then settles back home. Skipped on mount so a
+  // returning user's rebuilt sky doesn't trigger a phantom drift.
+  const prevUnlockedRef = useRef<number | null>(null)
+  useEffect(() => {
+    const prev = prevUnlockedRef.current
+    prevUnlockedRef.current = unlockedCount
+    if (prev === null || unlockedCount <= prev) return
+    const star = sections[unlockedCount - 1]?.reads[0]
+    if (!star) return
+    const driftTimer = setTimeout(() => {
+      animateCam(() => {
+        camRef.current = {
+          x: star.x * 0.4,
+          y: star.y * 0.4,
+          scale: camRef.current.scale,
+        }
+      }, 900)
+    }, 500)
+    const settleTimer = setTimeout(() => goHome(), 2600)
+    return () => {
+      clearTimeout(driftTimer)
+      clearTimeout(settleTimer)
+    }
+  }, [unlockedCount, sections, animateCam, goHome])
 
   useEffect(() => {
     const stage = stageRef.current
