@@ -117,7 +117,7 @@ function StoryReadCard({
           fontSize: 10,
           letterSpacing: 2,
           textTransform: "uppercase",
-          color: "#000000",
+          color: "#ffffff",
           marginBottom: 18,
           textAlign: "left",
           fontWeight: 700,
@@ -132,13 +132,13 @@ function StoryReadCard({
           fontSize: 12,
           lineHeight: 1.6,
           letterSpacing: 0.4,
-          color: "#1a1a1a",
+          color: "#f0f0f0",
           fontFamily: PIXEL,
           fontWeight: 500,
           whiteSpace: "pre-wrap",
         }}
       >
-        <span style={{ color: "#333" }}>{"› "}</span>
+        <span style={{ color: "#cfcfcf" }}>{"› "}</span>
         <TypedBody section={section} count={count} />
         {typing && (
           <span
@@ -146,7 +146,7 @@ function StoryReadCard({
               display: "inline-block",
               width: 8,
               height: 16,
-              background: "#1a1a1a",
+              background: "#ffffff",
               marginLeft: 1,
               verticalAlign: -3,
               animation: "srcBlink 1.05s steps(1) infinite",
@@ -175,13 +175,24 @@ function TypedBody({ section, count }: { section: StorySection; count: number })
     if (seg.lineHeight) overrideStyle.lineHeight = seg.lineHeight
     if (seg.glow) {
       nodes.push(
-        <span key={i} style={{ color: "#000", fontWeight: 600, ...overrideStyle }}>
+        <span
+          key={i}
+          style={{
+            color: "#ffffff",
+            fontWeight: 600,
+            textShadow: "0 0 10px rgba(255,255,255,0.45)",
+            ...overrideStyle,
+          }}
+        >
           {slice}
         </span>,
       )
     } else if (seg.dim) {
       nodes.push(
-        <span key={i} style={{ color: "#444", fontStyle: "italic", ...overrideStyle }}>
+        <span
+          key={i}
+          style={{ color: "rgba(255,255,255,0.6)", fontStyle: "italic", ...overrideStyle }}
+        >
           {slice}
         </span>,
       )
