@@ -2,6 +2,39 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* Self-hosted pixel typeface, registered under the name "Geist Pixel" so every
+   existing reference (font tokens below + inline `fontFamily: '"Geist Pixel"'`
+   across components, including the onboarding birth-date input) resolves to a
+   real pixel font instead of silently falling back to sans-serif. */
+@font-face {
+  font-family: 'Geist Pixel';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/geist-pixel-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Pixel';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/geist-pixel-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Pixel';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/geist-pixel-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Pixel';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/geist-pixel-700.woff2') format('woff2');
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
