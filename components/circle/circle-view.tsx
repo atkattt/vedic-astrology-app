@@ -36,6 +36,9 @@ export function CircleView({
   const [selected, setSelected] = useState<Person | null>(null)
   const [connectFrom, setConnectFrom] = useState<Person | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  // Whether the universe camera is at its home composition. While the user is
+  // zooming/panning away, the header chrome (exit / menu) fades out.
+  const [atHome, setAtHome] = useState(true)
 
   // The central avatar's resting expression. Per-read reactions (agree /
   // disagree / curious + color) are now driven inside SpiralUniverse itself
@@ -87,11 +90,18 @@ export function CircleView({
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
-      {/* Header: exit on the left, burger menu on the top-right corner */}
-      <header className="relative z-30 flex items-center justify-between px-5 pt-6">
+      {/* Header: exit on the left, burger menu on the top-right corner.
+          White text; fades away while the user explores (camera off home). */}
+      <header
+        className="relative z-30 flex items-center justify-between px-5 pt-6 transition-opacity duration-500"
+        style={{
+          opacity: atHome ? 1 : 0,
+          pointerEvents: atHome ? "auto" : "none",
+        }}
+      >
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-white transition-colors hover:text-white/80"
         >
           <LogOut className="size-3.5" />
           {guest ? "Exit" : "Leave"}
@@ -104,7 +114,7 @@ export function CircleView({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-white transition-colors hover:text-white/80"
           >
             {menuOpen ? <X className="size-3.5" /> : <Menu className="size-3.5" />}
             Menu
@@ -190,6 +200,7 @@ export function CircleView({
           userId={userId}
           guest={guest}
           initialRevealRadius={initialRevealRadius}
+          onHomeChange={setAtHome}
         />
         {/* Hint overlay when the circle is still empty — shown on top of the
             universe so the creature is always visible in the background. */}

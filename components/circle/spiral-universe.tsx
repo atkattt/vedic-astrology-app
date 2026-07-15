@@ -182,6 +182,7 @@ export function SpiralUniverse({
   onSelectSelf,
   guest,
   initialRevealRadius = BASE_REVEAL_RADIUS,
+  onHomeChange,
 }: {
   people: Person[]
   relationships: Relationship[]
@@ -195,13 +196,21 @@ export function SpiralUniverse({
   onSelectSelf?: () => void
   guest: boolean
   initialRevealRadius?: number
+  /** notifies the parent when the camera leaves / returns to the home view */
+  onHomeChange?: (home: boolean) => void
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const universeRef = useRef<HTMLDivElement | null>(null)
   const camRef = useRef({ x: 0, y: 0, scale: 1 })
   // True when the camera sits at the home composition (scale 1, origin
-  // centered). Drives the return-home "you" button's visibility.
+  // centered). Drives the return-home "you" button's visibility and lets the
+  // parent fade its chrome (exit / menu / hints) while exploring.
   const [isHome, setIsHome] = useState(true)
+  const onHomeChangeRef = useRef(onHomeChange)
+  onHomeChangeRef.current = onHomeChange
+  useEffect(() => {
+    onHomeChangeRef.current?.(isHome)
+  }, [isHome])
   // Screen-space upward lift applied while a read/person panel is open, so the
   // world-anchored avatar stays visible above the panel. Not part of cam —
   // it's a temporary camera offset that returns to 0 on close.
@@ -1005,10 +1014,14 @@ export function SpiralUniverse({
       </div>
 
       {/* ===== HUD ===== */}
-      <div className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col items-center gap-1">
+      {/* Top hint: white, fades out as soon as the camera leaves home. */}
+      <div
+        className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col items-center gap-1 transition-opacity duration-500"
+        style={{ opacity: isHome ? 1 : 0 }}
+      >
         <p
-          className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70 text-balance"
-          style={{ fontFamily: monoFont }}
+          className="text-center text-[10px] uppercase tracking-[0.3em] text-balance"
+          style={{ fontFamily: monoFont, color: "#fff" }}
         >
           pinch to zoom · swipe to explore
         </p>
