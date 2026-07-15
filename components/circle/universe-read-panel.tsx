@@ -6,9 +6,10 @@ import { useCallback, useEffect, useRef, useState } from "react"
  * UniverseReadPanel
  *
  * A terminal-styled panel that slides up from the bottom when an object in the
- * SpiralUniverse is tapped. Mirrors the ReadHub voice: a small uppercase source
- * line, a spaced title, the read text TYPES OUT, then [ ✓ yes ] / [ ✕ no ]
- * commands fade in. Closes on scrim tap or swipe-down.
+ * SpiralUniverse is tapped. Mirrors the ReadHub voice: a small lowercase title,
+ * a dim metadata line, the full body text (no typing animation — the whole
+ * content fades in ~200ms), and [ ✓ yes ] / [ ✕ no ] commands. Closes on
+ * scrim tap or swipe-down.
  *
  * The yes/no handlers are wired by the parent to the SAME spiral agree/disagree
  * persistence used by the bottom ReadHub — this is not a parallel system.
@@ -27,9 +28,6 @@ export type PanelData = {
   /** The read's sigil — short ASCII floated above the creature on stage. */
   symbol?: string
 }
-
-const TYPE_MS = 18
-const START_DELAY = 180
 
 const mono =
   "'Geist Pixel', ui-monospace, monospace"
@@ -50,10 +48,7 @@ export function UniverseReadPanel({
    */
   stage?: React.ReactNode
 }) {
-  const [typed, setTyped] = useState("")
-  const [done, setDone] = useState(false)
   const [dragY, setDragY] = useState(0)
-  const cancelled = useRef(false)
   const dragStart = useRef<number | null>(null)
 
   const open = data !== null
@@ -61,43 +56,10 @@ export function UniverseReadPanel({
   // the neutral grey when no accent is provided.
   const accent = data?.accent ?? "#9a9a9a"
 
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-
-  // Type the body out whenever the panel content changes.
+  // Reset the drag offset whenever new content arrives.
   useEffect(() => {
-    if (!data) return
-    cancelled.current = false
-    setDone(false)
-    setTyped("")
-    setDragY(0)
-
-    if (reduceMotion) {
-      setTyped(data.body)
-      setDone(true)
-      return
-    }
-
-    let i = 0
-    let timer: ReturnType<typeof setTimeout>
-    const tick = () => {
-      if (cancelled.current) return
-      if (i < data.body.length) {
-        i++
-        setTyped(data.body.slice(0, i))
-        timer = setTimeout(tick, TYPE_MS)
-      } else {
-        setDone(true)
-      }
-    }
-    timer = setTimeout(tick, START_DELAY)
-    return () => {
-      cancelled.current = true
-      clearTimeout(timer)
-    }
-  }, [data, reduceMotion])
+    if (data) setDragY(0)
+  }, [data])
 
   // ----- swipe-down to dismiss (on the grab handle) -----
   const onGrabDown = useCallback((e: React.PointerEvent) => {
@@ -182,7 +144,13 @@ export function UniverseReadPanel({
           <span className="block h-1 w-9 rounded-full" style={{ background: accent, opacity: 0.7 }} />
         </div>
 
-        <div className="px-6 pb-7 pt-2">
+        {/* Content: keyed on the read so the whole block re-fades (~200ms)
+            per read. The full body is simply there — no typing animation. */}
+        <div
+          key={data ? `${data.title}::${data.src}` : "empty"}
+          className="px-6 pb-7 pt-2"
+          style={{ animation: open ? "urpFadeIn 200ms ease-out" : "none" }}
+        >
           {/* title — the fragment's authored lowercase title, as written */}
           <div
             className="mb-2 text-[13px] lowercase tracking-[2px]"
@@ -201,32 +169,16 @@ export function UniverseReadPanel({
           ) : (
             <div className="mb-3.5" />
           )}
-          {/* typed body */}
+          {/* body — the full authored text, present immediately */}
           <div
             className="whitespace-pre-wrap text-[15px] leading-relaxed"
             style={{ color: "#cfcbc1", minHeight: 54 }}
           >
-            {typed}
-            {!done && (
-              <span
-                className="ml-0.5 inline-block align-[-3px] h-4 w-2"
-                style={{
-                  background: "#9a9a9a",
-                  animation: "urpBlink 1.05s steps(1) infinite",
-                }}
-              />
-            )}
+            {data?.body}
           </div>
 
           {/* yes / no commands */}
-          <div
-            className="mt-6 flex gap-3"
-            style={{
-              opacity: done ? 1 : 0,
-              transition: "opacity .35s",
-              pointerEvents: done ? "auto" : "none",
-            }}
-          >
+          <div className="mt-6 flex gap-3">
             <CmdButton variant="yes" onClick={() => onJudge(true)}>
               yes
             </CmdButton>
@@ -236,7 +188,7 @@ export function UniverseReadPanel({
           </div>
         </div>
 
-        <style>{`@keyframes urpBlink { 50% { opacity: 0; } }`}</style>
+        <style>{`@keyframes urpFadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
       </div>
     </>
   )

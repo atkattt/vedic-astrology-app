@@ -50,6 +50,10 @@ export type CreatureReaction = "agree" | "disagree" | "submit"
 
 export type SelfCreatureHandle = {
   react: (type: CreatureReaction) => void
+  /** one imperative blink (choreographed moves: slow-blink, blink-flurry) */
+  blink: (holdMs?: number) => void
+  /** immediately swap `swaps` random character variants (mutation-burst) */
+  mutate: (swaps?: number) => void
 }
 
 type Props = {
@@ -190,6 +194,24 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
         if (reactTimer.current) clearTimeout(reactTimer.current)
         setReaction(type)
         reactTimer.current = setTimeout(() => setReaction(null), REACTION_MS)
+      },
+      blink(holdMs = 150) {
+        if (reduceMotion) return
+        setBlinking(true)
+        setTimeout(() => setBlinking(false), holdMs)
+      },
+      mutate(swaps = 2) {
+        if (reduceMotion) return
+        const units = unitsRef.current
+        if (!units.length) return
+        setVariantState((prev) => {
+          const next = { ...prev }
+          for (let k = 0; k < swaps; k++) {
+            const u = units[Math.floor(Math.random() * units.length)]
+            next[u.key] = rollIndex(u.count, prev[u.key] ?? 0)
+          }
+          return next
+        })
       },
     }),
     [reduceMotion],

@@ -19,6 +19,7 @@ import {
   type UniverseFragment,
 } from "@/lib/spiral/universe-reads"
 import { moodForRead, NEUTRAL_MOOD, type ReadMood } from "@/lib/self/read-moods"
+import { choreograph } from "@/lib/self/moves"
 
 // Neutral self color — a glowing white, NOT gold. Reactions tint away from it.
 const NEUTRAL_COLOR = "#e8e4da"
@@ -540,6 +541,25 @@ export function SpiralUniverse({
 
   // The mood the on-stage creature is CURRENTLY expressing.
   const activeMood = moodActive && panel?.mood ? panel.mood : NEUTRAL_MOOD
+
+  // The choreographer: once the mood is active, continuously compose 2-4
+  // atomic moves weighted by the read's tone (see lib/self/moves.ts), play
+  // them with jittered durations + small pauses, repeat with a new sequence.
+  // Cancelled the moment the panel closes or the mood changes.
+  const stageMoveRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!panelOpen || !moodActive) return
+    const el = stageMoveRef.current
+    if (!el) return
+    return choreograph(
+      el,
+      {
+        blink: (h) => stageCreatureRef.current?.blink(h),
+        mutate: (s) => stageCreatureRef.current?.mutate(s),
+      },
+      activeMood.tone,
+    )
+  }, [panelOpen, moodActive, activeMood.tone])
 
   // World-space centers of every read/person marker, on the spiral arm. The
   // nebula carves a small clear disc around each so a marker's star sits IN the
@@ -1313,9 +1333,9 @@ export function SpiralUniverse({
 
       {/* Slide-up read panel — tapping a read/person opens it; yes/no persists
           to read_responses (fragments) / the spiral session, same as /self.
-          The stage: the creature at ~1.5x standing ON the panel's top edge,
-          bouncing/shuffling along its floor, tinted the read's accent, with
-          the read's sigil shimmering in the dark above it. */}
+          The stage: the creature standing ON the panel's top edge, animated
+          by the choreographer (endlessly varied mood-weighted move sequences)
+          rather than a fixed idle loop, tinted the read's accent. */}
       <UniverseReadPanel
         data={panel?.data ?? null}
         onJudge={judge}
@@ -1323,17 +1343,16 @@ export function SpiralUniverse({
         stage={
           panel ? (
             // Outer wrapper: the spirit-domain drift (up a few px + settle).
-            // Inner wrapper: the mood's stance/walk. Both ease over ~600ms as
-            // moodActive flips (opacity/rotate/lean transition below), so the
-            // creature grows into the read's vibe instead of snapping.
+            // Inner wrapper: the choreographer's stage — moves animate its
+            // transform via WAAPI, each starting/ending in neutral stance.
             <div
               style={{
                 animation: activeMood.driftAnimation ?? "none",
               }}
             >
               <div
+                ref={stageMoveRef}
                 style={{
-                  animation: activeMood.stageAnimation,
                   // relationships: constant slight lean toward the panel text
                   rotate: `${activeMood.leanDeg}deg`,
                   transition: "rotate 600ms ease",
