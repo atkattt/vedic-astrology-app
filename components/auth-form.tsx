@@ -15,9 +15,28 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
 
   const isSignUp = mode === "sign-up"
+
+  async function handleGoogle() {
+    setError(null)
+    setGoogleLoading(true)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/circle`,
+      },
+    })
+    if (error) {
+      setError(error.message || "Could not continue with Google")
+      setGoogleLoading(false)
+    }
+    // On success the browser navigates away to Google — no further state.
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -159,6 +178,25 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           : isSignUp
             ? "Create your chart"
             : "Enter"}
+      </Button>
+
+      <div className="flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-border" />
+        <span className="font-mono text-xs lowercase tracking-widest text-muted-foreground">
+          or
+        </span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        disabled={googleLoading || loading}
+        onClick={handleGoogle}
+        className="h-12 rounded-full font-mono text-xs lowercase tracking-widest bg-transparent"
+      >
+        {googleLoading ? "one moment…" : "continue with google"}
       </Button>
 
       <p className="text-center font-mono text-xs text-muted-foreground">
