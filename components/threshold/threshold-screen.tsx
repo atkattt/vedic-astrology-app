@@ -113,7 +113,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   }, [])
 
   return (
-    <main className="relative min-h-[100dvh] overflow-y-auto">
+      <main className="relative min-h-[100dvh] overflow-y-auto" style={{ marginTop: "-33px" }}>
       {/* Faint blueprint grid behind the sky layers — matches /onboarding. */}
       <div
         aria-hidden="true"
