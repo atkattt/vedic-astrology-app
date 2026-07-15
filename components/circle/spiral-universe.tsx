@@ -152,10 +152,12 @@ type Glyph = {
 
 // READ objects (facets of your own chart) live ON the inner spiral arm — the
 // same curve the nebula and people follow — so they read as beads strung along
-// the spiral rather than free-floating points. Their t-values sit inside the
-// base reveal radius (r = MAX_R * t, so t<=0.5 → r<=240) so all of the user's
-// own facets are reachable from the first moment.
-const READ_T = [0.24, 0.3, 0.36, 0.42, 0.48]
+// the spiral rather than free-floating points. Kept in a TIGHT ring just
+// outside the creature's disc (r = MAX_R * t → ~125-182 world units) so the
+// initial universe feels compact, with the unrevealed spiral stretching far
+// beyond the populated area — visible room to grow into. People and future
+// objects sit further out on the arm (r >= ~278).
+const READ_T = [0.26, 0.29, 0.32, 0.35, 0.38]
 
 // Each read facet gets its own distinct star color (cool cosmic hues, no
 // purple/violet), so the inner arm reads as a little constellation of
@@ -268,10 +270,16 @@ export function SpiralUniverse({
   // away from the object that was actually pressed.
   const downTargetRef = useRef<HTMLElement | null>(null)
 
-  const { agree, disagree, agreed } = useSpiral()
-  // Ids of reads the user has answered YES on. Once agreed, a read's star sheds
-  // its badge outline and lives bare in the spiral as a pure point of light.
-  const agreedIds = useMemo(() => new Set(agreed.map((r) => r.id)), [agreed])
+  const { agree, disagree, agreed, disagreed } = useSpiral()
+  // Ids of every read the user has responded to (agreed OR disagreed). Derived
+  // from response data, so the star progression persists across sessions.
+  // COMPLETED reads shed their ring and live bare in their accent color.
+  const respondedIds = useMemo(() => {
+    const s = new Set<string>()
+    for (const r of agreed) s.add(r.id)
+    for (const r of disagreed) s.add(r.id)
+    return s
+  }, [agreed, disagreed])
 
   // ---- Layer 4: the revealed frontier --------------------------------------
   // How far the universe has been uncovered, in world units from center.
@@ -504,6 +512,33 @@ export function SpiralUniverse({
       }
     })
   }, [])
+
+  // THE CURRENT READ — the nearest-to-center read the user hasn't responded
+  // to yet. It's the only star wearing a ring; completing it passes the ring
+  // to the next-closest unresponded read. Purely derived from response data,
+  // so the progression survives reloads and sessions.
+  const currentReadId = useMemo(() => {
+    let best: PlacedRead | null = null
+    for (const r of reads) {
+      if (respondedIds.has(r.read.id)) continue
+      if (!best || r.r < best.r) best = r
+    }
+    return best?.read.id ?? null
+  }, [reads, respondedIds])
+
+  // When the ring passes to a new read (not on first paint), that star blooms
+  // briefly (~800ms) as its ring + color arrive.
+  const prevCurrentRef = useRef<string | null>(null)
+  const [bloomId, setBloomId] = useState<string | null>(null)
+  useEffect(() => {
+    const prev = prevCurrentRef.current
+    prevCurrentRef.current = currentReadId
+    if (prev && currentReadId && prev !== currentReadId) {
+      setBloomId(currentReadId)
+      const t = setTimeout(() => setBloomId(null), 850)
+      return () => clearTimeout(t)
+    }
+  }, [currentReadId])
 
   // PEOPLE — the others in the spiral, placed ON the arm by their order, each
   // in their own palette color. Tapping opens the bond read.
@@ -945,7 +980,20 @@ export function SpiralUniverse({
             pointer capture makes per-element onClick unreliable here. */}
         {reads.map((r, i) => {
           const locked = r.r > revealRadius
-          const answered = agreedIds.has(r.read.id)
+          // Read progression states (exactly ONE ringed star at any moment):
+          // CURRENT   — nearest-to-center unresponded read: accent ring +
+          //             colored star + colored glow.
+          // COMPLETED — responded (agree or disagree): bare star in its own
+          //             accent with a subtle glow; still tappable to reopen.
+          // AVAILABLE — waiting its turn: bare white glowing star, no ring.
+          const completed = respondedIds.has(r.read.id)
+          const isCurrent = r.read.id === currentReadId
+          const blooming = bloomId === r.read.id
+          const starColor = locked
+            ? "#4a4e56"
+            : isCurrent || completed
+              ? r.color
+              : "#e8e4da"
           return (
             <div
               key={r.label}
@@ -977,30 +1025,35 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {/* Unanswered: a star inside a black disc with a colored outline
-                  — a node sitting in the spiral. Once answered YES, the badge
-                  falls away and the colored star lives bare in the spiral as a
-                  pure point of light. Pulses gently when revealed; a dim ember
-                  while locked. */}
               <span
-                className={`flex items-center justify-center rounded-full leading-none transition-[filter] duration-150 group-hover:brightness-150${
+                className={`flex items-center justify-center rounded-full leading-none transition-all duration-500 group-hover:brightness-150${
                   locked ? "" : " animate-object-pulse"
-                }`}
+                }${blooming ? " animate-current-bloom" : ""}`}
                 style={{
-                  // Badge scaled +30% along with the glyph so the size bump is
-                  // actually visible (the badge dominates the star's footprint).
+                  // The ringed CURRENT star: its glyph fills ~60-65% of the
+                  // circle (20px in a 31px ring). Bare stars are slightly
+                  // smaller, proportional.
                   width: 31,
                   height: 31,
-                  backgroundColor: answered ? "transparent" : "#050505",
-                  border: answered ? "none" : `1.5px solid ${locked ? "#4a4e56" : r.color}`,
-                  color: locked ? "#4a4e56" : r.color,
+                  backgroundColor: isCurrent && !locked ? "#050505" : "transparent",
+                  border:
+                    isCurrent && !locked
+                      ? `1.5px solid ${r.color}`
+                      : "1.5px solid transparent",
+                  color: starColor,
                   fontFamily: monoFont,
-                  // Same glyph size answered or not — agreeing drops the badge
-                  // but never grows/shrinks the star itself.
-                  fontSize: 14,
-                  textShadow: answered ? `0 0 8px ${r.color}, 0 0 18px ${r.color}` : "none",
+                  fontSize: isCurrent && !locked ? 20 : 16,
+                  textShadow: locked
+                    ? "none"
+                    : completed
+                      ? `0 0 8px ${r.color}, 0 0 18px ${r.color}99`
+                      : isCurrent
+                        ? `0 0 8px ${r.color}, 0 0 18px ${r.color}`
+                        : `0 0 8px #e8e4da, 0 0 16px #e8e4da66`,
                   boxShadow:
-                    answered || locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
+                    isCurrent && !locked
+                      ? `0 0 10px ${r.color}, 0 0 20px ${r.color}66`
+                      : "none",
                 }}
               >
                 {"\u2605"}

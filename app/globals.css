@@ -317,4 +317,14 @@
   .animate-flare-in {
     animation: flare-in 1s ease-out;
   }
+
+  /* Universe (Layer 4): when a read becomes the CURRENT one, its new ring +
+     color arrive with a brief bloom — a bright swell that settles (~800ms). */
+  @keyframes current-bloom {
+    0% { filter: brightness(2.6) drop-shadow(0 0 16px oklch(1 0 0)); transform: scale(1.45); }
+    100% { filter: none; transform: scale(1); }
+  }
+  .animate-current-bloom {
+    animation: current-bloom 0.8s ease-out;
+  }
 }
