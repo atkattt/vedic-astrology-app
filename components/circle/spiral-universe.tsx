@@ -1030,7 +1030,10 @@ export function SpiralUniverse({
       {/* Bottom dock: one fixed slot shared by the hint text (at home) and the
           return-home button (when away), so the button appears in the exact
           position the text occupied. */}
-      <div className="absolute bottom-4 left-1/2 z-20 flex h-12 -translate-x-1/2 items-center justify-center">
+      <div
+        className="absolute bottom-4 left-1/2 z-20 flex h-12 -translate-x-1/2 items-center justify-center"
+        style={{ marginRight: "-22px" }}
+      >
         {isHome ? (
           <p
             className="pointer-events-none max-w-64 text-center text-[10px] lowercase leading-relaxed tracking-widest text-balance"
