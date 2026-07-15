@@ -4,13 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Mood } from "@/components/circle/SelfAvatar"
 import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
 import type { Person, Relationship } from "@/lib/db/schema"
-import { chartRead } from "@/lib/spiral/chart-read"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
 import { ACCENT_COLORS } from "@/lib/spiral/accent-colors"
 import { scoreToStage } from "@/lib/self/avatar-stages"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
 import { saveRevealRadius } from "@/app/actions/progress"
+import { saveReadResponse } from "@/app/actions/self-reads"
+import { matchFragments, type Chart, type Fragment } from "@/lib/matcher"
+import { CHART_KEY } from "@/lib/birth-data"
+import {
+  describeTrigger,
+  symbolFor,
+  type UniverseFragment,
+} from "@/lib/spiral/universe-reads"
 
 // Neutral self color — a glowing white, NOT gold. Reactions tint away from it.
 const NEUTRAL_COLOR = "#e8e4da"
@@ -150,14 +157,18 @@ type Glyph = {
   delay: number
 }
 
-// READ objects (facets of your own chart) live ON the inner spiral arm — the
-// same curve the nebula and people follow — so they read as beads strung along
-// the spiral rather than free-floating points. Kept in a TIGHT ring just
-// outside the creature's disc (r = MAX_R * t → ~125-182 world units) so the
-// initial universe feels compact, with the unrevealed spiral stretching far
-// beyond the populated area — visible room to grow into. People and future
-// objects sit further out on the arm (r >= ~278).
-const READ_T = [0.26, 0.29, 0.32, 0.35, 0.38]
+// READ objects — the user's MATCHED FRAGMENTS (same pipeline as /self) — live
+// ON the inner spiral arm, beads strung along the curve. Kept in a TIGHT ring
+// just outside the creature's disc so the initial universe feels compact, with
+// the unrevealed spiral stretching far beyond — visible room to grow into.
+// Highest-weight fragment sits nearest the center; each subsequent one steps
+// outward, all within t 0.26..0.54 (people start at t 0.58).
+const READ_T_MIN = 0.26
+const READ_T_MAX = 0.54
+function readT(i: number, n: number): number {
+  const spacing = n > 1 ? Math.min(0.03, (READ_T_MAX - READ_T_MIN) / (n - 1)) : 0
+  return READ_T_MIN + i * spacing
+}
 
 // Each read facet gets its own distinct star color (cool cosmic hues, no
 // purple/violet), so the inner arm reads as a little constellation of
@@ -199,10 +210,6 @@ type PlacedPerson = {
 }
 type PlacedBond = { id: number; x1: number; y1: number; x2: number; y2: number }
 
-function slug(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
-}
-
 export function SpiralUniverse({
   people,
   relationships,
@@ -213,6 +220,9 @@ export function SpiralUniverse({
   guest,
   initialRevealRadius = BASE_REVEAL_RADIUS,
   onHomeChange,
+  matchedReads,
+  initialResponses,
+  guestFragments,
 }: {
   people: Person[]
   relationships: Relationship[]
@@ -228,6 +238,12 @@ export function SpiralUniverse({
   initialRevealRadius?: number
   /** notifies the parent when the camera leaves / returns to the home view */
   onHomeChange?: (home: boolean) => void
+  /** authed: matched fragments from the /self pipeline (weight desc) */
+  matchedReads?: UniverseFragment[]
+  /** authed: saved agree/disagree per fragment id from read_responses */
+  initialResponses?: Record<string, "agree" | "disagree">
+  /** guest: ALL fragments; matched client-side against the stashed chart */
+  guestFragments?: UniverseFragment[]
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const universeRef = useRef<HTMLDivElement | null>(null)
@@ -245,13 +261,6 @@ export function SpiralUniverse({
   useEffect(() => {
     onHomeChangeRef.current?.(isHome)
   }, [isHome])
-  // Camera-offset courtesy while a read/person panel is open: we pan the view
-  // so the disc sits comfortably above the panel, remembering where the camera
-  // was so it can glide back on close.
-  const prePanelCamRef = useRef<{ x: number; y: number; scale: number } | null>(null)
-  // Viewport-space hole punched in the panel scrim so the disc (and its
-  // breathing glow) is never dimmed while a panel is open.
-  const [spotlight, setSpotlight] = useState<{ x: number; y: number; r: number } | null>(null)
   // Timer that strips the transient CSS transition off the universe transform
   // after an animated camera move (home / panel lift) finishes.
   const camAnimTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -271,15 +280,44 @@ export function SpiralUniverse({
   const downTargetRef = useRef<HTMLElement | null>(null)
 
   const { agree, disagree, agreed, disagreed } = useSpiral()
-  // Ids of every read the user has responded to (agreed OR disagreed). Derived
-  // from response data, so the star progression persists across sessions.
-  // COMPLETED reads shed their ring and live bare in their accent color.
+  // Ids of every read the user has responded to (agreed OR disagreed):
+  // seeded from the SAVED read_responses rows (same table /self reads), plus
+  // anything answered this session. COMPLETED reads shed their ring and live
+  // bare in their accent color.
   const respondedIds = useMemo(() => {
-    const s = new Set<string>()
+    const s = new Set<string>(Object.keys(initialResponses ?? {}))
     for (const r of agreed) s.add(r.id)
     for (const r of disagreed) s.add(r.id)
     return s
-  }, [agreed, disagreed])
+  }, [agreed, disagreed, initialResponses])
+
+  // Guest matching: guests have no charts row — their chart was computed by
+  // the onboarding ritual and stashed in local/sessionStorage. Run the SAME
+  // deterministic matcher against it, client-side, once mounted.
+  const [guestMatched, setGuestMatched] = useState<UniverseFragment[]>([])
+  useEffect(() => {
+    if (!guest || !guestFragments?.length) return
+    try {
+      const raw =
+        localStorage.getItem(CHART_KEY) ?? sessionStorage.getItem(CHART_KEY)
+      console.log("[v0] guest chart raw present:", !!raw, "fragments:", guestFragments.length)
+      if (!raw) return
+      const chart = JSON.parse(raw) as Chart
+      const matched = matchFragments(
+        chart,
+        guestFragments as unknown as Fragment[],
+      ) as unknown as UniverseFragment[]
+      console.log("[v0] guest matched:", matched.length, matched.map((m) => m.title))
+      setGuestMatched(matched)
+    } catch (e) {
+      console.log("[v0] guest match error:", e)
+      // no stashed chart / bad JSON — the guest universe simply has no reads
+    }
+  }, [guest, guestFragments])
+
+  // The fragments that become read objects, highest weight first (both the
+  // server loader and matchFragments sort by weight desc).
+  const fragments = guest ? guestMatched : (matchedReads ?? [])
 
   // ---- Layer 4: the revealed frontier --------------------------------------
   // How far the universe has been uncovered, in world units from center.
@@ -301,8 +339,14 @@ export function SpiralUniverse({
   const justRevealed = (r: number) =>
     r > prevRevealRef.current && r <= revealRadius
 
-  // The open read/person panel + the avatar's transient reaction.
-  const [panel, setPanel] = useState<{ data: PanelData; read: Read } | null>(null)
+  // The open read/person panel + the avatar's transient reaction. `fragment`
+  // marks panels backed by a fragment row, whose yes/no must ALSO persist to
+  // read_responses (the same table /self writes).
+  const [panel, setPanel] = useState<{
+    data: PanelData
+    read: Read
+    fragment?: boolean
+  } | null>(null)
   const [reactMood, setReactMood] = useState<Mood | null>(null)
   const [reactColor, setReactColor] = useState<string | null>(null)
   const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -310,6 +354,9 @@ export function SpiralUniverse({
   // The evolving self creature at the center. Its stage comes from real
   // engagement; its brief reactions mirror the universe's read reactions.
   const creatureRef = useRef<SelfCreatureHandle>(null)
+  // The second creature instance standing on the open panel's top edge — the
+  // one actually visible while a read is open, so reactions fire on it too.
+  const stageCreatureRef = useRef<SelfCreatureHandle>(null)
 
   // Disc size follows the creature's evolution (see discSizeFor). detailCount
   // mirrors SelfCreature's own accretion rule: one detail per growth point.
@@ -321,10 +368,10 @@ export function SpiralUniverse({
   const creatureSize = Math.round(discSize * (248 / 188))
   useEffect(() => {
     if (!reactMood) return
-    if (reactMood === "agree") creatureRef.current?.react("agree")
-    else if (reactMood === "submit") creatureRef.current?.react("submit")
-    else if (reactMood === "disagree" || reactMood === "curious")
-      creatureRef.current?.react("disagree")
+    const kind =
+      reactMood === "agree" ? "agree" : reactMood === "submit" ? "submit" : "disagree"
+    creatureRef.current?.react(kind)
+    stageCreatureRef.current?.react(kind)
   }, [reactMood])
 
   const closePanel = useCallback(() => {
@@ -336,7 +383,7 @@ export function SpiralUniverse({
 
   const openRead = useCallback((r: PlacedRead) => {
     if (reactTimer.current) clearTimeout(reactTimer.current)
-    setPanel({ data: r.panel, read: r.read })
+    setPanel({ data: r.panel, read: r.read, fragment: true })
     setReactMood("curious") // lean in
     // Attunement: the creature (glyphs + glow) adopts the read's accent while
     // the panel is open — SelfCreature eases the color over ~500ms.
@@ -358,6 +405,14 @@ export function SpiralUniverse({
       if (!current) return
       if (agreeIt) agree(current.read)
       else disagree(current.read, "skip")
+      // Fragment reads persist to read_responses — the SAME table /self
+      // writes — so both surfaces always show the same saved responses.
+      // Guests keep session-only state (their chart never left the browser).
+      if (!guest && current.fragment) {
+        void saveReadResponse(current.read.id, agreeIt ? "agree" : "disagree").catch(
+          () => {},
+        )
+      }
       setReactMood(agreeIt ? "agree" : "disagree")
       const accent = current.data.accent ?? (agreeIt ? AGREE_COLOR : DISAGREE_COLOR)
       if (agreeIt) {
@@ -401,21 +456,49 @@ export function SpiralUniverse({
     }
   }, [])
 
-  // When a read/bond panel is open it slides up from the bottom and can cover
-  // the world-anchored avatar. Instead of lifting the avatar out of the world
-  // (the old hack), smoothly offset the CAMERA upward so the avatar stays
-  // visible above the panel — then return when the panel closes.
+  // Read-open scene: while a panel is open the sky above it goes near-black
+  // (a dim overlay fades the nebula/stars to ~10% over 300ms) and the creature
+  // LEAVES its disc to take the stage — rendered ~1.5x, standing on the
+  // panel's top edge, tinted the read's accent. Everything returns on close.
   const panelOpen = !!panel
+
+  // READ objects — the user's matched fragments, placed on the inner arm.
+  // Highest weight = nearest the center. Each carries the panel content
+  // (authored title + body EXACTLY as written, trigger in plain words, sigil)
+  // and a Read whose id IS the fragment id, so agree/disagree persists to
+  // read_responses and /self shows the same state.
+  const reads = useMemo<PlacedRead[]>(() => {
+    const n = fragments.length
+    return fragments.map((f, i) => {
+      const { x, y } = spiralPoint(readT(i, n))
+      const color = READ_COLORS[i % READ_COLORS.length]
+      return {
+        label: f.title,
+        x,
+        y,
+        r: Math.hypot(x, y),
+        color,
+        panel: {
+          src: describeTrigger(f),
+          title: f.title,
+          body: f.body,
+          accent: color,
+          symbol: symbolFor(f),
+        },
+        read: { id: f.id, category: "about-you", text: f.body },
+      }
+    })
+  }, [fragments])
 
   // World-space centers of every read/person marker, on the spiral arm. The
   // nebula carves a small clear disc around each so a marker's star sits IN the
   // spiral cleanly, never stacked on top of a fog glyph.
   const markerCenters = useMemo<{ x: number; y: number }[]>(() => {
-    const pts = READ_T.map((t) => spiralPoint(t))
+    const pts = reads.map((r) => ({ x: r.x, y: r.y }))
     const n = people.length
     for (let i = 0; i < n; i++) pts.push(spiralPoint(personT(i, n)))
     return pts
-  }, [people.length])
+  }, [reads, people.length])
 
   // The nebula: a dense field of ASCII glyphs scattered along AND across the
   // spiral arm, forming cloudy limbs with organic clumping (density noise)
@@ -487,31 +570,6 @@ export function SpiralUniverse({
     }
     return out
   }, [markerCenters])
-
-  // READ objects — facets of the user's own chart, derived from the chart
-  // engine output (chartRead.sections), placed in the inner ring by angle+r.
-  // Each carries the panel content + a Read that persists through the SAME
-  // agree/disagree pipeline the bottom ReadHub uses.
-  const reads = useMemo<PlacedRead[]>(() => {
-    return chartRead.sections.slice(0, READ_T.length).map((s, i) => {
-      const t = READ_T[i % READ_T.length]
-      const { x, y } = spiralPoint(t)
-      return {
-        label: s.label,
-        x,
-        y,
-        r: Math.hypot(x, y),
-        color: READ_COLORS[i % READ_COLORS.length],
-        panel: {
-          src: s.value,
-          title: s.label,
-          body: s.body,
-          accent: READ_COLORS[i % READ_COLORS.length],
-        },
-        read: { id: `chart-${slug(s.label)}`, category: "about-you", text: s.body },
-      }
-    })
-  }, [])
 
   // THE CURRENT READ — the nearest-to-center read the user hasn't responded
   // to yet. It's the only star wearing a ring; completing it passes the ring
@@ -671,43 +729,6 @@ export function SpiralUniverse({
       camRef.current = { x: 0, y: 0, scale: 1 }
     }, 700)
   }, [animateCam])
-
-  // Panel open → camera courtesy: pan the view so the disc sits comfortably in
-  // the visible area above the panel (world origin lifted above stage center),
-  // remembering where the camera was. Close → glide back. While open we also
-  // punch a spotlight hole in the panel's scrim at the disc's screen position
-  // so the creature and its breathing glow are never dimmed or lost in shadow.
-  useEffect(() => {
-    const stage = stageRef.current
-    if (panelOpen) {
-      const lift = Math.min(220, Math.max(120, (stage?.clientHeight ?? 720) * 0.2))
-      if (!prePanelCamRef.current) prePanelCamRef.current = { ...camRef.current }
-      animateCam(() => {
-        const cam = camRef.current
-        cam.x = 0
-        cam.y = lift / cam.scale
-      }, 400)
-      const rect = stage?.getBoundingClientRect()
-      if (rect) {
-        setSpotlight({
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2 - lift,
-          // The counter-scaled disc renders at a constant discSize px on
-          // screen; leave room for its glow bloom.
-          r: discSize / 2 + 18,
-        })
-      }
-    } else {
-      const prev = prePanelCamRef.current
-      prePanelCamRef.current = null
-      setSpotlight(null)
-      if (prev) {
-        animateCam(() => {
-          camRef.current = { ...prev }
-        }, 400)
-      }
-    }
-  }, [panelOpen, animateCam, discSize])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -1176,6 +1197,19 @@ export function SpiralUniverse({
         </div>
       </div>
 
+      {/* Sky dim: while a read panel is open, the whole universe (nebula,
+          stars, disc) fades to ~10% behind this near-black overlay — the
+          creature has left its disc for the panel's stage. 300ms both ways. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-30"
+        style={{
+          background: "#050505",
+          opacity: panelOpen ? 0.9 : 0,
+          transition: "opacity 300ms ease",
+        }}
+      />
+
       {/* ===== HUD ===== */}
       {/* Top hint: white, fades out as soon as the camera leaves home. */}
       <div
@@ -1226,13 +1260,41 @@ export function SpiralUniverse({
         )}
       </div>
 
-      {/* Slide-up read panel — tapping a read/person opens it; yes/no route to
-          the same agree/disagree persistence as the bottom ReadHub. */}
+      {/* Slide-up read panel — tapping a read/person opens it; yes/no persists
+          to read_responses (fragments) / the spiral session, same as /self.
+          The stage: the creature at ~1.5x standing ON the panel's top edge,
+          bouncing/shuffling along its floor, tinted the read's accent, with
+          the read's sigil shimmering in the dark above it. */}
       <UniverseReadPanel
         data={panel?.data ?? null}
         onJudge={judge}
         onClose={closePanel}
-        spotlight={spotlight}
+        stage={
+          panel ? (
+            <div className="flex flex-col items-center">
+              {panel.data.symbol && (
+                <div
+                  className="animate-sigil-shimmer mb-5 whitespace-pre text-center text-[19px] leading-none"
+                  style={{
+                    fontFamily: monoFont,
+                    color: panel.data.accent ?? NEUTRAL_COLOR,
+                  }}
+                >
+                  {panel.data.symbol}
+                </div>
+              )}
+              <div className="animate-stage-shuffle">
+                <SelfCreature
+                  ref={stageCreatureRef}
+                  score={engagementScore}
+                  seed={userId}
+                  color={reactColor ?? panel.data.accent ?? NEUTRAL_COLOR}
+                  size={Math.round(creatureSize * 1.5)}
+                />
+              </div>
+            </div>
+          ) : null
+        }
       />
     </div>
   )
