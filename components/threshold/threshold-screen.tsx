@@ -141,8 +141,18 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               0%, 100% { box-shadow: 0 0 18px oklch(0.95 0 0 / 0.10); }
               50% { box-shadow: 0 0 30px oklch(0.95 0 0 / 0.20); }
             }
+            @keyframes readyLetter {
+              0%, 38%, 62%, 100% { opacity: 1; filter: blur(0); }
+              42%, 58% { opacity: 0; filter: blur(2px); }
+            }
+            @keyframes readyAscii {
+              0%, 38%, 62%, 100% { opacity: 0; filter: blur(2px); }
+              42%, 58% { opacity: 1; filter: blur(0); }
+            }
             @media (prefers-reduced-motion: reduce) {
               @keyframes thresholdAvatarHalo { 0%, 100% { box-shadow: 0 0 20px oklch(0.95 0 0 / 0.14); } }
+              .ready-ascii { display: none; }
+              .ready-letter { animation: none !important; }
             }
           `}</style>
           <div
@@ -163,15 +173,43 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
                 same Geist Pixel font as the rest of the copy for consistency. */}
             {ready && !error ? (
               <span
+                aria-label="Ready?"
                 style={{
+                  display: "flex",
                   fontFamily: '"Geist Pixel", sans-serif',
                   color: "#fff",
                   fontSize: 22,
-                  letterSpacing: "0.2em",
                   textTransform: "uppercase",
                 }}
               >
-                {"ready?"}
+                {[..."READY?"].map((letter, index) => (
+                  <span
+                    key={`${letter}-${index}`}
+                    aria-hidden="true"
+                    style={{
+                      position: "relative",
+                      display: "inline-grid",
+                      width: "0.9em",
+                      placeItems: "center",
+                    }}
+                  >
+                    <span
+                      className="ready-letter"
+                      style={{ animation: `readyLetter 2.8s steps(1, end) ${index * 110}ms infinite` }}
+                    >
+                      {letter}
+                    </span>
+                    <span
+                      className="ready-ascii"
+                      style={{
+                        position: "absolute",
+                        animation: `readyAscii 2.8s steps(1, end) ${index * 110}ms infinite`,
+                      }}
+                    >
+                      {["#", "*", "+", ":", "·", "/"][index]}
+                    </span>
+                  </span>
+                ))}
               </span>
             ) : (
               <AsciiSpiral size={150} tone="light" />
