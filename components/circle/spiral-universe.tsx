@@ -987,8 +987,10 @@ export function SpiralUniverse({
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  width: 24,
-                  height: 24,
+                  // Badge scaled +30% along with the glyph so the size bump is
+                  // actually visible (the badge dominates the star's footprint).
+                  width: 31,
+                  height: 31,
                   backgroundColor: answered ? "transparent" : "#050505",
                   border: answered ? "none" : `1.5px solid ${locked ? "#4a4e56" : r.color}`,
                   color: locked ? "#4a4e56" : r.color,
