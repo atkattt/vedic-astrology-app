@@ -156,9 +156,26 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               animation: "thresholdAvatarHalo 4.5s ease-in-out infinite",
               marginTop: "32px",
             }}
-            aria-hidden="true"
+            aria-hidden={ready ? undefined : "true"}
           >
-            <AsciiSpiral size={150} tone="light" />
+            {/* While the chart reads, the loading spiral animates. Once ready,
+                the spiral stops (unmounts) and a "READY?" label appears in the
+                same Geist Pixel font as the rest of the copy for consistency. */}
+            {ready && !error ? (
+              <span
+                style={{
+                  fontFamily: '"Geist Pixel", sans-serif',
+                  color: "#fff",
+                  fontSize: 22,
+                  letterSpacing: "0.2em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {"ready?"}
+              </span>
+            ) : (
+              <AsciiSpiral size={150} tone="light" />
+            )}
           </div>
 
           {/* Cycling status line — shows the loading stages, or the error
