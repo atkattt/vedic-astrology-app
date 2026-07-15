@@ -131,7 +131,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
       <AsciiRippleSky />
 
       {/* Sticky hero — stays pinned while the story scrolls beneath it. */}
-      <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-10 pt-10">
+      <div className="sticky top-0 z-20 flex flex-col items-center px-6 pb-0 pt-10">
         <div className="relative z-10 flex flex-col items-center" style={{ gap: "0px" }}>
           {/* Self-avatar disc: the same black disc with a thin near-white outline
               and breathing halo used elsewhere, holding the white loading spiral.
