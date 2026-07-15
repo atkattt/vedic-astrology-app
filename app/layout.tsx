@@ -34,7 +34,6 @@ import {
   PT_Sans,
   Space_Mono,
   Fraunces,
-  Pixelify_Sans,
 } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { SpiralProvider } from '@/components/spiral/spiral-provider'
@@ -215,15 +214,6 @@ const fraunces = Fraunces({
   style: ['normal', 'italic'],
   display: 'swap',
 })
-// Geist Pixel is NOT available via the `geist` package or next/font/google, so
-// we load Pixelify Sans — a clean, readable pixel typeface — as the substitute.
-// Exposed as the CSS var --font-pixelify-sans and used by AmbientCreature words.
-const pixelifySans = Pixelify_Sans({
-  variable: '--font-pixelify-sans',
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: 'Spiral Inward',
@@ -263,7 +253,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${geistMono.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} ${fraunces.variable} ${pixelifySans.variable} bg-background`}
+      className={`dark ${ibmPlexSans.variable} ${jetbrainsMono.variable} ${lato.variable} ${inter.variable} ${roboto.variable} ${openSans.variable} ${poppins.variable} ${nunito.variable} ${montserrat.variable} ${sourceSans3.variable} ${raleway.variable} ${playfairDisplay.variable} ${merriweather.variable} ${oswald.variable} ${quicksand.variable} ${workSans.variable} ${firaSans.variable} ${inconsolata.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${manrope.variable} ${outfit.variable} ${geist.variable} ${geistMono.variable} ${libreFranklin.variable} ${rubik.variable} ${karla.variable} ${josefinSans.variable} ${crimsonText.variable} ${lora.variable} ${ptSans.variable} ${spaceMono.variable} ${fraunces.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <SpiralProvider>{children}</SpiralProvider>

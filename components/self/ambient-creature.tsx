@@ -7,87 +7,117 @@ import { RIPPLE_STAGGER_MS, randomScramble } from "@/lib/self/mutation"
  * AmbientCreature — a "demo mode" of the self being for the landing page.
  *
  * It sits inside the same black disc + thin near-white outline used on /self,
- * and cycles playfully through small forms as a preview of the self you'll grow:
- *   - creature faces/emoticons in three detail tiers (minimal → detailed), and
- *   - short world-words ("YOU", "ARE", "HERE").
+ * and cycles playfully through small creature faces as a preview of the self
+ * you'll grow. Faces are composed PROCEDURALLY from parts (eyes, optional
+ * enclosure, ears, mouth, rare extras) so most results are simple and the
+ * occasional one is detailed — the same composition never shows twice in a row.
  *
- * IMPORTANT: words do NOT pass through the creature's cell/mutation grid. There
- * is no pixel-font / letterform system. A word is rendered as ONE plain <span>
- * in the pixel typeface (Pixelify Sans, loaded in app/layout.tsx as the
- * --font-pixelify-sans variable — the substitute for the unavailable Geist
- * Pixel), uppercase, single line, centered, fading/blurring in over ~200ms.
+ * Every face resolves in with the being's signature ripple/stagger mutation
+ * (lib/self/mutation): its cells flicker through a scramble glyph before
+ * settling. There is NO word/letterform/pixel-font path — the cycle is faces
+ * only.
  *
- * ONLY the emoticon faces use the being's ripple/stagger mutation feel
- * (lib/self/mutation): their cells resolve one by one, each flickering through
- * a scramble glyph before settling.
- *
- * Deterministic first paint (a fixed "YOU") so SSR and client match; morphing,
- * blinking and breathing begin after mount. Animation pauses while the tab is
- * hidden and collapses to quiet swaps under prefers-reduced-motion.
+ * Deterministic first paint (a fixed simple face) so SSR and client match;
+ * morphing, blinking and breathing begin after mount. Animation pauses while
+ * the tab is hidden and collapses to quiet swaps under prefers-reduced-motion.
  */
 
 const NEUTRAL = "#e8e4da"
 const MONO = "ui-monospace, monospace"
-const PIXEL = "var(--font-pixelify-sans), ui-monospace, monospace"
 
-// ---- forms -----------------------------------------------------------------
-// Words are plain text. The cycle is fixed: YOU → face → face → ARE → face →
-// HERE → face → (repeat), with faces chosen at random from the tiers below.
-const WORD_CYCLE = ["YOU", "ARE", "HERE"]
-
-const EMOTES_T1 = ["[ . . ]", "( · · )", "{ - - }", "[ ˚ ˚ ]"]
-const EMOTES_T2 = ["[><]", "{o o}", "( ^ ^ )", "[ o_o ]", "{ >.< }", "( ˘ ˘ )"]
-const EMOTES_T3 = [
-  " /\\ /\\\n( o o )\n [>_<]",
-  " ^  ^\n(o  o)\n  (v)",
-  " . · .\n( ✦ ✦ )\n \\ ~ /",
-  " /\\_/\\\n( o.o )\n > ^ <",
+// ---- face part vocabulary --------------------------------------------------
+const EYES = [".", "·", "˚", "°", "o", "O", "*", "✦", "-", "^", "x", "+", "="]
+const MOUTHS = ["_", ".", "o", "~", "v", "w", "‿", "▽"]
+const ENCLOSURES: { l: string; r: string }[] = [
+  { l: "[", r: "]" },
+  { l: "{", r: "}" },
+  { l: "(", r: ")" },
+  { l: "<", r: ">" },
 ]
+const EARS = ["/\\ /\\", "^   ^", "'   '", "~   ~"]
+const EXTRAS = ["\\__/", "(v)", "\\  /", ">  <"]
 
-/** A displayed form: either a plain word, or an emoticon rendered on a grid. */
-type WordForm = { kind: "word"; value: string }
-type EmoteGrid = { kind: "emote"; cells: string[]; rows: number; cols: number; fontPx: number }
-type Form = WordForm | EmoteGrid
+const rand = () => Math.random()
+const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
-const INITIAL: WordForm = { kind: "word", value: "YOU" }
+/** Center each line within the widest line, padding to a uniform rectangle. */
+function centerBlock(lines: string[]): string {
+  const w = Math.max(...lines.map((l) => l.length))
+  return lines
+    .map((l) => {
+      const pad = w - l.length
+      const left = Math.floor(pad / 2)
+      return " ".repeat(left) + l + " ".repeat(pad - left)
+    })
+    .join("\n")
+}
 
-/** Build an emoticon's grid, preserving internal spacing, padded to a rectangle. */
-function buildEmote(art: string, size: number): EmoteGrid {
+/**
+ * Compose a face from parts by weighted rules:
+ *   enclosure ~70%, ears ~25%, mouth ~50%, extras ~10%.
+ * Eyes usually match (occasionally a wink/mismatch).
+ */
+function composeFace(): string {
+  const eye = pick(EYES)
+  const eyeR = rand() < 0.12 ? pick(EYES) : eye // occasional mismatch/wink
+  const hasEnclosure = rand() < 0.7
+  const hasEars = rand() < 0.25
+  const hasMouth = rand() < 0.5
+  const hasExtra = rand() < 0.1
+
+  const eyeCore = `${eye} ${eyeR}` // e.g. "o o"
+  const eyeLine = hasEnclosure
+    ? (() => {
+        const e = pick(ENCLOSURES)
+        return `${e.l} ${eyeCore} ${e.r}`
+      })()
+    : eyeCore
+
+  const lines: string[] = []
+  if (hasEars) lines.push(pick(EARS))
+  lines.push(eyeLine)
+  if (hasMouth) lines.push(pick(MOUTHS))
+  if (hasExtra) lines.push(pick(EXTRAS))
+
+  return centerBlock(lines)
+}
+
+type EmoteGrid = { cells: string[]; rows: number; cols: number; fontPx: number }
+
+/** Turn a composed face string into a grid sized to ~40-50% of the disc. */
+function buildFace(art: string, size: number): EmoteGrid {
   const lines = art.split("\n")
   const cols = Math.max(...lines.map((l) => l.length))
   const rows = lines.length
   const cells = Array<string>(rows * cols).fill(" ")
   for (let r = 0; r < rows; r++) {
-    const line = lines[r]
-    for (let c = 0; c < line.length; c++) cells[r * cols + c] = line[c]
+    for (let c = 0; c < lines[r].length; c++) cells[r * cols + c] = lines[r][c]
   }
-  // Fit the emoticon comfortably inside the disc.
-  const usable = size * 0.75 * 0.8
-  const byWidth = usable / (cols * 0.62)
-  const byHeight = usable / (rows * 1.15)
-  const fontPx = Math.min(byWidth, byHeight, size * 0.14)
-  return { kind: "emote", cells, rows, cols, fontPx }
+  // The disc is size * 0.75. Fit the face into ~50% of that diameter.
+  const disc = size * 0.75
+  const target = disc * 0.5
+  const byWidth = target / (cols * 0.62)
+  const byHeight = target / (rows * 1.15)
+  const fontPx = Math.min(byWidth, byHeight, size * 0.12)
+  return { cells, rows, cols, fontPx }
 }
 
-function randomEmote(size: number): EmoteGrid {
-  const roll = Math.random()
-  const tier = roll < 0.4 ? EMOTES_T1 : roll < 0.85 ? EMOTES_T2 : EMOTES_T3
-  return buildEmote(tier[Math.floor(Math.random() * tier.length)], size)
+// A fixed, simple face for deterministic first paint (SSR === client).
+function initialFace(size: number): EmoteGrid {
+  return buildFace(centerBlock(["[ o o ]"]), size)
 }
 
 export default function AmbientCreature({ size = 200 }: { size?: number }) {
-  const [form, setForm] = useState<Form>(INITIAL)
-  // Bumped on each word change so the fade/blur-in animation restarts.
-  const [wordKey, setWordKey] = useState(0)
-  // Live grid cells while an emoticon resolves in.
-  const [emoteCells, setEmoteCells] = useState<string[]>([])
+  const [face, setFace] = useState<EmoteGrid>(() => initialFace(size))
+  // Live grid cells while a face resolves in (starts fully settled).
+  const [cells, setCells] = useState<string[]>(() => initialFace(size).cells)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-  // Fixed word cycle position.
-  const wordStep = useRef(0)
-  // Toggle: after a word we show 2 faces, then the next word.
-  const facesLeft = useRef(0)
+  // The previous composition string, to guarantee no immediate repeats.
+  const prevArt = useRef<string>("")
 
   useEffect(() => {
+    ;(window as unknown as Record<string, unknown>).__ambientMounted = true
+    ;(window as unknown as Record<string, unknown>).__ambientMorphs = 0
     let alive = true
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
     const clearAll = () => {
@@ -96,7 +126,7 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
     }
 
     function scheduleNext() {
-      const wait = 1600 + Math.random() * 1400 // 1.6–3s per form
+      const wait = 1500 + Math.random() * 1500 // 1.5–3s per face
       const t = setTimeout(() => {
         if (!alive) return
         if (typeof document !== "undefined" && document.hidden) {
@@ -109,29 +139,26 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
       timers.current.push(t)
     }
 
-    function showWord() {
-      const value = WORD_CYCLE[wordStep.current % WORD_CYCLE.length]
-      wordStep.current += 1
-      facesLeft.current = 2
-      setForm({ kind: "word", value })
-      setWordKey((k) => k + 1) // restart the fade/blur-in
-      scheduleNext()
-    }
+    function morph() {
+      const w = window as unknown as Record<string, unknown>
+      w.__ambientMorphs = ((w.__ambientMorphs as number) ?? 0) + 1
+      // Compose a fresh face, never repeating the previous composition.
+      let art = composeFace()
+      for (let guard = 0; guard < 8 && art === prevArt.current; guard++) art = composeFace()
+      prevArt.current = art
 
-    function showEmote() {
-      facesLeft.current -= 1
-      const target = randomEmote(size)
-      setForm(target)
+      const target = buildFace(art, size)
+      setFace(target)
 
       if (reduce) {
-        setEmoteCells(target.cells)
+        setCells(target.cells)
         scheduleNext()
         return
       }
 
       // Seed every "on" cell with a scramble glyph, then resolve them one by
-      // one — the being's signature ripple/mutation. (Words never do this.)
-      setEmoteCells(target.cells.map((c) => (c === " " ? " " : randomScramble(c))))
+      // one — the being's signature ripple/mutation.
+      setCells(target.cells.map((c) => (c === " " ? " " : randomScramble(c))))
 
       const active = target.cells
         .map((c, i) => (c === " " ? -1 : i))
@@ -144,18 +171,18 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
         const base = k * per
         const t1 = setTimeout(() => {
           if (!alive) return
-          setEmoteCells((prev) => {
-            const cells = [...prev]
-            cells[idx] = randomScramble(cells[idx])
-            return cells
+          setCells((prev) => {
+            const next = [...prev]
+            next[idx] = randomScramble(next[idx])
+            return next
           })
         }, base)
         const t2 = setTimeout(() => {
           if (!alive) return
-          setEmoteCells((prev) => {
-            const cells = [...prev]
-            cells[idx] = target.cells[idx]
-            return cells
+          setCells((prev) => {
+            const next = [...prev]
+            next[idx] = target.cells[idx]
+            return next
           })
         }, base + 130)
         timers.current.push(t1, t2)
@@ -164,11 +191,6 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
 
       const done = setTimeout(() => alive && scheduleNext(), maxDelay + 260)
       timers.current.push(done)
-    }
-
-    function morph() {
-      if (facesLeft.current > 0) showEmote()
-      else showWord()
     }
 
     scheduleNext()
@@ -213,51 +235,31 @@ export default function AmbientCreature({ size = 200 }: { size?: number }) {
             height: disc,
           }}
         >
-          {form.kind === "word" ? (
-            // A WORD: one plain styled text element — no grid, no letterforms.
-            <span
-              key={wordKey}
-              style={{
-                fontFamily: PIXEL,
-                fontWeight: 600,
-                fontSize: `${size * 0.2}px`,
-                lineHeight: 1,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                whiteSpace: "nowrap",
-                userSelect: "none",
-                animation: "ambientWordIn 0.2s ease-out both",
-              }}
-            >
-              {form.value}
-            </span>
-          ) : (
-            // A FACE: the mutation grid (cells resolve in one by one).
-            <div className="flex flex-col items-center">
-              {Array.from({ length: form.rows }).map((_, r) => (
-                <div key={r} className="flex" style={{ height: form.fontPx * 1.15 }}>
-                  {Array.from({ length: form.cols }).map((_, c) => {
-                    const ch = emoteCells[r * form.cols + c] ?? " "
-                    return (
-                      <span
-                        key={c}
-                        style={{
-                          width: form.fontPx * 0.62,
-                          textAlign: "center",
-                          fontFamily: MONO,
-                          fontSize: `${form.fontPx}px`,
-                          lineHeight: `${form.fontPx * 1.15}px`,
-                          userSelect: "none",
-                        }}
-                      >
-                        {ch === " " ? "\u00A0" : ch}
-                      </span>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
+          {/* A FACE: the mutation grid (cells resolve in one by one). */}
+          <div className="flex flex-col items-center">
+            {Array.from({ length: face.rows }).map((_, r) => (
+              <div key={r} className="flex" style={{ height: face.fontPx * 1.15 }}>
+                {Array.from({ length: face.cols }).map((_, c) => {
+                  const ch = cells[r * face.cols + c] ?? " "
+                  return (
+                    <span
+                      key={c}
+                      style={{
+                        width: face.fontPx * 0.62,
+                        textAlign: "center",
+                        fontFamily: MONO,
+                        fontSize: `${face.fontPx}px`,
+                        lineHeight: `${face.fontPx * 1.15}px`,
+                        userSelect: "none",
+                      }}
+                    >
+                      {ch === " " ? "\u00A0" : ch}
+                    </span>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -278,14 +280,9 @@ const AMBIENT_KEYFRAMES = `
   0%, 100% { box-shadow: 0 0 18px oklch(0.95 0 0 / 0.10); }
   50% { box-shadow: 0 0 30px oklch(0.95 0 0 / 0.20); }
 }
-@keyframes ambientWordIn {
-  from { opacity: 0; filter: blur(6px); transform: scale(0.96); }
-  to { opacity: 1; filter: blur(0); transform: scale(1); }
-}
 @media (prefers-reduced-motion: reduce) {
   @keyframes ambientBreathe { 0%,100% { transform: none; } }
   @keyframes ambientBlink { 0%,100% { opacity: 1; } }
   @keyframes ambientHalo { 0%,100% { box-shadow: 0 0 18px oklch(0.95 0 0 / 0.12); } }
-  @keyframes ambientWordIn { from { opacity: 1; filter: none; transform: none; } to { opacity: 1; } }
 }
 `
