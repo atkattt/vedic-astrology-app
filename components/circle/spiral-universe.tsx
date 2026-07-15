@@ -995,7 +995,7 @@ export function SpiralUniverse({
                   fontFamily: monoFont,
                   // Same glyph size answered or not — agreeing drops the badge
                   // but never grows/shrinks the star itself.
-                  fontSize: 11,
+                  fontSize: 14,
                   textShadow: answered ? `0 0 8px ${r.color}, 0 0 18px ${r.color}` : "none",
                   boxShadow:
                     answered || locked ? "none" : `0 0 10px ${r.color}, 0 0 20px ${r.color}66`,
