@@ -234,7 +234,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(to top, rgba(198,200,206,0.7) 0%, rgba(192,194,200,0.5) 40%, rgba(186,188,196,0.24) 68%, transparent 100%)",
+                  "linear-gradient(to top, rgba(5,5,5,0.92) 0%, rgba(5,5,5,0.72) 40%, rgba(5,5,5,0.32) 68%, transparent 100%)",
               }}
             />
           </div>
@@ -245,8 +245,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             className="relative z-10 rounded-full border text-xs uppercase tracking-[0.25em] transition-transform active:scale-95"
             style={{
               ...glowText,
+              color: "#fff",
               fontFamily: '"Geist Pixel", sans-serif',
-              borderColor: "#000",
+              borderColor: "#fff",
               // Transparent pill — the frosted glass shelf beneath supplies the
               // backdrop, so the story text never shows through the label.
               background: "transparent",
@@ -268,7 +269,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
           ) : (
             <p
               className="relative z-10 mt-3 text-[10px] uppercase tracking-[0.25em]"
-              style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#2a2a2a" }}
+              style={{ fontFamily: '"Geist Pixel", sans-serif', color: "#fff" }}
             >
               your chart is ready
             </p>
