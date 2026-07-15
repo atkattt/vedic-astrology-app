@@ -6,7 +6,6 @@ import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-cr
 import type { Person, Relationship } from "@/lib/db/schema"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
-import { ACCENT_COLORS } from "@/lib/spiral/accent-colors"
 import { scoreToStage } from "@/lib/self/avatar-stages"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
 import { saveRevealRadius } from "@/app/actions/progress"
@@ -20,6 +19,12 @@ import {
 } from "@/lib/spiral/universe-reads"
 import { moodForRead, NEUTRAL_MOOD, type ReadMood } from "@/lib/self/read-moods"
 import { choreograph } from "@/lib/self/moves"
+import {
+  SECTION_ORDER,
+  SECTION_COLORS,
+  sectionOf,
+  type SectionKey,
+} from "@/lib/spiral/sections"
 
 // Neutral self color — a glowing white, NOT gold. Reactions tint away from it.
 const NEUTRAL_COLOR = "#e8e4da"
@@ -163,38 +168,58 @@ type Glyph = {
   delay: number
 }
 
-// READ objects — the user's MATCHED FRAGMENTS (same pipeline as /self) — live
-// ON the inner spiral arm, beads strung along the curve. Placement is fully
-// procedural for ANY fragment count: the heaviest fragment sits nearest the
-// center (t = READ_T_START) and each subsequent one walks OUTWARD along the
-// arm by a constant ARC length, so consecutive beads keep the same comfortable
-// gap whether there are 3 reads or 40. Because the gap is measured along the
-// curve (not in t), beads never bunch up as the spiral tightens; and adjacent
-// turns are ~160 world units apart radially, far more than a bead's footprint,
-// so cross-turn overlap can't happen either. The populated region stays
-// compact: even 40 beads end near t ≈ 0.62 of a spiral that runs to t = 1.72.
-const READ_T_START = 0.26
-// World-unit gap between consecutive beads: badge (~31px) + breathing room.
-const READ_ARC_GAP = 44
-function readTs(n: number): number[] {
-  const ts: number[] = []
-  let t = READ_T_START
-  for (let i = 0; i < n; i++) {
-    ts.push(t)
-    // Advance by READ_ARC_GAP of arc length. ds/dt for r = MAX_R·t,
-    // θ = 2πT·t is MAX_R·√(1 + (2πT·t)²); one Euler step is plenty accurate
-    // at this gap size (dt ≈ 0.01-0.016).
-    const dsdt = MAX_R * Math.sqrt(1 + (2 * Math.PI * TURNS * t) ** 2)
-    t += READ_ARC_GAP / dsdt
+// READ objects — the user's MATCHED FRAGMENTS (same pipeline as /self) —
+// organized into SECTION CONSTELLATIONS. Each section (ascendant → moon → sun
+// → knot → nodes → chapter; see lib/spiral/sections.ts) is one constellation:
+// its MAJOR read (weight >= 7, star marker) sits ON the spiral arm, its MINOR
+// reads (weight < 7, glyph markers) cluster on rings around that star.
+// Sections bead outward along the arm in the fixed order, with the arc gap
+// between anchors widened to fit both neighbors' clusters — no overlaps at
+// any mini count.
+const READ_T_START = 0.3
+const MAJOR_WEIGHT = 7
+
+// Minor cluster rings around a section's star: ring k holds 6+4k glyphs at
+// radius 40+28k. Ring circumference / slots stays >= ~42 world units, well
+// clear of a glyph badge (~24px), for ANY number of minis.
+function minorOffset(i: number, sectionIdx: number) {
+  let idx = i
+  let ring = 0
+  while (idx >= 6 + 4 * ring) {
+    idx -= 6 + 4 * ring
+    ring++
   }
-  return ts
+  const slots = 6 + 4 * ring
+  const radius = 40 + 28 * ring
+  // Stagger each section + ring so clusters never share a rigid grid look.
+  const angle = (idx / slots) * Math.PI * 2 + sectionIdx * 0.9 + ring * 0.45
+  return { dx: radius * Math.cos(angle), dy: radius * Math.sin(angle) }
 }
 
-// Each read facet gets its own distinct star color (cool cosmic hues, no
-// purple/violet), so the inner arm reads as a little constellation of
-// differently-colored facets rather than identical white dots. Pulled from the
-// shared accent palette so the landing-page fog embers match exactly.
-const READ_COLORS = ACCENT_COLORS
+/** Outermost occupied ring radius for a cluster of `count` minis. */
+function clusterRadiusFor(count: number): number {
+  if (count <= 0) return 0
+  let left = count
+  let ring = 0
+  while (left > 6 + 4 * ring) {
+    left -= 6 + 4 * ring
+    ring++
+  }
+  return 40 + 28 * ring
+}
+
+/** Advance t along the spiral by `arc` world units (small Euler steps). */
+function advanceT(t: number, arc: number): number {
+  let remaining = arc
+  let cur = t
+  while (remaining > 0) {
+    const dsdt = MAX_R * Math.sqrt(1 + (2 * Math.PI * TURNS * cur) ** 2)
+    const step = Math.min(remaining, 12)
+    cur += step / dsdt
+    remaining -= step
+  }
+  return cur
+}
 
 // PEOPLE live ON the spiral arm too, further out than the reads. The first
 // person added sits innermost; each subsequent one is placed further along.
@@ -215,11 +240,30 @@ type PlacedRead = {
   x: number
   y: number
   r: number
+  /** the SECTION's accent color (shared by every read in the constellation) */
   color: string
   panel: PanelData
   read: Read
   /** how the creature behaves on the panel stage — from tone + life_domain */
   mood: ReadMood
+  /** star on the arm (major) vs clustered glyph (minor) */
+  kind: "major" | "minor"
+  /** the minor's sigil glyph (majors render the star char) */
+  glyph: string
+  sectionKey: SectionKey
+  sectionIdx: number
+}
+
+type Constellation = {
+  key: SectionKey
+  idx: number
+  color: string
+  /** anchor (major star) position on the arm */
+  anchor: { x: number; y: number; r: number }
+  /** outermost cluster ring radius (0 when no minis) */
+  clusterR: number
+  major: PlacedRead
+  minors: PlacedRead[]
 }
 type PlacedPerson = {
   person: Person
@@ -405,35 +449,149 @@ export function SpiralUniverse({
     setReactColor(null)
   }, [])
 
-  // READ objects — the user's matched fragments, beaded outward along the
-  // inner arm (heaviest nearest the center; see readTs). Each carries the
-  // panel content (authored title + body EXACTLY as written, trigger in plain
-  // words, sigil) and a Read whose id IS the fragment id, so agree/disagree
-  // persists to read_responses and /self shows the same state. Declared BEFORE
-  // judge below, which reads bead radii to pace the frontier.
-  const reads = useMemo<PlacedRead[]>(() => {
-    const ts = readTs(fragments.length)
-    return fragments.map((f, i) => {
-      const { x, y } = spiralPoint(ts[i])
-      const color = READ_COLORS[i % READ_COLORS.length]
+  // SECTION CONSTELLATIONS — fragments grouped by section (fixed order), each
+  // group's heaviest weight>=7 read the major star ON the arm, the rest
+  // clustered glyphs around it. Every read still carries the panel content
+  // (authored title + body EXACTLY as written, trigger in plain words, sigil)
+  // and a Read whose id IS the fragment id, so agree/disagree persists to
+  // read_responses and /self shows the same state.
+  const constellations = useMemo<Constellation[]>(() => {
+    const groups = new Map<SectionKey, UniverseFragment[]>()
+    for (const f of fragments) {
+      const key = sectionOf(f.section)
+      const g = groups.get(key)
+      if (g) g.push(f)
+      else groups.set(key, [f])
+    }
+    const present = SECTION_ORDER.filter((s) => groups.has(s))
+
+    const toPlaced = (
+      f: UniverseFragment,
+      x: number,
+      y: number,
+      color: string,
+      kind: "major" | "minor",
+      key: SectionKey,
+      idx: number,
+    ): PlacedRead => ({
+      label: f.title,
+      x,
+      y,
+      r: Math.hypot(x, y),
+      color,
+      panel: {
+        src: describeTrigger(f),
+        title: f.title,
+        body: f.body,
+        accent: color,
+        symbol: symbolFor(f),
+      },
+      read: { id: f.id, category: "about-you", text: f.body },
+      mood: moodForRead(f.tone, f.life_domain),
+      kind,
+      glyph: symbolFor(f),
+      sectionKey: key,
+      sectionIdx: idx,
+    })
+
+    let t = READ_T_START
+    let prevClusterR = 0
+    return present.map((key, idx) => {
+      // Weight sorts majors first; within a section the heaviest weight>=7
+      // read is THE major. If none reaches the threshold, the heaviest read
+      // stands in so every section still has its anchor star.
+      const frags = [...groups.get(key)!].sort(
+        (a, b) => (b.weight ?? 0) - (a.weight ?? 0),
+      )
+      const majorIdx = frags.findIndex((f) => (f.weight ?? 0) >= MAJOR_WEIGHT)
+      const majorFrag = frags[majorIdx === -1 ? 0 : majorIdx]
+      const minorFrags = frags.filter((f) => f !== majorFrag)
+      const clusterR = clusterRadiusFor(minorFrags.length)
+
+      // Widen the arc gap so this cluster clears the previous one, plus a
+      // badge-and-breathing margin.
+      if (idx > 0) t = advanceT(t, Math.max(96, prevClusterR + clusterR + 56))
+      prevClusterR = clusterR
+
+      const anchorPt = spiralPoint(t)
+      const color = SECTION_COLORS[key]
+      const major = toPlaced(majorFrag, anchorPt.x, anchorPt.y, color, "major", key, idx)
+      const minors = minorFrags.map((f, i) => {
+        const { dx, dy } = minorOffset(i, idx)
+        return toPlaced(f, anchorPt.x + dx, anchorPt.y + dy, color, "minor", key, idx)
+      })
       return {
-        label: f.title,
-        x,
-        y,
-        r: Math.hypot(x, y),
+        key,
+        idx,
         color,
-        panel: {
-          src: describeTrigger(f),
-          title: f.title,
-          body: f.body,
-          accent: color,
-          symbol: symbolFor(f),
-        },
-        read: { id: f.id, category: "about-you", text: f.body },
-        mood: moodForRead(f.tone, f.life_domain),
+        anchor: { x: anchorPt.x, y: anchorPt.y, r: Math.hypot(anchorPt.x, anchorPt.y) },
+        clusterR,
+        major,
+        minors,
       }
     })
   }, [fragments])
+
+  // Progressive appearance: section 1 is present from first arrival; each
+  // next constellation appears when the previous is CLEARED — major answered
+  // + at least 2 minis (or all of them, when fewer than 2 exist). Derived
+  // purely from responses, so a returning user's sky rebuilds correctly.
+  const clearedFlags = useMemo(
+    () =>
+      constellations.map((c) => {
+        if (!respondedIds.has(c.major.read.id)) return false
+        const need = Math.min(2, c.minors.length)
+        const done = c.minors.filter((m) => respondedIds.has(m.read.id)).length
+        return done >= need
+      }),
+    [constellations, respondedIds],
+  )
+  const unlockedCount = useMemo(() => {
+    let n = Math.min(1, constellations.length)
+    while (n < constellations.length && clearedFlags[n - 1]) n++
+    return n
+  }, [constellations, clearedFlags])
+
+  // Every read of every UNLOCKED constellation — what actually renders.
+  // Remaining minis of earlier sections stay tappable forever.
+  const reads = useMemo<PlacedRead[]>(() => {
+    const out: PlacedRead[] = []
+    for (let i = 0; i < unlockedCount; i++) {
+      out.push(constellations[i].major, ...constellations[i].minors)
+    }
+    return out
+  }, [constellations, unlockedCount])
+
+  // Constellations whose reads are ALL answered wear a subtle
+  // full-saturation glow (see the marker renderer).
+  const fullyAnswered = useMemo(
+    () =>
+      constellations.map(
+        (c) =>
+          respondedIds.has(c.major.read.id) &&
+          c.minors.every((m) => respondedIds.has(m.read.id)),
+      ),
+    [constellations, respondedIds],
+  )
+
+  // The frontier always expands to CONTAIN every unlocked constellation
+  // (anchor + outermost cluster ring + margin). When a new section unlocks,
+  // this stretch is what makes its star bloom in and minis fade up (the
+  // justRevealed flare fires for everything the frontier just crossed).
+  // Persisted, so a returning user's sky rebuilds already-expanded.
+  const neededRevealR = useMemo(() => {
+    let r = BASE_REVEAL_RADIUS
+    for (let i = 0; i < unlockedCount; i++) {
+      const c = constellations[i]
+      r = Math.max(r, c.anchor.r + c.clusterR + 28)
+    }
+    return r
+  }, [constellations, unlockedCount])
+  useEffect(() => {
+    if (neededRevealR <= revealRadiusRef.current) return
+    setRevealRadius(neededRevealR)
+    if (!guest) void saveRevealRadius(neededRevealR).catch(() => {})
+  }, [neededRevealR, guest])
 
   const openRead = useCallback((r: PlacedRead) => {
     if (reactTimer.current) clearTimeout(reactTimer.current)
@@ -642,18 +800,16 @@ export function SpiralUniverse({
     return out
   }, [markerCenters])
 
-  // THE CURRENT READ — the nearest-to-center read the user hasn't responded
-  // to yet. It's the only star wearing a ring; completing it passes the ring
-  // to the next-closest unresponded read. Purely derived from response data,
-  // so the progression survives reloads and sessions.
+  // THE CURRENT READ — the ring only ever sits on the ACTIVE section's major:
+  // the deepest unlocked constellation whose star is still unanswered. Once
+  // that star is answered the ring vanishes until the next section unlocks
+  // (clearing also needs 2 minis) and its major takes it. Purely derived from
+  // response data, so the progression survives reloads and sessions.
   const currentReadId = useMemo(() => {
-    let best: PlacedRead | null = null
-    for (const r of reads) {
-      if (respondedIds.has(r.read.id)) continue
-      if (!best || r.r < best.r) best = r
-    }
-    return best?.read.id ?? null
-  }, [reads, respondedIds])
+    const active = constellations[unlockedCount - 1]
+    if (!active) return null
+    return respondedIds.has(active.major.read.id) ? null : active.major.read.id
+  }, [constellations, unlockedCount, respondedIds])
 
   // When the ring passes to a new read (not on first paint), that star blooms
   // briefly (~800ms) as its ring + color arrive.
@@ -1067,36 +1223,36 @@ export function SpiralUniverse({
           </svg>
         )}
 
-        {/* READ objects — facets of your chart in the inner ring. Tap to open.
-            Taps resolve in the stage's pointerup handler (via data-obj), since
-            pointer capture makes per-element onClick unreliable here. */}
+        {/* READ objects — section constellations: each unlocked section's
+            major star on the arm + its minor glyphs clustered around it. Tap
+            to open. Taps resolve in the stage's pointerup handler (via
+            data-obj), since pointer capture makes per-element onClick
+            unreliable here. */}
         {reads.map((r, i) => {
-          const locked = r.r > revealRadius
-          // Read progression states (exactly ONE ringed star at any moment):
-          // CURRENT   — nearest-to-center unresponded read: accent ring +
+          // Marker states within a constellation:
+          // CURRENT   — the active section's major only: section-color ring +
           //             colored star + colored glow.
-          // COMPLETED — responded (agree or disagree): bare star in its own
-          //             accent with a subtle glow; still tappable to reopen.
-          // AVAILABLE — waiting its turn: bare white glowing star, no ring.
+          // ANSWERED  — major or minor, takes the section color (minors keep
+          //             their small local fog-tint glow, now in section hue);
+          //             still tappable to reopen.
+          // UNANSWERED major — bare white glowing star, no ring.
+          // UNANSWERED minor — dim white glyph, waiting forever if need be.
           const completed = respondedIds.has(r.read.id)
           const isCurrent = r.read.id === currentReadId
           const blooming = bloomId === r.read.id
-          const starColor = locked
-            ? "#4a4e56"
-            : isCurrent || completed
-              ? r.color
-              : "#e8e4da"
+          const isMajor = r.kind === "major"
+          // Subtle full-saturation glow once a constellation is 100% answered.
+          const sectionDone = fullyAnswered[r.sectionIdx]
+          const starColor = isCurrent || completed ? r.color : isMajor ? "#e8e4da" : "#8d8a80"
           return (
             <div
-              key={r.label}
+              key={r.read.id}
               data-obj="read"
               data-obj-index={i}
               role="button"
-              tabIndex={locked ? -1 : 0}
-              aria-hidden={locked || undefined}
+              tabIndex={0}
               aria-label={`Read: ${r.label}`}
               onKeyDown={(e) => {
-                if (locked) return
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault()
                   openRead(r)
@@ -1108,47 +1264,46 @@ export function SpiralUniverse({
               style={{
                 left: px2(r.x),
                 top: px2(r.y),
-                transform: `translate(-50%, -50%) scale(${locked ? 0.78 : 1})`,
-                opacity: locked ? 0.34 : 1,
-                filter: locked ? "grayscale(0.8) blur(0.5px)" : "none",
-                pointerEvents: locked ? "none" : "auto",
-                cursor: locked ? "default" : "pointer",
+                transform: "translate(-50%, -50%)",
+                cursor: "pointer",
                 transition:
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
               <span
-                className={`flex items-center justify-center rounded-full leading-none transition-all duration-500 group-hover:brightness-150${
-                  locked ? "" : " animate-object-pulse"
-                }${blooming ? " animate-current-bloom" : ""}`}
+                className={`flex items-center justify-center rounded-full leading-none transition-all duration-500 group-hover:brightness-150 animate-object-pulse${
+                  blooming ? " animate-current-bloom" : ""
+                }`}
                 style={{
-                  // The ringed CURRENT star: its glyph fills ~60-65% of the
-                  // circle (20px in a 31px ring). Bare stars are slightly
-                  // smaller, proportional.
-                  width: 31,
-                  height: 31,
-                  backgroundColor: isCurrent && !locked ? "#050505" : "transparent",
-                  border:
-                    isCurrent && !locked
-                      ? `1.5px solid ${r.color}`
-                      : "1.5px solid transparent",
+                  // Major: the ringed CURRENT star's glyph fills ~60-65% of
+                  // the circle (20px in a 31px ring); bare stars proportional.
+                  // Minor: a smaller badge around the fragment's sigil.
+                  width: isMajor ? 31 : 24,
+                  height: isMajor ? 31 : 24,
+                  backgroundColor: isCurrent ? "#050505" : "transparent",
+                  border: isCurrent
+                    ? `1.5px solid ${r.color}`
+                    : "1.5px solid transparent",
                   color: starColor,
                   fontFamily: monoFont,
-                  fontSize: isCurrent && !locked ? 20 : 16,
-                  textShadow: locked
-                    ? "none"
-                    : completed
-                      ? `0 0 8px ${r.color}, 0 0 18px ${r.color}99`
-                      : isCurrent
-                        ? `0 0 8px ${r.color}, 0 0 18px ${r.color}`
-                        : `0 0 8px #e8e4da, 0 0 16px #e8e4da66`,
-                  boxShadow:
-                    isCurrent && !locked
-                      ? `0 0 10px ${r.color}, 0 0 20px ${r.color}66`
-                      : "none",
+                  fontSize: isMajor ? (isCurrent ? 20 : 16) : 10,
+                  letterSpacing: isMajor ? undefined : "-0.5px",
+                  whiteSpace: "nowrap",
+                  textShadow: completed
+                    ? sectionDone
+                      ? `0 0 6px ${r.color}, 0 0 14px ${r.color}, 0 0 26px ${r.color}88`
+                      : `0 0 8px ${r.color}, 0 0 18px ${r.color}99`
+                    : isCurrent
+                      ? `0 0 8px ${r.color}, 0 0 18px ${r.color}`
+                      : isMajor
+                        ? `0 0 8px #e8e4da, 0 0 16px #e8e4da66`
+                        : "0 0 6px #8d8a8055",
+                  boxShadow: isCurrent
+                    ? `0 0 10px ${r.color}, 0 0 20px ${r.color}66`
+                    : "none",
                 }}
               >
-                {"\u2605"}
+                {isMajor ? "\u2605" : r.glyph}
               </span>
             </div>
           )

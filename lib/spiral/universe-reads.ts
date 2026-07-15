@@ -14,6 +14,9 @@ export type UniverseFragment = {
   /** authored vibe of the read (gentle | confronting | hopeful | ...) —
       drives the creature's behavior in the read-open scene */
   tone: string | null
+  /** which chart section this read belongs to (see lib/spiral/sections.ts);
+      null falls back to the "chapter" grouping */
+  section: string | null
   life_domain: string | null
   trigger_type: string | null
   condition: unknown
