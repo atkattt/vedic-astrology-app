@@ -300,17 +300,14 @@ export function SpiralUniverse({
     try {
       const raw =
         localStorage.getItem(CHART_KEY) ?? sessionStorage.getItem(CHART_KEY)
-      console.log("[v0] guest chart raw present:", !!raw, "fragments:", guestFragments.length)
       if (!raw) return
       const chart = JSON.parse(raw) as Chart
       const matched = matchFragments(
         chart,
         guestFragments as unknown as Fragment[],
       ) as unknown as UniverseFragment[]
-      console.log("[v0] guest matched:", matched.length, matched.map((m) => m.title))
       setGuestMatched(matched)
-    } catch (e) {
-      console.log("[v0] guest match error:", e)
+    } catch {
       // no stashed chart / bad JSON — the guest universe simply has no reads
     }
   }, [guest, guestFragments])
