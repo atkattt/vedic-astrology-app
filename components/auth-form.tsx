@@ -25,17 +25,27 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setGoogleLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOAuth({
+    // Google blocks its sign-in page inside iframes ("content is blocked").
+    // In an iframe (e.g. the v0 preview) we must open the flow in a new tab,
+    // so get the URL without auto-redirecting and navigate manually.
+    const inIframe = window.self !== window.top
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/circle`,
+        skipBrowserRedirect: inIframe,
       },
     })
     if (error) {
       setError(error.message || "Could not continue with Google")
       setGoogleLoading(false)
+      return
     }
-    // On success the browser navigates away to Google — no further state.
+    if (inIframe && data?.url) {
+      window.open(data.url, "_blank", "noopener,noreferrer")
+      setGoogleLoading(false)
+    }
+    // Outside an iframe the browser navigates away to Google — no further state.
   }
 
   async function handleSubmit(e: React.FormEvent) {
