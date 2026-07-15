@@ -26,24 +26,35 @@ const STAGES = [
 const glowText = { color: "#000" }
 
 const LOADER_GLYPHS = ["·", ":", "+", "*", "#", "✦", "=", "/", "\\"]
-const DISPLAY_WIDTH = "READY?".length
+const READY_WORD = "READY?"
+const READY_ASCII = ["#", "*", "+", ":", "·", "/"]
+const DISPLAY_WIDTH = READY_WORD.length
 
-/** A single, stable-width ASCII line that mutates continuously until unmounted. */
-function AsciiLineLoader() {
+/**
+ * One continuous ASCII display shared by both states, so there is never a
+ * remount. While loading, all six cells mutate randomly. When `ready` flips,
+ * cells resolve into their READY? letters one at a time (left to right) while
+ * the still-unresolved cells keep mutating — the word emerges from the noise.
+ * Fully-resolved letters then continue into the gentle infinite flicker loop.
+ */
+function AsciiMorphDisplay({ ready }: { ready: boolean }) {
   const [glyphs, setGlyphs] = useState(() =>
     Array.from({ length: DISPLAY_WIDTH }, (_, i) => LOADER_GLYPHS[i]),
   )
+  // How many cells (from the left) have locked into their final letter.
+  const [resolved, setResolved] = useState(0)
 
+  // Loading mutation: scramble only the cells that haven't resolved yet.
   useEffect(() => {
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
-    if (reduceMotion) return
+    if (reduceMotion || resolved >= DISPLAY_WIDTH) return
 
     const timer = window.setInterval(() => {
       setGlyphs((previous) => {
         const next = [...previous]
         const changes = Math.random() < 0.35 ? 2 : 1
         for (let i = 0; i < changes; i++) {
-          const position = Math.floor(Math.random() * next.length)
+          const position = resolved + Math.floor(Math.random() * (next.length - resolved))
           let glyph = LOADER_GLYPHS[Math.floor(Math.random() * LOADER_GLYPHS.length)]
           while (glyph === next[position]) {
             glyph = LOADER_GLYPHS[Math.floor(Math.random() * LOADER_GLYPHS.length)]
@@ -55,35 +66,83 @@ function AsciiLineLoader() {
     }, 110)
 
     return () => window.clearInterval(timer)
-  }, [])
+  }, [resolved])
+
+  // Resolution: once ready, lock one more cell into its letter every ~150ms.
+  useEffect(() => {
+    if (!ready) return
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    if (reduceMotion) {
+      setResolved(DISPLAY_WIDTH)
+      return
+    }
+    if (resolved >= DISPLAY_WIDTH) return
+
+    const timer = window.setTimeout(() => setResolved((r) => r + 1), 150)
+    return () => window.clearTimeout(timer)
+  }, [ready, resolved])
+
+  const settled = resolved >= DISPLAY_WIDTH
 
   return (
     <span
-      aria-label="Reading your chart"
+      aria-label={ready ? "Ready?" : "Reading your chart"}
       style={{
         display: "flex",
         color: "#fff",
         fontFamily: '"Geist Pixel", sans-serif',
         fontSize: 22,
         lineHeight: 1,
+        textTransform: "uppercase",
         textAlign: "center",
         whiteSpace: "nowrap",
         textShadow: "0 0 8px rgba(255,255,255,0.35)",
       }}
     >
-      {glyphs.map((glyph, index) => (
-        <span
-          key={index}
-          aria-hidden="true"
-          style={{
-            display: "inline-grid",
-            width: "0.9em",
-            placeItems: "center",
-          }}
-        >
-          {glyph}
-        </span>
-      ))}
+      {Array.from({ length: DISPLAY_WIDTH }, (_, index) => {
+        const isResolved = index < resolved
+        return (
+          <span
+            key={index}
+            aria-hidden="true"
+            style={{
+              position: "relative",
+              display: "inline-grid",
+              width: "0.9em",
+              placeItems: "center",
+            }}
+          >
+            {settled ? (
+              <>
+                <span
+                  className="ready-letter"
+                  style={{ animation: `readyLetter 2.8s steps(1, end) ${index * 110}ms infinite` }}
+                >
+                  {READY_WORD[index]}
+                </span>
+                <span
+                  className="ready-ascii"
+                  style={{
+                    position: "absolute",
+                    animation: `readyAscii 2.8s steps(1, end) ${index * 110}ms infinite`,
+                  }}
+                >
+                  {READY_ASCII[index]}
+                </span>
+              </>
+            ) : (
+              <span
+                style={{
+                  transition: "opacity 220ms ease",
+                  opacity: isResolved ? 1 : 0.85,
+                }}
+              >
+                {isResolved ? READY_WORD[index] : glyphs[index]}
+              </span>
+            )}
+          </span>
+        )
+      })}
     </span>
   )
 }
@@ -230,51 +289,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             }}
             aria-hidden={ready ? undefined : "true"}
           >
-            {/* While the chart reads, one stable ASCII line mutates infinitely.
-                Once ready it unmounts and resolves into the animated "READY?". */}
-            {ready && !error ? (
-              <span
-                aria-label="Ready?"
-                style={{
-                  display: "flex",
-                  fontFamily: '"Geist Pixel", sans-serif',
-                  color: "#fff",
-                  fontSize: 22,
-                  textTransform: "uppercase",
-                }}
-              >
-                {[..."READY?"].map((letter, index) => (
-                  <span
-                    key={`${letter}-${index}`}
-                    aria-hidden="true"
-                    style={{
-                      position: "relative",
-                      display: "inline-grid",
-                      width: "0.9em",
-                      placeItems: "center",
-                    }}
-                  >
-                    <span
-                      className="ready-letter"
-                      style={{ animation: `readyLetter 2.8s steps(1, end) ${index * 110}ms infinite` }}
-                    >
-                      {letter}
-                    </span>
-                    <span
-                      className="ready-ascii"
-                      style={{
-                        position: "absolute",
-                        animation: `readyAscii 2.8s steps(1, end) ${index * 110}ms infinite`,
-                      }}
-                    >
-                      {["#", "*", "+", ":", "·", "/"][index]}
-                    </span>
-                  </span>
-                ))}
-              </span>
-            ) : (
-              <AsciiLineLoader />
-            )}
+            {/* One continuous ASCII line: mutates while the chart reads, then
+                resolves cell-by-cell into "READY?" — no remount, no jump. */}
+            <AsciiMorphDisplay ready={ready && !error} />
           </div>
 
           {/* Cycling status line — shows the loading stages, or the error
