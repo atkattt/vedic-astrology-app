@@ -27,7 +27,15 @@ const smooth = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t)
 }
 
-export default function AsciiSpiral({ size = 150 }: { size?: number }) {
+export default function AsciiSpiral({
+  size = 150,
+  tone = "dark",
+}: {
+  size?: number
+  // "dark": black glyphs for the grey-glass hero.
+  // "light": near-white glowing glyphs, for use inside the black self-avatar disc.
+  tone?: "dark" | "light"
+}) {
   const ref = useRef<HTMLPreElement | null>(null)
   const rafRef = useRef<number | null>(null)
 
@@ -131,14 +139,17 @@ export default function AsciiSpiral({ size = 150 }: { size?: number }) {
         fontSize: `${fontPx}px`,
         lineHeight: 0.92,
         letterSpacing: 0,
-        // Dark glyphs to match the /onboarding ASCII sky (black-on-grey glass)
-        // instead of the old glowing-white treatment.
-        color: "#141414",
+        // Dark glyphs match the /onboarding ASCII sky (black-on-grey glass);
+        // light glyphs glow near-white for use inside the black avatar disc.
+        color: tone === "light" ? "oklch(0.97 0 0)" : "#141414",
         whiteSpace: "pre",
         userSelect: "none",
         pointerEvents: "none",
         overflow: "hidden",
-        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
+        filter:
+          tone === "light"
+            ? "drop-shadow(0 0 6px oklch(0.97 0 0 / 0.55))"
+            : "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
       }}
     />
   )
