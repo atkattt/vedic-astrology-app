@@ -30,11 +30,12 @@ export default function OnboardingPage() {
       <TerminalOnboarding
         onComplete={(data) => {
         // Birth-data ritual is done. Stash the answers so the account step can
-        // read them once we wire it back up later in the flow.
+        // read them. localStorage (not sessionStorage) so the stash survives
+        // sign-in flows that land in a new tab (email confirm link, OAuth).
         try {
-          sessionStorage.setItem("spiral_birth_data", JSON.stringify(data))
+          localStorage.setItem("spiral_birth_data", JSON.stringify(data))
         } catch {
-          // sessionStorage may be unavailable (private mode); proceed anyway.
+          // localStorage may be unavailable (private mode); proceed anyway.
         }
         // The birth-data ritual is done. Hand off to the threshold screen,
         // where the chart "reads" (loads) while the visitor can read the

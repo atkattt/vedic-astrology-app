@@ -50,8 +50,13 @@ export function BirthChartBootstrap() {
       } | null = null
 
       try {
-        const rawNorm = sessionStorage.getItem(BIRTH_NORMALIZED_KEY)
-        const rawChart = sessionStorage.getItem(CHART_KEY)
+        // localStorage first (survives new-tab sign-in flows like the email
+        // confirm link or OAuth); sessionStorage as a legacy fallback.
+        const rawNorm =
+          localStorage.getItem(BIRTH_NORMALIZED_KEY) ??
+          sessionStorage.getItem(BIRTH_NORMALIZED_KEY)
+        const rawChart =
+          localStorage.getItem(CHART_KEY) ?? sessionStorage.getItem(CHART_KEY)
         if (rawNorm && rawChart) {
           normalized = JSON.parse(rawNorm)
           chart = JSON.parse(rawChart)
@@ -93,9 +98,10 @@ export function BirthChartBootstrap() {
 
         // Only clear on success so a transient failure can retry next load.
         if (res.status === "saved") {
-          sessionStorage.removeItem(BIRTH_DATA_KEY)
-          sessionStorage.removeItem(BIRTH_NORMALIZED_KEY)
-          sessionStorage.removeItem(CHART_KEY)
+          for (const key of [BIRTH_DATA_KEY, BIRTH_NORMALIZED_KEY, CHART_KEY]) {
+            localStorage.removeItem(key)
+            sessionStorage.removeItem(key)
+          }
         } else if (res.status !== "unauthenticated") {
           console.log("[v0] persistBirthChart:", res)
         }

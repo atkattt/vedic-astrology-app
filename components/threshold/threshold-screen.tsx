@@ -171,7 +171,11 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
     // place, then ask the chart engine (the brain) to compute the chart.
     async function computeChart() {
       try {
-        const rawStr = sessionStorage.getItem(BIRTH_DATA_KEY)
+        // localStorage first (current flow); sessionStorage as a fallback for
+        // visitors who started onboarding before the storage switch.
+        const rawStr =
+          localStorage.getItem(BIRTH_DATA_KEY) ??
+          sessionStorage.getItem(BIRTH_DATA_KEY)
         if (!rawStr) {
           throw new Error("we lost your birth details — begin again")
         }
@@ -205,8 +209,9 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
         }
 
         // Stash the computed chart + resolved location so the account step and
-        // the spiral can use them.
-        sessionStorage.setItem(
+        // the spiral can use them. localStorage so the stash survives sign-in
+        // flows that land in a new tab (email confirm link, OAuth).
+        localStorage.setItem(
           BIRTH_NORMALIZED_KEY,
           JSON.stringify({
             ...norm,
@@ -217,7 +222,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             timezone: geo.timezone,
           }),
         )
-        sessionStorage.setItem(CHART_KEY, JSON.stringify(chart))
+        localStorage.setItem(CHART_KEY, JSON.stringify(chart))
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "the read failed")
