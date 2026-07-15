@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import SwirlCloudSky from "@/components/SwirlCloudSky"
 import AsciiRippleSky from "@/components/AsciiRippleSky"
 import { StoryReadCards } from "@/components/threshold/story-read-cards"
-import AsciiSpiral from "@/components/threshold/ascii-spiral"
 import {
   BIRTH_DATA_KEY,
   BIRTH_NORMALIZED_KEY,
@@ -25,6 +24,58 @@ const STAGES = [
 // Solid-black accent to match the onboarding glass aesthetic (black text on a
 // translucent grey card — no glow). Reused for emphasis words and the CTA.
 const glowText = { color: "#000" }
+
+const LOADER_GLYPHS = ["·", ":", "+", "*", "#", "✦", "=", "/", "\\"]
+const LOADER_WIDTH = 9
+
+/** A single, stable-width ASCII line that mutates continuously until unmounted. */
+function AsciiLineLoader() {
+  const [glyphs, setGlyphs] = useState(() => Array.from({ length: LOADER_WIDTH }, (_, i) => LOADER_GLYPHS[i]))
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    if (reduceMotion) return
+
+    const timer = window.setInterval(() => {
+      setGlyphs((previous) => {
+        const next = [...previous]
+        const changes = Math.random() < 0.35 ? 2 : 1
+        for (let i = 0; i < changes; i++) {
+          const position = Math.floor(Math.random() * next.length)
+          let glyph = LOADER_GLYPHS[Math.floor(Math.random() * LOADER_GLYPHS.length)]
+          while (glyph === next[position]) {
+            glyph = LOADER_GLYPHS[Math.floor(Math.random() * LOADER_GLYPHS.length)]
+          }
+          next[position] = glyph
+        }
+        return next
+      })
+    }, 110)
+
+    return () => window.clearInterval(timer)
+  }, [])
+
+  return (
+    <span
+      aria-label="Reading your chart"
+      className="font-mono"
+      style={{
+        display: "block",
+        width: "9ch",
+        color: "#fff",
+        fontFamily: '"Geist Pixel", monospace',
+        fontSize: 20,
+        lineHeight: 1,
+        letterSpacing: "0.12em",
+        textAlign: "center",
+        whiteSpace: "nowrap",
+        textShadow: "0 0 8px rgba(255,255,255,0.35)",
+      }}
+    >
+      <span aria-hidden="true">{glyphs.join("")}</span>
+    </span>
+  )
+}
 
 export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
   const [stage, setStage] = useState(0)
@@ -168,9 +219,8 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
             }}
             aria-hidden={ready ? undefined : "true"}
           >
-            {/* While the chart reads, the loading spiral animates. Once ready,
-                the spiral stops (unmounts) and a "READY?" label appears in the
-                same Geist Pixel font as the rest of the copy for consistency. */}
+            {/* While the chart reads, one stable ASCII line mutates infinitely.
+                Once ready it unmounts and resolves into the animated "READY?". */}
             {ready && !error ? (
               <span
                 aria-label="Ready?"
@@ -212,7 +262,7 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
                 ))}
               </span>
             ) : (
-              <AsciiSpiral size={150} tone="light" />
+              <AsciiLineLoader />
             )}
           </div>
 
