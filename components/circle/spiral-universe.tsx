@@ -157,6 +157,8 @@ type Glyph = {
   x: number
   y: number
   r: number
+  /** spiral parameter of this glyph's sample — gates the drawn extent */
+  t: number
   char: string
   size: number
   /** lit opacity target once inside the frontier */
@@ -169,44 +171,22 @@ type Glyph = {
 }
 
 // READ objects — the user's MATCHED FRAGMENTS (same pipeline as /self) —
-// organized into SECTION CONSTELLATIONS. Each section (ascendant → moon → sun
-// → knot → nodes → chapter; see lib/spiral/sections.ts) is one constellation:
-// its MAJOR read (weight >= 7, star marker) sits ON the spiral arm, its MINOR
-// reads (weight < 7, glyph markers) cluster on rings around that star.
-// Sections bead outward along the arm in the fixed order, with the arc gap
-// between anchors widened to fit both neighbors' clusters — no overlaps at
-// any mini count.
+// beaded along the spiral arm as ONE LINEAR PATH in walking order: section 1's
+// major star, then its minis one after another ALONG the arm, then section 2's
+// star, its minis, and so on (section order: ascendant → moon → sun → knot →
+// nodes → chapter; see lib/spiral/sections.ts). No clusters — the sequence IS
+// the path, and the ringed cursor walks it one read at a time.
 const READ_T_START = 0.3
 const MAJOR_WEIGHT = 7
-
-// Minor cluster rings around a section's star: ring k holds 6+4k glyphs at
-// radius 40+28k. Ring circumference / slots stays >= ~42 world units, well
-// clear of a glyph badge (~24px), for ANY number of minis.
-function minorOffset(i: number, sectionIdx: number) {
-  let idx = i
-  let ring = 0
-  while (idx >= 6 + 4 * ring) {
-    idx -= 6 + 4 * ring
-    ring++
-  }
-  const slots = 6 + 4 * ring
-  const radius = 40 + 28 * ring
-  // Stagger each section + ring so clusters never share a rigid grid look.
-  const angle = (idx / slots) * Math.PI * 2 + sectionIdx * 0.9 + ring * 0.45
-  return { dx: radius * Math.cos(angle), dy: radius * Math.sin(angle) }
-}
-
-/** Outermost occupied ring radius for a cluster of `count` minis. */
-function clusterRadiusFor(count: number): number {
-  if (count <= 0) return 0
-  let left = count
-  let ring = 0
-  while (left > 6 + 4 * ring) {
-    left -= 6 + 4 * ring
-    ring++
-  }
-  return 40 + 28 * ring
-}
+// Arc length (world units) between consecutive reads in the sequence — even
+// spacing, comfortably clear of the widest badge (31px).
+const READ_ARC_GAP = 46
+// Extra arc breathing room between one section's last read and the next
+// section's star, so sections read as distinct runs along the path.
+const SECTION_ARC_GAP = 86
+// The drawn spiral's tail: how much extra arc of sparse fog trails past the
+// last placed read before fading out (implying more beyond).
+const SPIRAL_TAIL_ARC = 150
 
 /** Advance t along the spiral by `arc` world units (small Euler steps). */
 function advanceT(t: number, arc: number): number {
@@ -254,16 +234,16 @@ type PlacedRead = {
   sectionIdx: number
 }
 
-type Constellation = {
+type SectionRun = {
   key: SectionKey
   idx: number
   color: string
-  /** anchor (major star) position on the arm */
-  anchor: { x: number; y: number; r: number }
-  /** outermost cluster ring radius (0 when no minis) */
-  clusterR: number
-  major: PlacedRead
-  minors: PlacedRead[]
+  /** this section's reads in walking order (major first, then minis) */
+  reads: PlacedRead[]
+  /** spiral parameter of this section's last read */
+  endT: number
+  /** radius of this section's outermost read */
+  endR: number
 }
 type PlacedPerson = {
   person: Person
@@ -449,13 +429,13 @@ export function SpiralUniverse({
     setReactColor(null)
   }, [])
 
-  // SECTION CONSTELLATIONS — fragments grouped by section (fixed order), each
-  // group's heaviest weight>=7 read the major star ON the arm, the rest
-  // clustered glyphs around it. Every read still carries the panel content
-  // (authored title + body EXACTLY as written, trigger in plain words, sigil)
-  // and a Read whose id IS the fragment id, so agree/disagree persists to
-  // read_responses and /self shows the same state.
-  const constellations = useMemo<Constellation[]>(() => {
+  // THE SEQUENCE — fragments grouped by section (fixed order), each section's
+  // heaviest weight>=7 read its major star, then its minis, ALL beaded one
+  // after another along the arm in walking order. Every read still carries
+  // the panel content (authored title + body EXACTLY as written, trigger in
+  // plain words, sigil) and a Read whose id IS the fragment id, so
+  // agree/disagree persists to read_responses and /self shows the same state.
+  const sections = useMemo<SectionRun[]>(() => {
     const groups = new Map<SectionKey, UniverseFragment[]>()
     for (const f of fragments) {
       const key = sectionOf(f.section)
@@ -465,132 +445,167 @@ export function SpiralUniverse({
     }
     const present = SECTION_ORDER.filter((s) => groups.has(s))
 
-    const toPlaced = (
-      f: UniverseFragment,
-      x: number,
-      y: number,
-      color: string,
-      kind: "major" | "minor",
-      key: SectionKey,
-      idx: number,
-    ): PlacedRead => ({
-      label: f.title,
-      x,
-      y,
-      r: Math.hypot(x, y),
-      color,
-      panel: {
-        src: describeTrigger(f),
-        title: f.title,
-        body: f.body,
-        accent: color,
-        symbol: symbolFor(f),
-      },
-      read: { id: f.id, category: "about-you", text: f.body },
-      mood: moodForRead(f.tone, f.life_domain),
-      kind,
-      glyph: symbolFor(f),
-      sectionKey: key,
-      sectionIdx: idx,
-    })
-
     let t = READ_T_START
-    let prevClusterR = 0
     return present.map((key, idx) => {
-      // Weight sorts majors first; within a section the heaviest weight>=7
-      // read is THE major. If none reaches the threshold, the heaviest read
-      // stands in so every section still has its anchor star.
+      // Weight sorts; the heaviest weight>=7 read is THE major (heaviest
+      // overall stands in when none reaches the threshold), the rest follow
+      // as minis in weight order.
       const frags = [...groups.get(key)!].sort(
         (a, b) => (b.weight ?? 0) - (a.weight ?? 0),
       )
       const majorIdx = frags.findIndex((f) => (f.weight ?? 0) >= MAJOR_WEIGHT)
       const majorFrag = frags[majorIdx === -1 ? 0 : majorIdx]
-      const minorFrags = frags.filter((f) => f !== majorFrag)
-      const clusterR = clusterRadiusFor(minorFrags.length)
-
-      // Widen the arc gap so this cluster clears the previous one, plus a
-      // badge-and-breathing margin.
-      if (idx > 0) t = advanceT(t, Math.max(96, prevClusterR + clusterR + 56))
-      prevClusterR = clusterR
-
-      const anchorPt = spiralPoint(t)
+      const ordered = [majorFrag, ...frags.filter((f) => f !== majorFrag)]
       const color = SECTION_COLORS[key]
-      const major = toPlaced(majorFrag, anchorPt.x, anchorPt.y, color, "major", key, idx)
-      const minors = minorFrags.map((f, i) => {
-        const { dx, dy } = minorOffset(i, idx)
-        return toPlaced(f, anchorPt.x + dx, anchorPt.y + dy, color, "minor", key, idx)
+
+      if (idx > 0) t = advanceT(t, SECTION_ARC_GAP)
+      const reads = ordered.map((f, j) => {
+        if (j > 0) t = advanceT(t, READ_ARC_GAP)
+        const pt = spiralPoint(t)
+        return {
+          label: f.title,
+          x: pt.x,
+          y: pt.y,
+          r: Math.hypot(pt.x, pt.y),
+          color,
+          panel: {
+            src: describeTrigger(f),
+            title: f.title,
+            body: f.body,
+            accent: color,
+            symbol: symbolFor(f),
+          },
+          read: { id: f.id, category: "about-you" as const, text: f.body },
+          mood: moodForRead(f.tone, f.life_domain),
+          kind: j === 0 ? ("major" as const) : ("minor" as const),
+          glyph: symbolFor(f),
+          sectionKey: key,
+          sectionIdx: idx,
+        }
       })
       return {
         key,
         idx,
         color,
-        anchor: { x: anchorPt.x, y: anchorPt.y, r: Math.hypot(anchorPt.x, anchorPt.y) },
-        clusterR,
-        major,
-        minors,
+        reads,
+        endT: t,
+        endR: reads[reads.length - 1].r,
       }
     })
   }, [fragments])
 
   // Progressive appearance: section 1 is present from first arrival; each
-  // next constellation appears when the previous is CLEARED — major answered
-  // + at least 2 minis (or all of them, when fewer than 2 exist). Derived
-  // purely from responses, so a returning user's sky rebuilds correctly.
+  // next section is PLACED when the previous is cleared — major answered +
+  // at least 2 minis (or all of them, when fewer exist). Derived purely from
+  // responses, so a returning user's sky rebuilds correctly.
   const clearedFlags = useMemo(
     () =>
-      constellations.map((c) => {
-        if (!respondedIds.has(c.major.read.id)) return false
-        const need = Math.min(2, c.minors.length)
-        const done = c.minors.filter((m) => respondedIds.has(m.read.id)).length
+      sections.map((s) => {
+        const [major, ...minors] = s.reads
+        if (!respondedIds.has(major.read.id)) return false
+        const need = Math.min(2, minors.length)
+        const done = minors.filter((m) => respondedIds.has(m.read.id)).length
         return done >= need
       }),
-    [constellations, respondedIds],
+    [sections, respondedIds],
   )
   const unlockedCount = useMemo(() => {
-    let n = Math.min(1, constellations.length)
-    while (n < constellations.length && clearedFlags[n - 1]) n++
+    let n = Math.min(1, sections.length)
+    while (n < sections.length && clearedFlags[n - 1]) n++
     return n
-  }, [constellations, clearedFlags])
+  }, [sections, clearedFlags])
 
-  // Every read of every UNLOCKED constellation — what actually renders.
-  // Remaining minis of earlier sections stay tappable forever.
+  // SPIRAL EXTENSION — the drawn spiral initially only reaches far enough to
+  // hold the first 3 sections (+ a sparse fading tail implying more). When
+  // section 3 is completed the spiral GROWS: fog glyphs draw in progressively
+  // outward (the ~2s luminous crawl below) to hold sections 4-6.
+  const initialTEnd = useMemo(() => {
+    const holdIdx = Math.min(2, sections.length - 1)
+    const endT = sections[holdIdx]?.endT ?? READ_T_START
+    return Math.min(GLYPH_T_END, advanceT(endT, SPIRAL_TAIL_ARC))
+  }, [sections])
+  const spiralExtended =
+    sections.length <= 3 || (clearedFlags.length > 2 && unlockedCount > 3)
+  const visibleTEnd = spiralExtended ? GLYPH_T_END : initialTEnd
+
+  // Live growth: when spiralExtended flips during the session (not on a
+  // rebuilt returning-user sky), stagger the new glyphs' fade-in outward
+  // over ~2s so the arm visibly crawls into the dark.
+  const [crawling, setCrawling] = useState(false)
+  const prevExtendedRef = useRef<boolean | null>(null)
+  useEffect(() => {
+    const prev = prevExtendedRef.current
+    prevExtendedRef.current = spiralExtended
+    if (prev === false && spiralExtended) {
+      setCrawling(true)
+      const t = setTimeout(() => setCrawling(false), 3400)
+      return () => clearTimeout(t)
+    }
+  }, [spiralExtended])
+
+  // Fog visibility vs the drawn extent: 1 well inside, thinning to 0 across
+  // the last ~0.12 of t before the edge (the sparse fade-out tail).
+  const extFade = (t: number) => {
+    const fadeStart = visibleTEnd - 0.12
+    if (t <= fadeStart) return 1
+    if (t >= visibleTEnd) return 0
+    return 1 - (t - fadeStart) / 0.12
+  }
+  // During the growth crawl, new fog (t past the old edge) fades in staggered
+  // outward across ~2s — the luminous crawl.
+  const crawlDelay = (t: number) =>
+    crawling && t > initialTEnd
+      ? ((t - initialTEnd) / Math.max(0.01, GLYPH_T_END - initialTEnd)) * 2
+      : 0
+
+  // Every read of every PLACED section — what actually renders. Unanswered
+  // minis behind the cursor stay tappable forever.
   const reads = useMemo<PlacedRead[]>(() => {
     const out: PlacedRead[] = []
-    for (let i = 0; i < unlockedCount; i++) {
-      out.push(constellations[i].major, ...constellations[i].minors)
-    }
+    for (let i = 0; i < unlockedCount; i++) out.push(...sections[i].reads)
     return out
-  }, [constellations, unlockedCount])
+  }, [sections, unlockedCount])
 
-  // Constellations whose reads are ALL answered wear a subtle
-  // full-saturation glow (see the marker renderer).
+  // Sections whose reads are ALL answered wear a subtle full-saturation glow
+  // (see the marker renderer).
   const fullyAnswered = useMemo(
-    () =>
-      constellations.map(
-        (c) =>
-          respondedIds.has(c.major.read.id) &&
-          c.minors.every((m) => respondedIds.has(m.read.id)),
-      ),
-    [constellations, respondedIds],
+    () => sections.map((s) => s.reads.every((r) => respondedIds.has(r.read.id))),
+    [sections, respondedIds],
   )
 
-  // The frontier always expands to CONTAIN every unlocked constellation
-  // (anchor + outermost cluster ring + margin). When a new section unlocks,
-  // this stretch is what makes its star bloom in and minis fade up (the
-  // justRevealed flare fires for everything the frontier just crossed).
-  // Persisted, so a returning user's sky rebuilds already-expanded.
+  // The frontier always expands to CONTAIN every placed section (its
+  // outermost read + margin). When a new section is placed, this stretch is
+  // what makes its star bloom in (the justRevealed flare fires for everything
+  // the frontier just crossed). The expansion is TWEENED over ~2s so the fog
+  // reveal follows the same pacing as the spiral-growth crawl. Persisted, so
+  // a returning user's sky rebuilds already-expanded.
   const neededRevealR = useMemo(() => {
     let r = BASE_REVEAL_RADIUS
     for (let i = 0; i < unlockedCount; i++) {
-      const c = constellations[i]
-      r = Math.max(r, c.anchor.r + c.clusterR + 28)
+      r = Math.max(r, sections[i].endR + 28)
     }
     return r
-  }, [constellations, unlockedCount])
+  }, [sections, unlockedCount])
   useEffect(() => {
-    if (neededRevealR <= revealRadiusRef.current) return
-    setRevealRadius(neededRevealR)
+    const from = revealRadiusRef.current
+    if (neededRevealR <= from) return
     if (!guest) void saveRevealRadius(neededRevealR).catch(() => {})
+    // Small jumps land immediately; big ones (a new section) ease outward in
+    // steps over ~2s, matching the crawl.
+    if (neededRevealR - from < 80) {
+      setRevealRadius(neededRevealR)
+      return
+    }
+    const STEPS = 8
+    let step = 0
+    const iv = setInterval(() => {
+      step++
+      const p = step / STEPS
+      const eased = 1 - (1 - p) * (1 - p)
+      setRevealRadius(from + (neededRevealR - from) * eased)
+      if (step >= STEPS) clearInterval(iv)
+    }, 250)
+    return () => clearInterval(iv)
   }, [neededRevealR, guest])
 
   const openRead = useCallback((r: PlacedRead) => {
@@ -787,6 +802,7 @@ export function SpiralUniverse({
             x,
             y,
             r: dist,
+            t,
             char: NEBULA_CHARS[Math.floor(rand() * NEBULA_CHARS.length)],
             size: 7 + Math.min(t, 1.5) * 7 + rand() * 4,
             max: (0.34 + rand() * 0.54) * edgeFade * widthFade,
@@ -800,16 +816,16 @@ export function SpiralUniverse({
     return out
   }, [markerCenters])
 
-  // THE CURRENT READ — the ring only ever sits on the ACTIVE section's major:
-  // the deepest unlocked constellation whose star is still unanswered. Once
-  // that star is answered the ring vanishes until the next section unlocks
-  // (clearing also needs 2 minis) and its major takes it. Purely derived from
-  // response data, so the progression survives reloads and sessions.
+  // THE CURSOR — the ring sits on the FIRST unanswered read in the walking
+  // sequence, major or mini alike, and moves one read at a time as answers
+  // land. Purely derived from response data, so a returning user's cursor
+  // reconstructs at their true position.
   const currentReadId = useMemo(() => {
-    const active = constellations[unlockedCount - 1]
-    if (!active) return null
-    return respondedIds.has(active.major.read.id) ? null : active.major.read.id
-  }, [constellations, unlockedCount, respondedIds])
+    for (const r of reads) {
+      if (!respondedIds.has(r.read.id)) return r.read.id
+    }
+    return null
+  }, [reads, respondedIds])
 
   // When the ring passes to a new read (not on first paint), that star blooms
   // briefly (~800ms) as its ring + color arrive.
@@ -1127,6 +1143,7 @@ export function SpiralUniverse({
         >
           {glyphs.map((g) => {
             const lit = g.r <= revealRadius
+            const ext = extFade(g.t)
             const spread = justRevealed(g.r)
               ? Math.min(0.6, Math.max(0, (g.r - prevRevealRef.current) / REVEAL_STEP) * 0.6)
               : 0
@@ -1144,9 +1161,9 @@ export function SpiralUniverse({
                   lineHeight: 1,
                   color: "#bdd6ee",
                   transform: "translate(-50%, -50%)",
-                  opacity: lit ? Math.min(1, g.max * 3.4) : 0,
+                  opacity: lit ? Math.min(1, g.max * 3.4) * ext : 0,
                   transition: "opacity 1.2s ease",
-                  transitionDelay: `${spread}s`,
+                  transitionDelay: `${Math.max(spread, crawlDelay(g.t))}s`,
                 }}
               >
                 {g.char}
@@ -1164,6 +1181,7 @@ export function SpiralUniverse({
             Positions are deterministic (seeded RNG), so SSR + client agree. */}
         {glyphs.map((g) => {
           const lit = g.r <= revealRadius
+          const ext = extFade(g.t)
           const spread = justRevealed(g.r)
             ? Math.min(0.6, Math.max(0, (g.r - prevRevealRef.current) / REVEAL_STEP) * 0.6)
             : 0
@@ -1181,16 +1199,19 @@ export function SpiralUniverse({
                 lineHeight: 1,
                 color: lit ? g.tone : "#4b515b",
                 transform: "translate(-50%, -50%)",
-                opacity: lit ? undefined : Math.min(0.22, g.max * 0.6),
+                // Beyond the drawn spiral's current extent (ext → 0) the fog
+                // simply doesn't exist yet; the last stretch before the edge
+                // thins out as sparse embers implying more.
+                opacity: lit ? undefined : Math.min(0.22, g.max * 0.6) * ext,
                 // Lit glyphs run at ~2x their scattered base brightness so the
                 // revealed fog is clearly luminous; unrevealed embers keep the
                 // untouched dim path above.
                 // @ts-expect-error custom property consumed by the shimmer keyframes
-                "--glyph-max": lit ? Math.min(1, g.max * 2) : g.max,
+                "--glyph-max": (lit ? Math.min(1, g.max * 2) : g.max) * ext,
                 animationDuration: `${g.shimmerDur}s`,
                 animationDelay: `${g.delay}s`,
-                transition: "color 1.2s ease",
-                transitionDelay: `${spread}s`,
+                transition: "color 1.2s ease, opacity 1.2s ease",
+                transitionDelay: `${Math.max(spread, crawlDelay(g.t))}s`,
               }}
             >
               {g.char}
