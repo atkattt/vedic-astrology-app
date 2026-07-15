@@ -199,7 +199,6 @@ export function SpiralUniverse({
   const stageRef = useRef<HTMLDivElement | null>(null)
   const universeRef = useRef<HTMLDivElement | null>(null)
   const camRef = useRef({ x: 0, y: 0, scale: 1 })
-  const [zoomPct, setZoomPct] = useState(100)
   // True when the camera sits at the home composition (scale 1, origin
   // centered). Drives the return-home "you" button's visibility.
   const [isHome, setIsHome] = useState(true)
@@ -504,7 +503,6 @@ export function SpiralUniverse({
     const tx = cx - cam.x * cam.scale
     const ty = cy - cam.y * cam.scale - panelLiftRef.current
     universe.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.scale})`
-    setZoomPct(Math.round(cam.scale * 100))
     setIsHome(Math.abs(cam.scale - 1) < 0.005 && Math.abs(cam.x) < 1 && Math.abs(cam.y) < 1)
   }, [])
 
@@ -701,13 +699,6 @@ export function SpiralUniverse({
 
   const monoFont =
     "'Geist Pixel', ui-monospace, monospace"
-
-  // Progress HUD: how many real objects (reads + people) sit inside the
-  // revealed frontier vs. how many exist in total.
-  const totalObjects = reads.length + placedPeople.length
-  const revealedObjects =
-    reads.filter((r) => r.r <= revealRadius).length +
-    placedPeople.filter((p) => p.r <= revealRadius).length
 
   return (
     <div
@@ -1014,50 +1005,21 @@ export function SpiralUniverse({
       </div>
 
       {/* ===== HUD ===== */}
-      {/* Progress: how much of your universe you've uncovered so far. */}
       <div className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col items-center gap-1">
         <p
-          className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70"
+          className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70 text-balance"
           style={{ fontFamily: monoFont }}
         >
-          your universe ·{" "}
-          <span className="text-foreground/80">
-            {revealedObjects} of {totalObjects}
-          </span>{" "}
-          revealed
-        </p>
-        <p
-          className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/40"
-          style={{ fontFamily: monoFont }}
-        >
-          scroll / pinch to zoom · drag to move when zoomed
+          pinch to zoom · swipe to explore your universe
         </p>
       </div>
 
-      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
-        <HudButton
-          label="Zoom out"
-          onClick={() => zoomAt(stageRef.current!.clientWidth / 2, stageRef.current!.clientHeight / 2, 1 / 1.25)}
-        >
-          −
-        </HudButton>
-        <span
-          className="min-w-14 text-center text-[10px] tracking-widest text-muted-foreground/60"
-          style={{ fontFamily: monoFont }}
-        >
-          {zoomPct}%
-        </span>
-        <HudButton
-          label="Zoom in"
-          onClick={() => zoomAt(stageRef.current!.clientWidth / 2, stageRef.current!.clientHeight / 2, 1.25)}
-        >
-          +
-        </HudButton>
-        {/* Return-home: a tiny ghost of the creature's face + "you", shown
-            only when the camera has left the home composition (panned/zoomed
-            away, which includes the disc drifting off-screen). Tapping glides
-            the camera back to scale 1, centered (~700ms). Replaces RESET. */}
-        {!isHome && (
+      {/* Return-home: a tiny ghost of the creature's face + "you", shown only
+          when the camera has left the home composition (panned/zoomed away,
+          which includes the disc drifting off-screen). Tapping glides the
+          camera back to scale 1, centered (~700ms). */}
+      {!isHome && (
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center">
           <button
             type="button"
             onClick={goHome}
@@ -1068,8 +1030,8 @@ export function SpiralUniverse({
             <span className="text-[11px] leading-none opacity-70">{"[..]"}</span>
             <span className="mt-1 text-[9px] lowercase leading-none tracking-widest">you</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Slide-up read panel — tapping a read/person opens it; yes/no route to
           the same agree/disagree persistence as the bottom ReadHub. */}
@@ -1078,28 +1040,4 @@ export function SpiralUniverse({
   )
 }
 
-function HudButton({
-  children,
-  label,
-  onClick,
-}: {
-  children: React.ReactNode
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="flex size-9 items-center justify-center rounded-lg text-base text-muted-foreground transition-colors hover:text-foreground"
-      style={{
-        fontFamily: "'Geist Pixel', ui-monospace, monospace",
-        backgroundColor: "#0d0d0d",
-        border: "1px solid #262626",
-      }}
-    >
-      {children}
-    </button>
-  )
-}
+
