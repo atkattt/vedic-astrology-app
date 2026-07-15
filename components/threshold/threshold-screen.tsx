@@ -124,6 +124,9 @@ function AsciiMorphDisplay({ ready }: { ready: boolean }) {
                   className="ready-ascii"
                   style={{
                     position: "absolute",
+                    // Hidden by default so it never overlaps the letter during
+                    // the staggered animation-delay before keyframes kick in.
+                    opacity: 0,
                     animation: `readyAscii 2.8s steps(1, end) ${index * 110}ms infinite`,
                   }}
                 >
