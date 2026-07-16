@@ -1,7 +1,11 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { computeChart, type ComputedChart } from "@/lib/vedic/compute"
+import {
+  CALCULATION_VERSION,
+  computeChart,
+  type ComputedChart,
+} from "@/lib/vedic/compute"
 
 // The placeholder birth_place the DB trigger seeds new profiles with.
 const PLACEHOLDER_PLACE = "pending"
@@ -157,6 +161,8 @@ async function upsertChart(
     houses: chart.houses,
     dashas: chart.dashas,
     computed_at: new Date().toISOString(),
+    // Which engine settings produced this chart (see lib/vedic/compute.ts).
+    calculation_version: CALCULATION_VERSION,
   }
 
   const { data: existing, error: selectError } = await supabase

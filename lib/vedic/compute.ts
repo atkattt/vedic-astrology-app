@@ -15,6 +15,16 @@ import {
   zonedWallTimeToUtc,
 } from "@/lib/vedic/astro"
 
+// The calculation settings this engine implements, encoded as a version
+// string stamped onto every saved chart (charts.calculation_version). Bump it
+// whenever any of these change so stored charts can be told apart from ones
+// computed under different settings:
+//   vedic     — sidereal zodiac
+//   lahiri    — Lahiri ayanamsa
+//   wholesign — whole-sign houses
+//   meannode  — Rahu/Ketu from the Moon's MEAN node
+export const CALCULATION_VERSION = "vedic-lahiri-wholesign-meannode-v1"
+
 // Bodies read straight from the ephemeris, in Vedic display order. Rahu/Ketu
 // come from the Moon's mean node.
 const EPHEMERIS_BODIES = [
