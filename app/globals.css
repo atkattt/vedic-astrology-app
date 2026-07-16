@@ -2,37 +2,22 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-/* Self-hosted pixel typeface, registered under the name "Geist Pixel" so every
-   existing reference (font tokens below + inline `fontFamily: '"Geist Pixel"'`
-   across components, including the onboarding birth-date input) resolves to a
-   real pixel font instead of silently falling back to sans-serif. */
+/* The REAL Geist Pixel (Vercel's Geist Pixel Square, Regular cut), self-hosted
+   and registered as "Geist Pixel" so every existing reference (font tokens
+   below + inline `fontFamily: '"Geist Pixel"'` across components) resolves to
+   it. It ships in ONE weight — Regular. Declaring the face across the full
+   100-900 range means any bold/600/500 request matches this exact face, so the
+   browser never synthesizes a faux-bold: ALL text renders as Geist Pixel
+   Regular. font-synthesis below disables fallback emboldening too. */
 @font-face {
   font-family: 'Geist Pixel';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 100 900;
   font-display: swap;
-  src: url('/fonts/geist-pixel-400.woff2') format('woff2');
+  src: url('/fonts/geist-pixel-regular.woff2') format('woff2');
 }
-@font-face {
-  font-family: 'Geist Pixel';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/geist-pixel-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Geist Pixel';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/geist-pixel-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Geist Pixel';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/geist-pixel-700.woff2') format('woff2');
+html {
+  font-synthesis: none;
 }
 
 @custom-variant dark (&:is(.dark *));
