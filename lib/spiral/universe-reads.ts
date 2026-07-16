@@ -15,7 +15,7 @@ export type UniverseFragment = {
       drives the creature's behavior in the read-open scene */
   tone: string | null
   /** which chart section this read belongs to (see lib/spiral/sections.ts);
-      null falls back to the "chapter" grouping */
+      null falls back to deriving from trigger_type + condition */
   section: string | null
   life_domain: string | null
   trigger_type: string | null

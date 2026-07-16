@@ -1,32 +1,37 @@
-// The six chart SECTIONS, in their fixed narrative order. Each section is one
-// constellation in the universe: a MAJOR read (weight >= 7, star) on the
-// spiral arm with its MINOR reads (weight < 7, glyphs) clustered around it.
-// This file is the single source of truth for section order + accent colors.
+// The seven chart SECTIONS, in their fixed walking order. Each section is one
+// run of reads along the spiral arm: a MAJOR read (weight >= 7, star) followed
+// by its MINOR reads (glyphs) beaded outward. This file is the single source
+// of truth for section order + accent colors. Labels render lowercase
+// everywhere in UI — the keys ARE the display names.
 
 export const SECTION_ORDER = [
-  "ascendant",
-  "moon",
-  "sun",
-  "knot",
-  "nodes",
-  "chapter",
+  "the surface",
+  "the heart",
+  "mind",
+  "growth",
+  "cluster",
+  "the hunger",
+  "the private",
 ] as const
 
 export type SectionKey = (typeof SECTION_ORDER)[number]
 
 // One accent per section, used by ALL of its reads once answered (and by the
-// CURRENT ring on its major). Cool cosmic hues, no purple/violet.
+// CURRENT ring on its major). Temperature arc: warm/light early, cooling
+// through the middle, deeper and more saturated late, ending in the dim
+// violet of the hidden room.
 export const SECTION_COLORS: Record<SectionKey, string> = {
-  ascendant: "#e8b84a", // gold — the mask you were handed
-  moon: "#a8c8e8", // moonlit blue — the inner tide
-  sun: "#e8825f", // ember coral — the engine
-  knot: "#5fd0a8", // sea green — the tangle
-  nodes: "#6ac9d8", // pale cyan — the axis
-  chapter: "#e87a7a", // rose — the current chapter
+  "the surface": "#e8c06a", // light gold — the mask you were handed
+  "the heart": "#e8907a", // warm peach-coral — the inner tide
+  mind: "#8ecfdc", // pale cool cyan — the weather of thought
+  growth: "#5fd0a8", // sea green — where you widen
+  cluster: "#4a90d8", // deep saturated blue — the knot of planets
+  "the hunger": "#c85a8a", // deep magenta-rose — the pull of the nodes
+  "the private": "#7a6f9e", // dim violet — the hidden room
 }
 
 /** Normalize a raw fragments.section value; unknown/null → null (caller
-    falls back to deriving from the trigger condition). */
+    falls back to deriving from the trigger). */
 export function sectionOf(raw: string | null | undefined): SectionKey | null {
   const s = (raw ?? "").trim().toLowerCase()
   return (SECTION_ORDER as readonly string[]).includes(s)
@@ -35,12 +40,13 @@ export function sectionOf(raw: string | null | undefined): SectionKey | null {
 }
 
 // ---------------------------------------------------------------------------
-// Fallback derivation — used when fragments.section is null (the column may
-// not exist yet, or a row wasn't backfilled). Reads the trigger condition's
-// planets and maps them to a section by priority, so authored fragments
-// spread across the journey instead of all collapsing into "chapter":
-//   moon → moon | sun → sun | saturn → knot | rahu/ketu → nodes |
-//   jupiter → chapter | anything else (mercury/venus/mars/asc) → ascendant
+// Fallback derivation — used ONLY when fragments.section is null (the column
+// may not exist yet, or a row wasn't backfilled). Reads the trigger type +
+// condition and maps to a section by priority, so authored fragments spread
+// across the journey instead of collapsing into one section:
+//   ascendant_sign → the surface | moon → the heart | mercury/venus → mind |
+//   jupiter → growth | conjunctions → cluster | rahu/ketu → the hunger |
+//   saturn in the 12th → the private
 // ---------------------------------------------------------------------------
 function planetsIn(condition: unknown): string[] {
   if (!condition || typeof condition !== "object") return []
@@ -53,20 +59,34 @@ function planetsIn(condition: unknown): string[] {
   return out
 }
 
-export function deriveSection(condition: unknown): SectionKey {
+function houseIn(condition: unknown): number | null {
+  if (!condition || typeof condition !== "object") return null
+  const h = (condition as Record<string, unknown>).house
+  return typeof h === "number" ? h : null
+}
+
+export function deriveSection(
+  triggerType: string | null | undefined,
+  condition: unknown,
+): SectionKey {
+  const trigger = (triggerType ?? "").trim().toLowerCase()
+  if (trigger === "ascendant_sign") return "the surface"
+  if (trigger === "conjunction") return "cluster"
+
   const planets = planetsIn(condition)
-  if (planets.includes("moon")) return "moon"
-  if (planets.includes("sun")) return "sun"
-  if (planets.includes("saturn")) return "knot"
-  if (planets.includes("rahu") || planets.includes("ketu")) return "nodes"
-  if (planets.includes("jupiter")) return "chapter"
-  return "ascendant"
+  if (planets.includes("saturn") && houseIn(condition) === 12) return "the private"
+  if (planets.includes("rahu") || planets.includes("ketu")) return "the hunger"
+  if (planets.includes("moon")) return "the heart"
+  if (planets.includes("jupiter")) return "growth"
+  if (planets.includes("mercury") || planets.includes("venus")) return "mind"
+  return "the surface"
 }
 
 /** The section for a fragment: explicit column value wins, else derived. */
 export function sectionFor(
   section: string | null | undefined,
+  triggerType: string | null | undefined,
   condition: unknown,
 ): SectionKey {
-  return sectionOf(section) ?? deriveSection(condition)
+  return sectionOf(section) ?? deriveSection(triggerType, condition)
 }
