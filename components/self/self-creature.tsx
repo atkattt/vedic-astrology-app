@@ -3,7 +3,6 @@
 import {
   forwardRef,
   useEffect,
-  useId,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -83,10 +82,6 @@ type Props = {
   blinkHoldMs?: number
   /** crisis reads: a faint ember-like flicker layered into the glow */
   ember?: boolean
-  /** show the "you're taking shape" caption on growth (default true).
-      Pass false on secondary instances (e.g. the read-panel stage) so the
-      caption only ever appears once, on the main disc. */
-  growthCaption?: boolean
 }
 
 // Lay an arbitrary stage skeleton, centered, into the fixed grid envelope so it
@@ -141,7 +136,6 @@ function layoutStageCells(
 const REACTION_MS = 600
 const EVOLVE_OUT_MS = 420
 const EVOLVE_IN_MS = 480
-const CAPTION_MS = 1900
 const ACCRETE_MS = 800
 
 const MONO =
@@ -160,7 +154,6 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     blinkMaxMs = 9000,
     blinkHoldMs = 150,
     ember = false,
-    growthCaption = true,
   },
   ref,
 ) {
@@ -193,10 +186,6 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   const [variantState, setVariantState] = useState<Record<string, number>>({})
   const [reaction, setReaction] = useState<CreatureReaction | null>(null)
   const [evolvePhase, setEvolvePhase] = useState<"idle" | "out" | "in">("idle")
-  const [showCaption, setShowCaption] = useState(false)
-  // Unique per instance — SelfCreature renders in two places at once (main
-  // disc + stage overlay), so a fixed SVG path id would collide.
-  const captionArcId = useId()
 
   const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const evolveTimers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -283,21 +272,14 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
 
     setEvolvePhase("out")
     evolveTimers.current.push(
-      setTimeout(() => {
-        setDisplayStage(clampedStage)
-        setEvolvePhase("in")
-        setShowCaption(true)
-      }, EVOLVE_OUT_MS),
-    )
-    evolveTimers.current.push(
-      setTimeout(() => setEvolvePhase("idle"), EVOLVE_OUT_MS + EVOLVE_IN_MS),
-    )
-    evolveTimers.current.push(
-      setTimeout(
-        () => setShowCaption(false),
-        EVOLVE_OUT_MS + EVOLVE_IN_MS + CAPTION_MS,
-      ),
-    )
+        setTimeout(() => {
+          setDisplayStage(clampedStage)
+          setEvolvePhase("in")
+        }, EVOLVE_OUT_MS),
+      )
+      evolveTimers.current.push(
+        setTimeout(() => setEvolvePhase("idle"), EVOLVE_OUT_MS + EVOLVE_IN_MS),
+      )
     return () => {
       evolveTimers.current.forEach(clearTimeout)
       evolveTimers.current = []
@@ -614,45 +596,6 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
         })}
       </div>
 
-      {/* Quiet evolution caption — curved along the bottom arc of the avatar
-          circle (SVG textPath) so it hugs the ring instead of cutting flat
-          across the creature. The arc runs left → right through the bottom
-          (sweep 0) so the letters render upright at the lowest point. */}
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 100 100"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          overflow: "visible",
-          opacity: growthCaption && showCaption ? 0.7 : 0,
-          transition: "opacity .8s ease",
-          pointerEvents: "none",
-        }}
-      >
-        <defs>
-          <path id={captionArcId} d="M 8 50 A 42 42 0 0 0 92 50" />
-        </defs>
-        <text
-          style={{
-            fontFamily: MONO,
-            fontSize: 4.5,
-            letterSpacing: 1.5,
-            textTransform: "lowercase",
-            fill: color,
-          }}
-        >
-          <textPath
-            href={`#${captionArcId}`}
-            startOffset="50%"
-            textAnchor="middle"
-          >
-            you&apos;re taking shape
-          </textPath>
-        </text>
-      </svg>
     </div>
   )
 })

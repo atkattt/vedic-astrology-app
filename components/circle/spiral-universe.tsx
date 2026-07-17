@@ -607,6 +607,14 @@ export function SpiralUniverse({
     }
     return r
   }, [sections, unlockedCount])
+  // PEOPLE unlock against THIS section-driven frontier only — never the
+  // per-answer REVEAL_STEP bumps of revealRadius. Otherwise a single answer
+  // near the base frontier can light up a bond star mid-section, out of the
+  // spiral's order. A person appears only when completed sections have
+  // legitimately pushed the frontier past them.
+  const personUnlockR = neededRevealR
+  const personUnlockRRef = useRef(personUnlockR)
+  personUnlockRRef.current = personUnlockR
   // STALE-FRONTIER CLAMP (once, on load): a returning user's persisted radius
   // may date from an older sky layout where much larger radii were legitimate.
   // If it exceeds what the CURRENT layout warrants (placed sections + the
@@ -1122,7 +1130,7 @@ export function SpiralUniverse({
         if (r && r.r <= revealRadiusRef.current) openReadRef.current(r)
       } else if (type === "person") {
         const p = peopleRef.current[idx]
-        if (p && p.r <= revealRadiusRef.current) openPersonRef.current(p)
+        if (p && p.r <= personUnlockRRef.current) openPersonRef.current(p)
       }
     }
 
@@ -1400,7 +1408,7 @@ export function SpiralUniverse({
         {/* PEOPLE — placed on the spiral arm, each in their own color. Tap to
             open the bond read. */}
         {placedPeople.map((pp, i) => {
-          const locked = pp.r > revealRadius
+          const locked = pp.r > personUnlockR
           return (
             <div
               key={pp.person.id}
@@ -1612,7 +1620,6 @@ export function SpiralUniverse({
                   blinkMaxMs={activeMood.blinkMaxMs}
                   blinkHoldMs={activeMood.blinkHoldMs}
                   ember={activeMood.ember}
-                  growthCaption={false}
                 />
               </div>
             </div>
