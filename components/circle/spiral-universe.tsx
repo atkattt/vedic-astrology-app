@@ -1532,7 +1532,10 @@ export function SpiralUniverse({
               style={{
                 left: px2(pp.x),
                 top: px2(pp.y),
-                transform: `translate(-50%, -50%) scale(${locked ? 0.78 : 1})`,
+                // No locked shrink — people keep the exact major-star footprint
+                // (31px ring, 17px icon) in every state; lock is conveyed by
+                // dimming/blur alone.
+                transform: "translate(-50%, -50%)",
                 opacity: locked ? 0.34 : 1,
                 filter: locked ? "grayscale(0.8) blur(0.5px)" : "none",
                 pointerEvents: locked ? "none" : "auto",
@@ -1558,7 +1561,8 @@ export function SpiralUniverse({
                   color: locked ? "#4a4e56" : pp.color,
                   fontFamily: monoFont,
                   fontSize: 13,
-                  boxShadow: locked ? "none" : `0 0 11px ${pp.color}, 0 0 22px ${pp.color}66`,
+                  // Identical glow strengths to the current major star.
+                  boxShadow: locked ? "none" : `0 0 10px ${pp.color}, 0 0 20px ${pp.color}66`,
                 }}
               >
                 <AvatarIcon
@@ -1566,7 +1570,7 @@ export function SpiralUniverse({
                   glow={
                     locked
                       ? undefined
-                      : toDropShadow(`0 0 6px ${pp.color}, 0 0 12px ${pp.color}88`)
+                      : toDropShadow(`0 0 8px ${pp.color}, 0 0 18px ${pp.color}`)
                   }
                 />
               </span>
