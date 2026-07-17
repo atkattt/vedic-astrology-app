@@ -153,6 +153,39 @@ function px2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/**
+ * Convert a CSS text-shadow list into the equivalent drop-shadow filter so an
+ * SVG glyph can carry the exact same glow a text glyph had.
+ */
+function toDropShadow(textShadow: string): string {
+  return textShadow
+    .split(/,(?![^(]*\))/)
+    .map((s) => `drop-shadow(${s.trim()})`)
+    .join(" ")
+}
+
+/**
+ * Geometric five-point star for major/person markers. The ★ text glyph rides
+ * high in the Geist Pixel em box and its offset scales with zoom, so no
+ * font nudge centers it at every size — a real SVG shape, symmetric in its
+ * viewBox, is exactly centered always. Fill follows currentColor; glow is
+ * passed as a drop-shadow filter (converted from the marker's text-shadow).
+ */
+function StarIcon({ size, glow }: { size: number; glow?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={{ display: "block", filter: glow || undefined }}
+    >
+      <path d="M12 1.8l3.1 7.2 7.8.66-5.92 5.13 1.78 7.62L12 18.34l-6.76 4.07 1.78-7.62L1.1 9.66l7.8-.66L12 1.8z" />
+    </svg>
+  )
+}
+
 type Glyph = {
   key: number
   x: number
@@ -1341,6 +1374,17 @@ export function SpiralUniverse({
           // Subtle full-saturation glow once a constellation is 100% answered.
           const sectionDone = fullyAnswered[r.sectionIdx]
           const starColor = isCurrent || completed ? r.color : isMajor ? "#e8e4da" : "#8d8a80"
+          // Shared glow: applied as text-shadow for minor sigils and converted
+          // to a drop-shadow filter for the majors' SVG star.
+          const starGlow = completed
+            ? sectionDone
+              ? `0 0 6px ${r.color}, 0 0 14px ${r.color}, 0 0 26px ${r.color}88`
+              : `0 0 8px ${r.color}, 0 0 18px ${r.color}99`
+            : isCurrent
+              ? `0 0 8px ${r.color}, 0 0 18px ${r.color}`
+              : isMajor
+                ? `0 0 8px #e8e4da, 0 0 16px #e8e4da66`
+                : "0 0 6px #8d8a8055"
           return (
             <div
               key={r.read.id}
@@ -1386,31 +1430,19 @@ export function SpiralUniverse({
                   fontSize: isMajor ? (isCurrent ? 20 : 16) : 10,
                   letterSpacing: isMajor ? undefined : "-0.5px",
                   whiteSpace: "nowrap",
-                  textShadow: completed
-                    ? sectionDone
-                      ? `0 0 6px ${r.color}, 0 0 14px ${r.color}, 0 0 26px ${r.color}88`
-                      : `0 0 8px ${r.color}, 0 0 18px ${r.color}99`
-                    : isCurrent
-                      ? `0 0 8px ${r.color}, 0 0 18px ${r.color}`
-                      : isMajor
-                        ? `0 0 8px #e8e4da, 0 0 16px #e8e4da66`
-                        : "0 0 6px #8d8a8055",
+                  textShadow: starGlow,
                   boxShadow: isCurrent
                     ? `0 0 10px ${r.color}, 0 0 20px ${r.color}66`
                     : "none",
                 }}
               >
-                {/* ★ sits high in the mono em box — nudge it down so it lands
-                    optically centered inside the ring. */}
+                {/* Majors render a geometric SVG star (exactly centered at any
+                    zoom); minors keep their text sigil. */}
                 {isMajor ? (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      transform: "translateY(6%)",
-                    }}
-                  >
-                    {"\u2605"}
-                  </span>
+                  <StarIcon
+                    size={isCurrent ? 17 : 14}
+                    glow={toDropShadow(starGlow)}
+                  />
                 ) : (
                   r.glyph
                 )}
@@ -1471,15 +1503,15 @@ export function SpiralUniverse({
                   boxShadow: locked ? "none" : `0 0 11px ${pp.color}, 0 0 22px ${pp.color}66`,
                 }}
               >
-                {/* same optical correction as read stars — ★ rides high */}
-                <span
-                  style={{
-                    display: "inline-block",
-                    transform: "translateY(6%)",
-                  }}
-                >
-                  {"\u2605"}
-                </span>
+                {/* geometric SVG star — exactly centered at any zoom */}
+                <StarIcon
+                  size={13}
+                  glow={
+                    locked
+                      ? undefined
+                      : toDropShadow(`0 0 6px ${pp.color}, 0 0 12px ${pp.color}88`)
+                  }
+                />
               </span>
             </div>
           )
