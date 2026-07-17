@@ -76,6 +76,10 @@ type Props = {
   blinkHoldMs?: number
   /** crisis reads: a faint ember-like flicker layered into the glow */
   ember?: boolean
+  /** show the "you're taking shape" caption on growth (default true).
+      Pass false on secondary instances (e.g. the read-panel stage) so the
+      caption only ever appears once, on the main disc. */
+  growthCaption?: boolean
 }
 
 // Lay an arbitrary stage skeleton, centered, into the fixed grid envelope so it
@@ -148,6 +152,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     blinkMaxMs = 9000,
     blinkHoldMs = 150,
     ember = false,
+    growthCaption = true,
   },
   ref,
 ) {
@@ -600,7 +605,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           width: "100%",
           height: "100%",
           overflow: "visible",
-          opacity: showCaption ? 0.7 : 0,
+          opacity: growthCaption && showCaption ? 0.7 : 0,
           transition: "opacity .8s ease",
           pointerEvents: "none",
         }}
