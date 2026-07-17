@@ -184,12 +184,33 @@ export default function ThresholdScreen({ onEnter }: { onEnter: () => void }) {
 
         if (!norm.place) throw new Error("we need your birth place to read the sky")
 
-        const geoRes = await fetch(
-          `/api/geocode?q=${encodeURIComponent(norm.place)}`,
-        )
-        const geo = await geoRes.json()
-        if (!geoRes.ok) {
-          throw new Error(geo.error || "couldn't place your birth city")
+        // Prefer the typeahead pick from onboarding — already canonical, with
+        // coords + timezone attached. Only fall back to re-geocoding free
+        // text for stashes created before the typeahead existed.
+        let geo: {
+          name: string
+          country: string | null
+          lat: number
+          lng: number
+          timezone: string
+        }
+        if (raw.placePick) {
+          geo = {
+            name: raw.placePick.name,
+            country: raw.placePick.country,
+            lat: raw.placePick.lat,
+            lng: raw.placePick.lng,
+            timezone: raw.placePick.timezone,
+          }
+        } else {
+          const geoRes = await fetch(
+            `/api/geocode?q=${encodeURIComponent(norm.place)}`,
+          )
+          const geoJson = await geoRes.json()
+          if (!geoRes.ok) {
+            throw new Error(geoJson.error || "couldn't place your birth city")
+          }
+          geo = geoJson
         }
 
         const chartRes = await fetch("/api/chart", {

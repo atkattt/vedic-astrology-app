@@ -14,6 +14,18 @@ export type RawBirthData = {
   time?: string
   place?: string
   timeUnknown?: boolean
+  /** Resolved geocode pick from the onboarding typeahead (canonical label +
+      coords + timezone). When present, the threshold read uses it directly
+      and never re-geocodes free text. */
+  placePick?: {
+    label: string
+    name: string
+    admin1: string | null
+    country: string | null
+    lat: number
+    lng: number
+    timezone: string
+  }
 }
 
 export type NormalizedBirthData = {

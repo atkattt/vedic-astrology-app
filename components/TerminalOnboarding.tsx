@@ -22,6 +22,16 @@ type Answers = {
   time?: string;
   place?: string;
   timeUnknown?: boolean;
+  /** The resolved geocode pick (coords + timezone) for the chosen place. */
+  placePick?: {
+    label: string;
+    name: string;
+    admin1: string | null;
+    country: string | null;
+    lat: number;
+    lng: number;
+    timezone: string;
+  };
 };
 
 type Field = {
@@ -87,6 +97,17 @@ function formatTime(raw: string): string {
 
 type LogLine = { text: string; cls: "sys" | "me" };
 
+// A geocoded place candidate offered while the visitor types their birth city.
+type PlaceSuggestion = {
+  label: string;
+  name: string;
+  admin1: string | null;
+  country: string | null;
+  lat: number;
+  lng: number;
+  timezone: string;
+};
+
 export default function TerminalOnboarding({
   onComplete,
 }: {
@@ -100,6 +121,14 @@ export default function TerminalOnboarding({
   const [timeUnknown, setTimeUnknown] = useState(false);
   const [meridiem, setMeridiem] = useState<"AM" | "PM">("AM");
   const [isFinal, setIsFinal] = useState(false);
+  // Birth-place typeahead: candidates fetched as the visitor types, so the
+  // city is PICKED from real geocoded places instead of free-typed ("new york
+  // ny" vs "new york, ny" can never diverge — both resolve to the same pick).
+  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+  const [pickedPlace, setPickedPlace] = useState<PlaceSuggestion | null>(null);
+  const suggestAbortRef = useRef<AbortController | null>(null);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const answers = useRef<Answers>({});
   const stepRef = useRef(0);
@@ -209,9 +238,66 @@ export default function TerminalOnboarding({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Debounced typeahead fetch for the birth-place field.
+  const fetchSuggestions = useCallback((query: string) => {
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    const q = query.trim();
+    if (q.length < 2) {
+      setPlaceSuggestions([]);
+      setHighlightIdx(-1);
+      return;
+    }
+    suggestTimerRef.current = setTimeout(async () => {
+      suggestAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      suggestAbortRef.current = ctrl;
+      try {
+        const res = await fetch(
+          `/api/geocode?suggest=1&q=${encodeURIComponent(q)}`,
+          { signal: ctrl.signal },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { suggestions?: PlaceSuggestion[] };
+        if (ctrl.signal.aborted) return;
+        setPlaceSuggestions(data.suggestions ?? []);
+        setHighlightIdx(data.suggestions?.length ? 0 : -1);
+      } catch {
+        // aborted or offline — keep whatever list is showing
+      }
+    }, 250);
+  }, []);
+
+  const pickPlace = (s: PlaceSuggestion) => {
+    setPickedPlace(s);
+    setValue(s.label);
+    setPlaceSuggestions([]);
+    setHighlightIdx(-1);
+    setTimeout(() => inputRef.current?.focus(), 30);
+  };
+
   const submit = async () => {
     const f = activeField;
     if (!f) return;
+    // The birth place must be a REAL picked suggestion, not free text. If the
+    // visitor typed but never picked, auto-adopt the highlighted candidate;
+    // with no candidates at all, hold until the list resolves.
+    if (f.key === "place" && !pickedPlace) {
+      const auto =
+        placeSuggestions[highlightIdx >= 0 ? highlightIdx : 0];
+      if (auto) {
+        pickPlace(auto);
+        answers.current.place = auto.label;
+        answers.current.placePick = auto;
+        setShowField(false);
+        setActiveField(null);
+        setLines((l) => [...l, { text: auto.label, cls: "me" }]);
+        setValue("");
+        await wait(300);
+        stepRef.current += 1;
+        runStep(runIdRef.current);
+      }
+      return;
+    }
     const base = value.trim();
     // For the time field, append the chosen AM/PM marker to the value.
     const composed =
@@ -221,6 +307,12 @@ export default function TerminalOnboarding({
 
     answers.current[f.key] = timeUnknown ? "" : val;
     if (f.key === "time") answers.current.timeUnknown = timeUnknown;
+    if (f.key === "place" && pickedPlace) {
+      // Ship the fully-resolved pick (coords + timezone + canonical label) so
+      // downstream steps never re-parse free text.
+      answers.current.place = pickedPlace.label;
+      answers.current.placePick = pickedPlace;
+    }
 
     // echo the user's answer back, brighter
     setShowField(false);
@@ -390,10 +482,35 @@ export default function TerminalOnboarding({
                       if (activeField.type === "date") setValue(formatDate(v));
                       else if (activeField.type === "time")
                         setValue(formatTime(v));
-                      else setValue(v);
+                      else {
+                        setValue(v);
+                        if (activeField.key === "place") {
+                          // Typing again invalidates any earlier pick.
+                          setPickedPlace(null);
+                          fetchSuggestions(v);
+                        }
+                      }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") submit();
+                      if (activeField.key === "place" && placeSuggestions.length > 0) {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setHighlightIdx((i) => (i + 1) % placeSuggestions.length);
+                          return;
+                        }
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setHighlightIdx(
+                            (i) => (i - 1 + placeSuggestions.length) % placeSuggestions.length,
+                          );
+                          return;
+                        }
+                      }
+                      if (e.key === "Enter") {
+                        // CJK IME safety: don't submit mid-composition.
+                        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                        submit();
+                      }
                     }}
                     style={{
                       position: "relative",
@@ -413,6 +530,62 @@ export default function TerminalOnboarding({
                 </div>
               );
             })()}
+            {/* Birth-place typeahead: real geocoded places appear as the
+                visitor types; picking one locks in canonical coords, so
+                "new york ny" vs "new york, ny" can never diverge. */}
+            {activeField.key === "place" && placeSuggestions.length > 0 && !pickedPlace && (
+              <div
+                role="listbox"
+                aria-label="place suggestions"
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  background: "rgba(0,0,0,0.35)",
+                }}
+              >
+                {placeSuggestions.map((s, i) => (
+                  <button
+                    key={`${s.lat},${s.lng}`}
+                    type="button"
+                    role="option"
+                    aria-selected={i === highlightIdx}
+                    onMouseEnter={() => setHighlightIdx(i)}
+                    onClick={() => pickPlace(s)}
+                    style={{
+                      textAlign: "left",
+                      background:
+                        i === highlightIdx ? "rgba(255,255,255,0.92)" : "transparent",
+                      color: i === highlightIdx ? "#000" : "#f0f0f0",
+                      border: "none",
+                      fontFamily: "inherit",
+                      fontWeight: 500,
+                      fontSize: 13,
+                      letterSpacing: ".4px",
+                      padding: "10px 12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeField.key === "place" && pickedPlace && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  color: "#e0e0e0",
+                }}
+              >
+                {"● " + pickedPlace.label}
+              </div>
+            )}
             {activeField.type === "time" && !timeUnknown && (
               <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
                 {(["AM", "PM"] as const).map((m) => {

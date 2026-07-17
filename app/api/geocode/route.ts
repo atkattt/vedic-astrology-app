@@ -17,6 +17,9 @@ type GeoResult = {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const q = (searchParams.get("q") || "").trim()
+  // suggest=1 → typeahead mode: return several candidate places (canonical
+  // "City, Region, Country" labels) instead of resolving to a single result.
+  const suggest = searchParams.get("suggest") === "1"
 
   if (!q) {
     return NextResponse.json({ error: "missing place query" }, { status: 400 })
@@ -54,6 +57,22 @@ export async function GET(req: Request) {
       { error: "could not reach the geocoding service" },
       { status: 502 },
     )
+  }
+
+  if (suggest) {
+    // Typeahead: hand back the top candidates with everything the chart
+    // engine needs, so picking one requires NO second geocode round-trip.
+    return NextResponse.json({
+      suggestions: results.slice(0, 6).map((r) => ({
+        label: [r.name, r.admin1, r.country].filter(Boolean).join(", "),
+        name: r.name,
+        admin1: r.admin1 ?? null,
+        country: r.country ?? null,
+        lat: r.latitude,
+        lng: r.longitude,
+        timezone: r.timezone,
+      })),
+    })
   }
 
   if (results.length === 0) {
