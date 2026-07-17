@@ -581,6 +581,23 @@ export function SpiralUniverse({
     }
     return r
   }, [sections, unlockedCount])
+  // STALE-FRONTIER CLAMP (once, on load): a returning user's persisted radius
+  // may date from an older sky layout where much larger radii were legitimate.
+  // If it exceeds what the CURRENT layout warrants (placed sections + the
+  // small per-answer growth headroom), snap it down and persist the corrected
+  // value — otherwise the whole fog renders pre-lit and the gradual reveal is
+  // lost.
+  const clampedRef = useRef(false)
+  useEffect(() => {
+    if (clampedRef.current || sections.length === 0) return
+    clampedRef.current = true
+    const cap = neededRevealR + REVEAL_STEP * 2
+    if (revealRadiusRef.current > cap) {
+      setRevealRadius(cap)
+      if (!guest) void saveRevealRadius(cap).catch(() => {})
+    }
+  }, [sections, neededRevealR, guest])
+
   useEffect(() => {
     const from = revealRadiusRef.current
     if (neededRevealR <= from) return
