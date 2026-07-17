@@ -1,14 +1,20 @@
-// The seven chart SECTIONS, in their fixed walking order. Each section is one
+// The chart SECTIONS, in their fixed walking order. Each section is one
 // run of reads along the spiral arm: a MAJOR read (weight >= 7, star) followed
 // by its MINOR reads (glyphs) beaded outward. This file is the single source
 // of truth for section order + accent colors. Labels render lowercase
-// everywhere in UI — the keys ARE the display names.
+// everywhere in UI — the keys ARE the display names. Sections with no
+// fragments yet simply don't appear; they join the walk automatically as
+// their content is imported.
 
 export const SECTION_ORDER = [
   "the surface",
   "the heart",
   "mind",
+  "the fire",
+  "the taste",
   "growth",
+  "the weight",
+  "the center",
   "cluster",
   "the hunger",
   "the private",
@@ -24,7 +30,11 @@ export const SECTION_COLORS: Record<SectionKey, string> = {
   "the surface": "#e8c06a", // light gold — the mask you were handed
   "the heart": "#e8907a", // warm peach-coral — the inner tide
   mind: "#8ecfdc", // pale cool cyan — the weather of thought
+  "the fire": "#e0704e", // burnt ember-orange — the drive
+  "the taste": "#d8a86e", // warm amber — what you reach for
   growth: "#5fd0a8", // sea green — where you widen
+  "the weight": "#6e8fa8", // slate steel-blue — what you carry
+  "the center": "#e8dc9a", // pale sun-gold — the core self
   cluster: "#4a90d8", // deep saturated blue — the knot of planets
   "the hunger": "#c85a8a", // deep magenta-rose — the pull of the nodes
   "the private": "#7a6f9e", // dim violet — the hidden room
