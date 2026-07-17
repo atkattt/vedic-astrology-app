@@ -1492,7 +1492,7 @@ export function SpiralUniverse({
           <SelfCreature
             ref={creatureRef}
             growthEvents={journeyEvents}
-            seed={userId}
+            seed={userId ?? "guest-journey"}
             color={reactColor ?? NEUTRAL_COLOR}
             size={creatureSize}
           />
@@ -1604,7 +1604,7 @@ export function SpiralUniverse({
                 <SelfCreature
                   ref={stageCreatureRef}
                   growthEvents={journeyEvents}
-                  seed={userId}
+                  seed={userId ?? "guest-journey"}
                   color={reactColor ?? panel.data.accent ?? NEUTRAL_COLOR}
                   size={Math.round(creatureSize * 3.375)}
                   breatheDuration={activeMood.breatheDuration}
