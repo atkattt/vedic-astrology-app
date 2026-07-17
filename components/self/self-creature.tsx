@@ -3,6 +3,7 @@
 import {
   forwardRef,
   useEffect,
+  useId,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -168,6 +169,9 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   const [reaction, setReaction] = useState<CreatureReaction | null>(null)
   const [evolvePhase, setEvolvePhase] = useState<"idle" | "out" | "in">("idle")
   const [showCaption, setShowCaption] = useState(false)
+  // Unique per instance — SelfCreature renders in two places at once (main
+  // disc + stage overlay), so a fixed SVG path id would collide.
+  const captionArcId = useId()
 
   const reactTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const evolveTimers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -571,27 +575,45 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
         })}
       </div>
 
-      {/* Quiet evolution caption */}
-      <span
+      {/* Quiet evolution caption — curved along the bottom arc of the avatar
+          circle (SVG textPath) so it hugs the ring instead of cutting flat
+          across the creature. The arc runs left → right through the bottom
+          (sweep 0) so the letters render upright at the lowest point. */}
+      <svg
         aria-hidden="true"
+        viewBox="0 0 100 100"
         style={{
           position: "absolute",
-          bottom: size * 0.12,
-          left: "50%",
-          transform: "translateX(-50%)",
-          fontFamily: MONO,
-          fontSize: 10,
-          letterSpacing: 2,
-          textTransform: "lowercase",
-          color,
-          whiteSpace: "nowrap",
-          opacity: showCaption ? 0.85 : 0,
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          overflow: "visible",
+          opacity: showCaption ? 0.7 : 0,
           transition: "opacity .8s ease",
           pointerEvents: "none",
         }}
       >
-        you&apos;re taking shape
-      </span>
+        <defs>
+          <path id={captionArcId} d="M 8 50 A 42 42 0 0 0 92 50" />
+        </defs>
+        <text
+          style={{
+            fontFamily: MONO,
+            fontSize: 4.5,
+            letterSpacing: 1.5,
+            textTransform: "lowercase",
+            fill: color,
+          }}
+        >
+          <textPath
+            href={`#${captionArcId}`}
+            startOffset="50%"
+            textAnchor="middle"
+          >
+            you&apos;re taking shape
+          </textPath>
+        </text>
+      </svg>
     </div>
   )
 })
