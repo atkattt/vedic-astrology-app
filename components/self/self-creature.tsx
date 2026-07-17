@@ -18,10 +18,13 @@ import {
   scoreToStage,
   buildAccretionGrid,
   buildGrowth,
+  buildJourneyGrowth,
+  stageForMajors,
   growthEventCount,
   detailSiblings,
   ZONE_OPACITY,
   type PlacedDetail,
+  type GrowthEvent,
   type StageCell,
   type StageGrid,
 } from "@/lib/self/avatar-stages"
@@ -59,6 +62,10 @@ export type SelfCreatureHandle = {
 }
 
 type Props = {
+  /** journey growth events (majors + every-other-minor). When provided this
+      drives BOTH the stage (stageForMajors) and all accretion detail —
+      overriding `score`/`stage`. */
+  growthEvents?: GrowthEvent[]
   /** engagement score — drives BOTH the stage and the accretion detail count */
   score?: number
   /** explicit stage override; ignored when `score` is provided */
@@ -142,6 +149,7 @@ const MONO =
 
 const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature(
   {
+    growthEvents,
     score,
     stage,
     seed,
@@ -156,15 +164,24 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   },
   ref,
 ) {
-  // Effective stage: score wins when present, else the explicit stage prop.
-  const effectiveStage =
-    score != null ? scoreToStage(score) : Math.round(stage ?? 1)
+  // Effective stage: journey events win (big change per star answered), then
+  // score, then the explicit stage prop.
+  const majorsAnswered =
+    growthEvents?.filter((e) => e.kind === "major").length ?? 0
+  const effectiveStage = growthEvents
+    ? stageForMajors(majorsAnswered)
+    : score != null
+      ? scoreToStage(score)
+      : Math.round(stage ?? 1)
   const clampedStage = Math.max(1, Math.min(MAX_STAGE, effectiveStage))
 
-  // Visible growth EVENTS (diminishing schedule — see GROWTH_SCHEDULE), not
-  // raw points. Each event either adds a detail or matures an existing one.
-  const detailCount =
-    score != null && seed ? growthEventCount(score) : 0
+  // Visible growth EVENTS: from the journey when provided, else the
+  // diminishing score schedule. Each event adds or matures a detail.
+  const detailCount = growthEvents
+    ? growthEvents.length
+    : score != null && seed
+      ? growthEventCount(score)
+      : 0
 
   // The form currently drawn. Lags the prop during an evolution transition.
   const [displayStage, setDisplayStage] = useState(clampedStage)
@@ -306,8 +323,13 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   // ----- geometry (fixed to the mature stage-5 envelope) ---------------------
   const grid = useMemo(() => buildAccretionGrid(STAGE_5), [])
   const details = useMemo(
-    () => (seed ? buildGrowth(seed, detailCount, grid) : []),
-    [seed, detailCount, grid],
+    () =>
+      seed
+        ? growthEvents
+          ? buildJourneyGrowth(seed, growthEvents, grid)
+          : buildGrowth(seed, detailCount, grid)
+        : [],
+    [seed, growthEvents, detailCount, grid],
   )
   const skelLines = useMemo(
     () => layoutSkeleton(STAGE_ART[displayStage] ?? STAGE_1, grid.cols, grid.rows),

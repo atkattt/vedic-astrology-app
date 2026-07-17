@@ -245,6 +245,45 @@ export const MATURITY_LADDERS: Record<DetailZone, string[]> = {
   edge: ["'", "`", "/", "^"],
 }
 
+/* ---- JOURNEY GROWTH ---------------------------------------------------------
+ * Growth driven by the walk itself rather than an abstract score:
+ *   - MAJOR event (a section's star answered): a BIG change — the skeleton
+ *     advances a stage (stageForMajors) and the being gains that section's
+ *     SIGIL as a small accessory, loosely echoing what the read was about.
+ *   - MINOR event (every OTHER minor answer in a section): a quiet change —
+ *     either a new texture detail appears or an existing one matures a step.
+ */
+export type GrowthEvent = {
+  kind: "major" | "minor"
+  /** section key of the read that caused it — flavors sigil accessories */
+  flavor: string
+}
+
+/** Big changes: each star answered advances the skeleton one stage. */
+export function stageForMajors(majorsAnswered: number): number {
+  return Math.max(1, Math.min(MAX_STAGE, 1 + majorsAnswered))
+}
+
+/**
+ * Per-section accessory sigils — tiny 2-step maturity ladders (faint → bright)
+ * keyed by SectionKey. A major answered in a section pins its sigil onto the
+ * being; later upgrades can brighten it ("a new accessory gets updated").
+ * EDIT FREELY — unknown sections fall back to the aura ladder.
+ */
+export const SECTION_SIGILS: Record<string, string[]> = {
+  "the surface": ["=", "≡"], // the mask, layered
+  "the heart": ["♡", "♥"], // the inner tide
+  mind: ["?", "¿"], // the weather of thought
+  "the fire": ["!", "‼"], // the drive
+  "the taste": ["+", "±"], // what you reach for
+  growth: ["^", "△"], // where you widen
+  "the weight": ["_", "≡"], // what you carry
+  "the center": ["*", "✶"], // the core self
+  cluster: [":", "∴"], // the knot of planets
+  "the hunger": ["~", "≈"], // the pull of the nodes
+  "the private": ["·", "•"], // the hidden room
+}
+
 /** Chance a growth event UPGRADES an existing detail (vs ADDING a new one). */
 export const UPGRADE_CHANCE = 0.5
 
@@ -421,15 +460,19 @@ export function buildAccretionGrid(
 export type PlacedDetail = {
   row: number
   col: number
-  /** current glyph = MATURITY_LADDERS[zone][level] */
+  /** current glyph = ladder[level] */
   char: string
   zone: DetailZone
-  /** maturity step along the zone's ladder (0 = newborn) */
+  /** this detail's own maturity ladder (zone ladder, or a section sigil) */
+  ladder: string[]
+  /** maturity step along the ladder (0 = newborn) */
   level: number
   /** growth-EVENT index (0-based) that added it — stable identity */
   index: number
   /** growth-event index of the most recent upgrade, or null if never */
   upgradedAt: number | null
+  /** true when this is a section-sigil accessory from a major (star) read */
+  sigil?: boolean
 }
 
 /** Cells a detail may never occupy: horizontally beside eyes or the mouth. */
@@ -451,23 +494,30 @@ function buildFaceExclusion(grid: AccretionGrid): Set<string> {
 }
 
 /**
- * Deterministically build the being's growth state after `eventCount` visible
- * growth events. Each event (seeded by hash(seedKey + ":" + index)) either
- * ADDS a new detail or UPGRADES an existing one a step up its maturity
- * ladder (~50/50 via UPGRADE_CHANCE); a fully-matured pick falls back to ADD,
- * and when nothing can upgrade the event adds. Adds fill inside-out
- * (ZONE_FILL_ORDER + density caps), keep MIN_DETAIL_SPACING between details,
- * never sit beside eyes/mouth, and every SYMMETRY_EVERY-th add is mirrored.
- * Same seedKey + same eventCount always reproduces the exact same being —
- * positions AND upgrade states.
+ * Deterministically build the being's growth state from an ordered list of
+ * journey GROWTH EVENTS. Each event is seeded by hash(seedKey + ":" + index),
+ * so the same seedKey + same events always reproduces the exact same being —
+ * positions, glyphs AND upgrade states; prefixes stay stable as it grows.
+ *
+ *   MAJOR event → the section's SIGIL lands as a mirrored accessory pair on
+ *   the being's edge/aura (a keepsake of that star's substance), PLUS one
+ *   existing detail matures — a visible burst to match the skeleton stage-up.
+ *
+ *   MINOR event → ~50/50 (UPGRADE_CHANCE): a new zone-texture detail appears
+ *   at its ladder's faint first step, or an existing detail (texture OR
+ *   sigil) matures one step. Fully-matured picks fall back to ADD.
+ *
+ * Adds fill inside-out (ZONE_FILL_ORDER + density caps), keep
+ * MIN_DETAIL_SPACING, never sit beside eyes/mouth, and every
+ * SYMMETRY_EVERY-th texture add is mirrored for composure.
  */
-export function buildGrowth(
+export function buildJourneyGrowth(
   seedKey: string,
-  eventCount: number,
+  events: GrowthEvent[],
   grid: AccretionGrid,
 ): PlacedDetail[] {
   const placed: PlacedDetail[] = []
-  if (eventCount <= 0) return placed
+  if (events.length === 0) return placed
 
   const occupied = new Set<string>(grid.skeletonCells)
   const faceExcluded = buildFaceExclusion(grid)
@@ -477,9 +527,7 @@ export function buildGrowth(
 
   const spacedOk = (r: number, c: number, spacing: number) => {
     for (const d of placed) {
-      if (
-        Math.max(Math.abs(d.row - r), Math.abs(d.col - c)) < spacing
-      )
+      if (Math.max(Math.abs(d.row - r), Math.abs(d.col - c)) < spacing)
         return false
     }
     return true
@@ -488,8 +536,9 @@ export function buildGrowth(
   const findSpot = (
     rand: () => number,
     spacing: number,
+    zonesOrder: DetailZone[],
   ): [number, number, DetailZone] | null => {
-    for (const z of ZONE_FILL_ORDER) {
+    for (const z of zonesOrder) {
       const cells = grid.cellsByZone[z]
       if (!cells.length) continue
       const cap = Math.ceil(cells.length * ZONE_DENSITY_CAP[z])
@@ -506,74 +555,118 @@ export function buildGrowth(
     return null
   }
 
-  const add = (i: number, rand: () => number) => {
-    // Try with full spacing, then relax to 1 so late growth still lands.
-    const spot = findSpot(rand, MIN_DETAIL_SPACING) ?? findSpot(rand, 1)
-    if (!spot) return
-    const [r, c, zone] = spot
+  const place = (
+    i: number,
+    r: number,
+    c: number,
+    zone: DetailZone,
+    ladder: string[],
+    sigil: boolean,
+  ) => {
     occupied.add(key(r, c))
     zoneFill[zone]++
     placed.push({
       row: r,
       col: c,
-      char: MATURITY_LADDERS[zone][0],
+      char: ladder[0],
       zone,
+      ladder,
       level: 0,
       index: i,
       upgradedAt: null,
+      sigil: sigil || undefined,
     })
+  }
+
+  const upgradeOne = (i: number, rand: () => number): boolean => {
+    // Distinct upgradable identities (mirrored pairs share an index and
+    // mature together so the being stays composed).
+    const upgradable = Array.from(
+      new Set(
+        placed
+          .filter((d) => d.level < d.ladder.length - 1)
+          .map((d) => d.index),
+      ),
+    )
+    if (upgradable.length === 0) return false
+    const pick = upgradable[Math.floor(rand() * upgradable.length)]
+    for (const d of placed) {
+      if (d.index !== pick) continue
+      d.level++
+      d.char = d.ladder[d.level]
+      d.upgradedAt = i
+    }
+    return true
+  }
+
+  const addTexture = (i: number, rand: () => number) => {
+    // Try with full spacing, then relax to 1 so late growth still lands.
+    const spot =
+      findSpot(rand, MIN_DETAIL_SPACING, ZONE_FILL_ORDER) ??
+      findSpot(rand, 1, ZONE_FILL_ORDER)
+    if (!spot) return
+    const [r, c, zone] = spot
+    place(i, r, c, zone, MATURITY_LADDERS[zone], false)
     addCount++
 
-    // Every Nth ADD: mirror it across the vertical axis for composure.
+    // Every Nth texture ADD: mirror it across the vertical axis.
     if (addCount % SYMMETRY_EVERY === 0) {
       const mc = grid.cols - 1 - c
       const mk = key(r, mc)
       if (mc !== c && !occupied.has(mk) && !faceExcluded.has(mk)) {
-        occupied.add(mk)
-        zoneFill[zone]++
-        placed.push({
-          row: r,
-          col: mc,
-          char: MATURITY_LADDERS[zone][0],
-          zone,
-          level: 0,
-          index: i,
-          upgradedAt: null,
-        })
+        place(i, r, mc, zone, MATURITY_LADDERS[zone], false)
       }
     }
   }
 
-  for (let i = 0; i < eventCount; i++) {
-    const rand = mulberry32(hashString(`${seedKey}:${i}`))
-    const wantsUpgrade = rand() < UPGRADE_CHANCE
-
-    if (wantsUpgrade) {
-      // Distinct upgradable identities (mirrored pairs share an index and
-      // mature together so the being stays composed).
-      const upgradable = Array.from(
-        new Set(
-          placed
-            .filter((d) => d.level < MATURITY_LADDERS[d.zone].length - 1)
-            .map((d) => d.index),
-        ),
-      )
-      if (upgradable.length > 0) {
-        const pick = upgradable[Math.floor(rand() * upgradable.length)]
-        for (const d of placed) {
-          if (d.index !== pick) continue
-          d.level++
-          d.char = MATURITY_LADDERS[d.zone][d.level]
-          d.upgradedAt = i
-        }
-        continue
-      }
-      // nothing can mature → fall through to ADD
+  const addSigil = (i: number, flavor: string, rand: () => number) => {
+    const ladder = SECTION_SIGILS[flavor] ?? MATURITY_LADDERS.aura
+    // Sigils are worn OUTSIDE the form: prefer the edge, spill to aura.
+    const spot =
+      findSpot(rand, MIN_DETAIL_SPACING, ["edge", "aura"]) ??
+      findSpot(rand, 1, ["edge", "aura"]) ??
+      findSpot(rand, 1, ZONE_FILL_ORDER)
+    if (!spot) return
+    const [r, c, zone] = spot
+    place(i, r, c, zone, ladder, true)
+    // Always mirrored — an accessory sits on the being like a matched pair.
+    const mc = grid.cols - 1 - c
+    const mk = key(r, mc)
+    if (mc !== c && !occupied.has(mk) && !faceExcluded.has(mk)) {
+      place(i, r, mc, zone, ladder, true)
     }
-    add(i, rand)
   }
+
+  events.forEach((ev, i) => {
+    const rand = mulberry32(hashString(`${seedKey}:${i}:${ev.kind}`))
+    if (ev.kind === "major") {
+      // Big change: the section's sigil lands + something matures with it.
+      addSigil(i, ev.flavor, rand)
+      upgradeOne(i, rand)
+      return
+    }
+    // Minor: quiet add-or-mature.
+    if (rand() < UPGRADE_CHANCE && upgradeOne(i, rand)) return
+    addTexture(i, rand)
+  })
 
   return placed
+}
+
+/**
+ * Score-driven wrapper (legacy path): `eventCount` anonymous minor events.
+ * Kept so engagement-score consumers (e.g. /self) keep working unchanged.
+ */
+export function buildGrowth(
+  seedKey: string,
+  eventCount: number,
+  grid: AccretionGrid,
+): PlacedDetail[] {
+  const events: GrowthEvent[] = Array.from(
+    { length: Math.max(0, eventCount) },
+    () => ({ kind: "minor" as const, flavor: "" }),
+  )
+  return buildJourneyGrowth(seedKey, events, grid)
 }
 
 /** Resting opacity for a detail by zone (aura is faintest). */

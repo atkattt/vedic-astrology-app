@@ -6,7 +6,7 @@ import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-cr
 import type { Person, Relationship } from "@/lib/db/schema"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
-import { scoreToStage, growthEventCount } from "@/lib/self/avatar-stages"
+import { stageForMajors, type GrowthEvent } from "@/lib/self/avatar-stages"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
 import { saveRevealRadius } from "@/app/actions/progress"
 import { saveReadResponse } from "@/app/actions/self-reads"
@@ -490,23 +490,35 @@ export function SpiralUniverse({
     })
   }, [fragments])
 
-  // The creature grows from THE JOURNEY ITSELF: one growth point per answered
-  // read THAT EXISTS IN THE CURRENT SKY. Intersecting with placed reads (not
-  // raw respondedIds.size) matters: persisted client state and old
-  // read_responses rows can reference reads from earlier content/sessions
-  // that no longer appear on the spiral — those must not inflate the
-  // creature, or a fresh journey starts with a grown being.
-  const journeyScore = useMemo(() => {
-    let n = 0
-    for (const s of sections)
-      for (const r of s.reads) if (respondedIds.has(r.read.id)) n++
-    return n
+  // The creature grows from THE JOURNEY ITSELF, walking the sections in
+  // order. Only reads placed in the CURRENT sky count (stale response ids
+  // from old sessions/content must not inflate the being):
+  //   - each answered STAR (major) = a BIG growth event: skeleton stage-up +
+  //     that section's sigil accessory (flavor ties back to the read).
+  //   - every OTHER answered minor in a section = a quiet growth event: a
+  //     texture detail appears or an existing one matures.
+  const journeyEvents = useMemo<GrowthEvent[]>(() => {
+    const evts: GrowthEvent[] = []
+    for (const s of sections) {
+      let minors = 0
+      for (const r of s.reads) {
+        if (!respondedIds.has(r.read.id)) continue
+        if (r.kind === "major") {
+          evts.push({ kind: "major", flavor: s.key })
+        } else {
+          minors++
+          if (minors % 2 === 0) evts.push({ kind: "minor", flavor: s.key })
+        }
+      }
+    }
+    return evts
   }, [sections, respondedIds])
-  // Disc size follows the creature's evolution (see discSizeFor). detailCount
-  // mirrors SelfCreature's rule: VISIBLE growth events on the diminishing
-  // schedule (growthEventCount), not raw points.
-  const creatureStage = scoreToStage(journeyScore)
-  const creatureDetails = growthEventCount(journeyScore)
+  // Disc size follows the creature's evolution (see discSizeFor), from the
+  // same journey events SelfCreature renders.
+  const creatureStage = stageForMajors(
+    journeyEvents.filter((e) => e.kind === "major").length,
+  )
+  const creatureDetails = journeyEvents.length
   const discSize = discSizeFor(creatureStage, creatureDetails)
   // Constant ratio (the previous 248/188 proportion) keeps the skeleton at
   // roughly half the disc at every stage.
@@ -1479,7 +1491,7 @@ export function SpiralUniverse({
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
           <SelfCreature
             ref={creatureRef}
-            score={journeyScore}
+            growthEvents={journeyEvents}
             seed={userId}
             color={reactColor ?? NEUTRAL_COLOR}
             size={creatureSize}
@@ -1591,7 +1603,7 @@ export function SpiralUniverse({
               >
                 <SelfCreature
                   ref={stageCreatureRef}
-                  score={journeyScore}
+                  growthEvents={journeyEvents}
                   seed={userId}
                   color={reactColor ?? panel.data.accent ?? NEUTRAL_COLOR}
                   size={Math.round(creatureSize * 3.375)}
