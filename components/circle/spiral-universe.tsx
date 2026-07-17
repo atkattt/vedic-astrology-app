@@ -1400,7 +1400,20 @@ export function SpiralUniverse({
                     : "none",
                 }}
               >
-                {isMajor ? "\u2605" : r.glyph}
+                {/* ★ sits high in the mono em box — nudge it down so it lands
+                    optically centered inside the ring. */}
+                {isMajor ? (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      transform: "translateY(6%)",
+                    }}
+                  >
+                    {"\u2605"}
+                  </span>
+                ) : (
+                  r.glyph
+                )}
               </span>
             </div>
           )
@@ -1458,7 +1471,15 @@ export function SpiralUniverse({
                   boxShadow: locked ? "none" : `0 0 11px ${pp.color}, 0 0 22px ${pp.color}66`,
                 }}
               >
-                {"\u2605"}
+                {/* same optical correction as read stars — ★ rides high */}
+                <span
+                  style={{
+                    display: "inline-block",
+                    transform: "translateY(6%)",
+                  }}
+                >
+                  {"\u2605"}
+                </span>
               </span>
             </div>
           )
