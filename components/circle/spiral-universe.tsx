@@ -98,11 +98,12 @@ const AVATAR_CLEAR_RADIUS = 28
 
 // ---- Stage-driven disc sizing --------------------------------------------
 // The creature's disc grows with its evolution: stage 1 ≈ 120px diameter,
-// +20px per stage to ≈ 200px at stage 5, then +2px per accretion detail,
-// capped at 240px. The creature glyph scales with the disc (constant ratio,
-// keeping the skeleton at roughly 45-55% of the disc).
+// +12px per stage to ≈ 204px at stage 8, then +2px per accretion detail,
+// capped at 240px. Gentle per-stage steps keep each evolution feeling like a
+// small tamagotchi growth spurt rather than a leap. The creature glyph scales
+// with the disc (constant ratio, skeleton ≈ half the disc).
 function discSizeFor(stage: number, detailCount: number): number {
-  return Math.min(240, 120 + (stage - 1) * 20 + detailCount * 2)
+  return Math.min(240, 120 + (stage - 1) * 12 + detailCount * 2)
 }
 const FADE_BAND = 76
 // The nebula is sampled along the spiral curve; at each sample we scatter a

@@ -11,29 +11,48 @@
  * blink will keep working. Everything else is drawn verbatim.
  */
 
+// Each stage adds exactly ONE small body part, so evolution reads like an
+// ascii tamagotchi growing up — never a whole new face at once.
+
 // Stage 1 — a dormant seed. Barely awake, eyes still shut.
 export const STAGE_1 = `[..]`
 
 // Stage 2 — it opens its eyes.
 export const STAGE_2 = `(o o)`
 
-// Stage 3 — ears prick up, a face forms.
-export const STAGE_3 = `/\\ /\\
-(o o)
-[>_<]`
+// Stage 3 — tiny ears prick up.
+export const STAGE_3 = ` ^ ^
+(o o)`
 
-// Stage 4 — a small body appears beneath the head.
-export const STAGE_4 = `/\\ /\\
+// Stage 4 — a little mouth forms.
+export const STAGE_4 = ` ^ ^
 (o o)
-[>_<]
+ >_<`
+
+// Stage 5 — a small body appears beneath the head.
+export const STAGE_5 = ` ^ ^
+(o o)
+ >_<
  (v)`
 
-// Stage 5 — taller ears, a fuller body with a rounded bottom.
-export const STAGE_5 = `//\\ //\\
- (o o)
- [>_<]
- |   |
- \\___/`
+// Stage 6 — a tail curls out.
+export const STAGE_6 = ` ^ ^
+(o o)
+ >_<
+ (v)~`
+
+// Stage 7 — the ears grow taller.
+export const STAGE_7 = `/\\ /\\
+(o o)
+ >_<
+ (v)~`
+
+// Stage 8 — a fuller body with a rounded bottom.
+export const STAGE_8 = `/\\ /\\
+(o o)
+ >_<
+|   |~
+\\___/`
 
 export const STAGE_ART: Record<number, string> = {
   1: STAGE_1,
@@ -41,9 +60,12 @@ export const STAGE_ART: Record<number, string> = {
   3: STAGE_3,
   4: STAGE_4,
   5: STAGE_5,
+  6: STAGE_6,
+  7: STAGE_7,
+  8: STAGE_8,
 }
 
-export const MAX_STAGE = 5
+export const MAX_STAGE = 8
 
 /* ==========================================================================
  * LIVING TEXT — character-level mutation model.
@@ -91,8 +113,10 @@ const eyeOpen = (): StageCell => ({
   group: "eye",
   blink: true,
 })
-const earSlash = (): StageCell => ({ variants: ["/", "^", "|"], group: "ear" })
-const earBack = (): StageCell => ({ variants: ["\\", "^", "|"], group: "ear" })
+  const earSlash = (): StageCell => ({ variants: ["/", "^", "|"], group: "ear" })
+  const earBack = (): StageCell => ({ variants: ["\\", "^", "|"], group: "ear" })
+  const earTip = (): StageCell => ({ variants: ["^", "'", "ʌ"], group: "ear" })
+  const tailCell = (): StageCell => ({ variants: ["~", "-", "≈"], group: "tail" })
 // mouth variants aligned by index → >_< , >.< , =_= , ·_· , -_-
 const mouthL = (): StageCell => ({
   variants: [">", ">", "=", "·", "-"],
@@ -124,26 +148,42 @@ const cornerR = (): StageCell => ({ variants: ["/", ")", "}"], group: "corner" }
  * The five stages as cell grids. Each row is an array of cells (or null for a
  * blank). `variants[0]` per cell reproduces the matching STAGE_* string exactly.
  */
-export const STAGE_GRIDS: Record<number, StageGrid> = {
+  export const STAGE_GRIDS: Record<number, StageGrid> = {
   1: [[brkL(), eyeDot(), eyeDot(), brkR()]],
   2: [[parL(), eyeOpen(), _, eyeOpen(), parR()]],
   3: [
-    [earSlash(), earBack(), _, earSlash(), earBack()],
+    [_, earTip(), _, earTip()],
     [parL(), eyeOpen(), _, eyeOpen(), parR()],
-    [brkL(), mouthL(), mouthM(), mouthR(), brkR()],
   ],
   4: [
-    [earSlash(), earBack(), _, earSlash(), earBack()],
+    [_, earTip(), _, earTip()],
     [parL(), eyeOpen(), _, eyeOpen(), parR()],
-    [brkL(), mouthL(), mouthM(), mouthR(), brkR()],
-    [_, bellyL(), bellyV(), bellyR()],
+    [_, mouthL(), mouthM(), mouthR()],
   ],
   5: [
-    [earSlash(), earSlash(), earBack(), _, earSlash(), earSlash(), earBack()],
-    [_, parL(), eyeOpen(), _, eyeOpen(), parR()],
-    [_, brkL(), mouthL(), mouthM(), mouthR(), brkR()],
-    [_, sideBar(), _, _, _, sideBar()],
-    [_, cornerL(), floorCell(), floorCell(), floorCell(), cornerR()],
+    [_, earTip(), _, earTip()],
+    [parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [_, mouthL(), mouthM(), mouthR()],
+    [_, bellyL(), bellyV(), bellyR()],
+  ],
+  6: [
+    [_, earTip(), _, earTip()],
+    [parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [_, mouthL(), mouthM(), mouthR()],
+    [_, bellyL(), bellyV(), bellyR(), tailCell()],
+  ],
+  7: [
+    [earSlash(), earBack(), _, earSlash(), earBack()],
+    [parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [_, mouthL(), mouthM(), mouthR()],
+    [_, bellyL(), bellyV(), bellyR(), tailCell()],
+  ],
+  8: [
+    [earSlash(), earBack(), _, earSlash(), earBack()],
+    [parL(), eyeOpen(), _, eyeOpen(), parR()],
+    [_, mouthL(), mouthM(), mouthR()],
+    [sideBar(), _, _, _, sideBar(), tailCell()],
+    [cornerL(), floorCell(), floorCell(), floorCell(), cornerR()],
   ],
 }
 
@@ -170,15 +210,18 @@ export function engagementScore({ responses, answers }: EngagementCounts): numbe
 }
 
 /**
- * Five discrete stages by score:
- *   0 → 1 | 1–3 → 2 | 4–7 → 3 | 8–12 → 4 | 13+ → 5
+ * Eight discrete stages by score:
+ *   0 → 1 | 1–2 → 2 | 3–5 → 3 | 6–8 → 4 | 9–12 → 5 | 13–16 → 6 | 17–21 → 7 | 22+ → 8
  */
 export function scoreToStage(score: number): number {
   if (score <= 0) return 1
-  if (score <= 3) return 2
-  if (score <= 7) return 3
-  if (score <= 12) return 4
-  return 5
+  if (score <= 2) return 2
+  if (score <= 5) return 3
+  if (score <= 8) return 4
+  if (score <= 12) return 5
+  if (score <= 16) return 6
+  if (score <= 21) return 7
+  return 8
 }
 
 /** Render a blink frame of any art by swapping eyes ("o" → "-"). */
@@ -380,13 +423,13 @@ function centerLines(art: string): string[] {
   })
 }
 
-/**
- * Build the coordinate model details live on. Always derived from the mature
- * STAGE-5 skeleton so a given detail index keeps the SAME position no matter
- * which stage is currently displayed (the being's envelope never shifts).
- */
-export function buildAccretionGrid(
-  art: string = STAGE_5,
+  /**
+  * Build the coordinate model details live on. Always derived from the mature
+  * FINAL-stage skeleton so a given detail index keeps the SAME position no
+  * matter which stage is currently displayed (the being's envelope never shifts).
+  */
+  export function buildAccretionGrid(
+  art: string = STAGE_8,
   padding: number = ACCRETION_PADDING,
 ): AccretionGrid {
   const centered = centerLines(art)
