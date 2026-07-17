@@ -10,7 +10,7 @@ import { SelfChat } from "@/components/self/self-chat"
 import { SelfReads } from "@/components/self/self-reads"
 import { CHAT_UNLOCK_RADIUS, unlockProgress } from "@/lib/self/unlock"
 import { engagementScore } from "@/lib/self/avatar-stages"
-import type { ReadResponse, SelfReadsData } from "@/lib/self/reads-data"
+import type { SelfReadsData } from "@/lib/self/reads-data"
 
 const MONO =
   "'Geist Pixel', ui-monospace, monospace"
@@ -33,7 +33,9 @@ export function SelfSpaceView({
   // the loaded data and update live as the reads UI below fires, so the avatar
   // can evolve in place the moment a new stage is crossed.
   const creatureRef = useRef<SelfCreatureHandle>(null)
-  const [respondedIds, setRespondedIds] = useState<Set<string>>(
+  // Judging reads now lives on the spiral (/circle); here the set is a
+  // read-only seed from what's already been answered.
+  const [respondedIds] = useState<Set<string>>(
     () => new Set(reads ? Object.keys(reads.responses) : []),
   )
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(
@@ -47,18 +49,6 @@ export function SelfSpaceView({
     responses: respondedIds.size + savedReflectionPoints,
     answers: answeredIds.size,
   })
-
-  const handleResponse = useCallback(
-    (fragmentId: string, response: ReadResponse) => {
-      // React on every tap; only grow the score the first time a fragment is
-      // judged (a row exists whether it's agree or disagree).
-      creatureRef.current?.react(response === "agree" ? "agree" : "disagree")
-      setRespondedIds((prev) =>
-        prev.has(fragmentId) ? prev : new Set(prev).add(fragmentId),
-      )
-    },
-    [],
-  )
 
   const handleAnswer = useCallback((fragmentId: string) => {
     creatureRef.current?.react("submit")
@@ -122,15 +112,13 @@ export function SelfSpaceView({
           {unlocked ? <SelfChat /> : <LockedChat progress={progress} />}
         </section>
 
-        {/* 3 — Full personality read: authored fragments matched to the chart */}
+        {/* 3 — The growing chart: only APPROVED reads surface here, grouped
+            and colored by the same section accents as the spiral's stars. It
+            fills in as the journey is walked — never shown in full up front. */}
         <section className="flex flex-col gap-5">
-          <SectionLabel>your chart, read in full</SectionLabel>
+          <SectionLabel>your chart, so far</SectionLabel>
           {reads ? (
-            <SelfReads
-              data={reads}
-              onResponse={handleResponse}
-              onAnswer={handleAnswer}
-            />
+            <SelfReads data={reads} onAnswer={handleAnswer} />
           ) : (
             <p
               style={{
@@ -142,7 +130,7 @@ export function SelfSpaceView({
               }}
             >
               <span style={{ color: "#555" }}>{"› "}</span>
-              sign in to see your chart read in full.
+              sign in to watch your chart assemble itself.
             </p>
           )}
         </section>

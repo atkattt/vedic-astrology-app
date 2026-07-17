@@ -1,30 +1,70 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { saveReadResponse, saveSelfAnswer } from "@/app/actions/self-reads"
+import { useMemo, useState, useTransition } from "react"
+import { saveSelfAnswer } from "@/app/actions/self-reads"
 import {
   toQuestions,
   type FragmentRow,
-  type ReadResponse,
   type SelfReadsData,
 } from "@/lib/self/reads-data"
+import {
+  SECTION_COLORS,
+  SECTION_ORDER,
+  sectionFor,
+  type SectionKey,
+} from "@/lib/spiral/sections"
 
 const MONO =
   "'Geist Pixel', ui-monospace, monospace"
-const GLOW = { color: "#f5f5f5", textShadow: "0 0 10px rgba(255,255,255,0.45)" }
 
+/**
+ * THE GROWING CHART — a reactive space, not a full dossier. Only reads the
+ * user has APPROVED ("this fits", answered agree on the spiral) appear here,
+ * so the chart assembles itself piece by piece as the journey is walked.
+ * Boxes are grouped by chart section and carry the SAME accent colors as the
+ * section's stars in /circle, so the two views stay one system.
+ */
 export function SelfReads({
   data,
-  onResponse,
   onAnswer,
 }: {
   data: SelfReadsData
-  /** fired when the user judges a fragment (drives the creature reaction) */
-  onResponse?: (fragmentId: string, response: ReadResponse) => void
   /** fired when the user saves an answer (drives the creature reaction) */
   onAnswer?: (fragmentId: string) => void
 }) {
-  if (data.matched.length === 0) {
+  // Approved = agreed. Disagreed and unanswered reads stay invisible here —
+  // the chart only ever contains what the user has claimed as theirs.
+  const approved = useMemo(
+    () =>
+      data.matched.filter(
+        (f) => data.responses[String(f.id)] === "agree",
+      ),
+    [data.matched, data.responses],
+  )
+
+  // Group by section in the spiral's fixed walking order.
+  const groups = useMemo(() => {
+    const bySection = new Map<SectionKey, FragmentRow[]>()
+    for (const f of approved) {
+      const key = sectionFor(
+        (f as Record<string, unknown>).section as string | null,
+        f.trigger_type,
+        f.condition,
+      )
+      const list = bySection.get(key) ?? []
+      list.push(f)
+      bySection.set(key, list)
+    }
+    return SECTION_ORDER.filter((s) => bySection.has(s)).map((s) => ({
+      section: s,
+      color: SECTION_COLORS[s],
+      fragments: bySection.get(s)!,
+    }))
+  }, [approved])
+
+  const total = data.matched.length
+
+  if (approved.length === 0) {
     return (
       <p
         style={{
@@ -36,105 +76,151 @@ export function SelfReads({
         }}
       >
         <span style={{ color: "#555" }}>{"› "}</span>
-        no reads have surfaced from your chart yet.
+        nothing here yet. walk the spiral — every read you claim as yours
+        appears here, and your chart builds itself.
       </p>
     )
   }
 
   return (
-    <div className="flex flex-col gap-10">
-      {data.matched.map((f) => (
-        <FragmentCard
-          key={String(f.id)}
-          fragment={f}
-          initialResponse={data.responses[String(f.id)] ?? null}
-          initialAnswer={data.answers[String(f.id)] ?? ""}
-          onResponse={onResponse}
-          onAnswer={onAnswer}
-        />
+    <div className="flex flex-col gap-8">
+      {/* quiet growth meter — how much of the chart has surfaced */}
+      <p
+        style={{
+          fontSize: 10,
+          letterSpacing: 1.5,
+          textTransform: "uppercase",
+          color: "#4a4a4a",
+          fontFamily: MONO,
+        }}
+      >
+        {approved.length} of {total} reads claimed
+      </p>
+
+      {groups.map((g) => (
+        <section key={g.section} className="flex flex-col gap-3">
+          {/* section header — same accent as its stars on the spiral */}
+          <div className="flex items-center gap-2">
+            <SectionStar color={g.color} />
+            <span
+              style={{
+                fontSize: 10,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                color: g.color,
+                fontFamily: MONO,
+              }}
+            >
+              {g.section}
+            </span>
+            <span
+              aria-hidden="true"
+              className="h-px flex-1"
+              style={{ background: `${g.color}33` }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {g.fragments.map((f) => (
+              <FragmentBox
+                key={String(f.id)}
+                fragment={f}
+                color={g.color}
+                initialAnswer={data.answers[String(f.id)] ?? ""}
+                onAnswer={onAnswer}
+              />
+            ))}
+          </div>
+        </section>
       ))}
     </div>
   )
 }
 
-function FragmentCard({
+/** Small geometric star matching the spiral's major-read markers. */
+function SectionStar({ color }: { color: string }) {
+  return (
+    <svg
+      width={11}
+      height={11}
+      viewBox="0 0 24 24"
+      fill={color}
+      aria-hidden="true"
+      style={{
+        display: "block",
+        filter: `drop-shadow(0 0 4px ${color}aa)`,
+      }}
+    >
+      <path d="M12 1.8l3.1 7.2 7.8.66-5.92 5.13 1.78 7.62L12 18.34l-6.76 4.07 1.78-7.62L1.1 9.66l7.8-.66L12 1.8z" />
+    </svg>
+  )
+}
+
+/**
+ * One claimed read — a chart box carrying its section's accent: tinted
+ * border, colored glyph marker (star for majors, dot for minors), and the
+ * reflection space underneath.
+ */
+function FragmentBox({
   fragment,
-  initialResponse,
+  color,
   initialAnswer,
-  onResponse,
   onAnswer,
 }: {
   fragment: FragmentRow
-  initialResponse: ReadResponse | null
+  color: string
   initialAnswer: string
-  onResponse?: (fragmentId: string, response: ReadResponse) => void
   onAnswer?: (fragmentId: string) => void
 }) {
-  const [response, setResponse] = useState<ReadResponse | null>(initialResponse)
-  const [pending, startTransition] = useTransition()
   const questions = toQuestions(fragment.self_questions)
-
-  function choose(next: ReadResponse) {
-    if (pending) return
-    const previous = response
-    setResponse(next) // optimistic
-    onResponse?.(String(fragment.id), next) // animate the creature
-    startTransition(async () => {
-      const res = await saveReadResponse(String(fragment.id), next)
-      if (!res.ok) setResponse(previous) // roll back on failure
-    })
-  }
+  const isMajor = (fragment.weight ?? 0) >= 7
 
   return (
-    <article className="flex flex-col gap-4">
+    <article
+      className="flex flex-col gap-3 rounded-xl px-4 py-4"
+      style={{
+        background: "#070707",
+        border: `1px solid ${color}2e`,
+        boxShadow: `inset 2px 0 0 ${color}66`,
+      }}
+    >
       {fragment.title && (
         <h3
+          className="flex items-baseline gap-2"
           style={{
-            ...GLOW,
-            fontSize: 15,
+            fontSize: 14,
             lineHeight: 1.5,
             letterSpacing: 0.4,
             fontFamily: MONO,
+            color: "#f0ede6",
+            textShadow: `0 0 10px ${color}44`,
           }}
         >
+          <span aria-hidden="true" style={{ color, fontSize: 12 }}>
+            {isMajor ? "\u2726" : "\u00b7"}
+          </span>
           {fragment.title}
         </h3>
       )}
       {fragment.body && (
         <p
           style={{
-            fontSize: 13.5,
+            fontSize: 13,
             lineHeight: 1.7,
             letterSpacing: 0.3,
             color: "#9a9a9a",
             fontFamily: MONO,
           }}
         >
-          <span style={{ color: "#555" }}>{"› "}</span>
           {fragment.body}
         </p>
       )}
 
-      {/* agree / disagree */}
-      <div className="flex items-center gap-5">
-        <ResponseButton
-          label="this fits"
-          active={response === "agree"}
-          activeColor="#f5f5f5"
-          onClick={() => choose("agree")}
-        />
-        <ResponseButton
-          label="not me"
-          active={response === "disagree"}
-          activeColor="#8a8a8a"
-          onClick={() => choose("disagree")}
-        />
-      </div>
-
-      {/* self-questions + answer — only after they agree */}
-      {response === "agree" && questions.length > 0 && (
+      {/* reflection — the user's own words, kept editable */}
+      {questions.length > 0 && (
         <AnswerBlock
           fragmentId={String(fragment.id)}
+          color={color}
           questions={questions}
           initialAnswer={initialAnswer}
           onAnswer={onAnswer}
@@ -144,55 +230,21 @@ function FragmentCard({
   )
 }
 
-function ResponseButton({
-  label,
-  active,
-  activeColor,
-  onClick,
-}: {
-  label: string
-  active: boolean
-  activeColor: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        fontFamily: MONO,
-        fontSize: 10,
-        letterSpacing: 1.5,
-        textTransform: "uppercase",
-        color: active ? activeColor : "#3f3f3f",
-        textShadow: active && activeColor === "#f5f5f5"
-          ? "0 0 8px rgba(255,255,255,0.4)"
-          : "none",
-        background: "transparent",
-        border: "none",
-        padding: 0,
-        cursor: "pointer",
-        transition: "color .16s",
-      }}
-    >
-      {active ? `· ${label}` : label}
-    </button>
-  )
-}
-
 function AnswerBlock({
   fragmentId,
+  color,
   questions,
   initialAnswer,
   onAnswer,
 }: {
   fragmentId: string
+  color: string
   questions: string[]
   initialAnswer: string
   onAnswer?: (fragmentId: string) => void
 }) {
   const [answer, setAnswer] = useState(initialAnswer)
-  const [editing, setEditing] = useState(initialAnswer.length === 0)
+  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(initialAnswer)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -213,10 +265,34 @@ function AnswerBlock({
     })
   }
 
+  // Collapsed prompt until they choose to reflect.
+  if (!editing && answer.length === 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        style={{
+          fontFamily: MONO,
+          fontSize: 10,
+          letterSpacing: 1.5,
+          textTransform: "uppercase",
+          color: `${color}99`,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          alignSelf: "flex-start",
+          cursor: "pointer",
+        }}
+      >
+        + add your words
+      </button>
+    )
+  }
+
   return (
     <div
       className="mt-1 flex flex-col gap-3 pl-4"
-      style={{ borderLeft: "1px solid #1a1a1a" }}
+      style={{ borderLeft: `1px solid ${color}44` }}
     >
       <ul className="flex flex-col gap-1.5">
         {questions.map((q, i) => (
@@ -249,7 +325,7 @@ function AnswerBlock({
               lineHeight: 1.6,
               letterSpacing: 0.3,
               color: "#dcdcdc",
-              border: "1px solid #1f1f1f",
+              border: `1px solid ${color}33`,
             }}
           />
           <div className="flex items-center gap-4">
@@ -271,29 +347,27 @@ function AnswerBlock({
             >
               {pending ? "saving…" : "save"}
             </button>
-            {answer.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(answer)
-                  setEditing(false)
-                  setError(null)
-                }}
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 10,
-                  letterSpacing: 1.5,
-                  textTransform: "uppercase",
-                  color: "#3f3f3f",
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                }}
-              >
-                cancel
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(answer)
+                setEditing(false)
+                setError(null)
+              }}
+              style={{
+                fontFamily: MONO,
+                fontSize: 10,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                color: "#3f3f3f",
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              cancel
+            </button>
           </div>
           {error && (
             <p style={{ fontSize: 11, color: "#d98a9a", fontFamily: MONO }}>
