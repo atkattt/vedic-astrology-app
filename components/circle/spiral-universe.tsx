@@ -406,10 +406,15 @@ export function SpiralUniverse({
   // one actually visible while a read is open, so reactions fire on it too.
   const stageCreatureRef = useRef<SelfCreatureHandle>(null)
 
+  // The creature grows from THE JOURNEY ITSELF: one growth point per answered
+  // read. It starts small and minimal at the first star and accretes detail
+  // as the cursor walks the path — identical behavior for guest and
+  // signed-in, regardless of any account-wide engagement metric.
+  const journeyScore = respondedIds.size
   // Disc size follows the creature's evolution (see discSizeFor). detailCount
   // mirrors SelfCreature's own accretion rule: one detail per growth point.
-  const creatureStage = scoreToStage(engagementScore)
-  const creatureDetails = Math.max(0, Math.floor(engagementScore))
+  const creatureStage = scoreToStage(journeyScore)
+  const creatureDetails = Math.max(0, Math.floor(journeyScore))
   const discSize = discSizeFor(creatureStage, creatureDetails)
   // Constant ratio (the previous 248/188 proportion) keeps the skeleton at
   // roughly half the disc at every stage.
@@ -1465,7 +1470,7 @@ export function SpiralUniverse({
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
           <SelfCreature
             ref={creatureRef}
-            score={engagementScore}
+            score={journeyScore}
             seed={userId}
             color={reactColor ?? NEUTRAL_COLOR}
             size={creatureSize}
@@ -1577,7 +1582,7 @@ export function SpiralUniverse({
               >
                 <SelfCreature
                   ref={stageCreatureRef}
-                  score={engagementScore}
+                  score={journeyScore}
                   seed={userId}
                   color={reactColor ?? panel.data.accent ?? NEUTRAL_COLOR}
                   size={Math.round(creatureSize * 3.375)}

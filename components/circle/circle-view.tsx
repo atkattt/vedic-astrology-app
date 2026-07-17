@@ -215,18 +215,6 @@ export function CircleView({
           initialResponses={initialResponses}
           guestFragments={guestFragments}
         />
-        {/* Hint overlay when the circle is still empty — shown on top of the
-            universe so the creature is always visible in the background. */}
-        {people.length === 0 && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-16 flex flex-col items-center gap-3">
-            <button
-              className="pointer-events-auto rounded-full border border-foreground/20 bg-background/60 px-6 py-2.5 font-mono text-[10px] uppercase tracking-widest text-foreground/70 backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
-              onClick={() => setAddOpen(true)}
-            >
-              + Add someone to your circle
-            </button>
-          </div>
-        )}
       </div>
 
       <AddPersonDialog open={addOpen} onOpenChange={setAddOpen} />
