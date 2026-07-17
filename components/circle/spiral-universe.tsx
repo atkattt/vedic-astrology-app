@@ -1549,8 +1549,10 @@ export function SpiralUniverse({
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  width: 27,
-                  height: 27,
+                  // Same footprint as a major star (31px ring, 17px icon) so
+                  // people and stars read as equal citizens of the universe.
+                  width: 31,
+                  height: 31,
                   backgroundColor: "#050505",
                   border: `1.5px solid ${locked ? "#4a4e56" : pp.color}`,
                   color: locked ? "#4a4e56" : pp.color,
@@ -1560,7 +1562,7 @@ export function SpiralUniverse({
                 }}
               >
                 <AvatarIcon
-                  size={14}
+                  size={17}
                   glow={
                     locked
                       ? undefined
