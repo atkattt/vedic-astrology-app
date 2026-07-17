@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getPeople, getRelationships } from "@/app/actions/circle"
 import { getRevealRadius } from "@/app/actions/progress"
-import { loadEngagementScore, loadSelfReads } from "@/lib/self/reads-data"
+import { loadEngagementScore, loadSelfReads, withRetry } from "@/lib/self/reads-data"
 import type { UniverseFragment } from "@/lib/spiral/universe-reads"
 import { CircleView } from "@/components/circle/circle-view"
 import { CircleDataProvider } from "@/components/circle/circle-data-provider"
@@ -90,9 +90,15 @@ export default async function CirclePage() {
   if (cookieStore.get("spiral_guest")?.value === "1") {
     // Guests match fragments CLIENT-side against the chart their onboarding
     // ritual stashed in local/sessionStorage — so we ship the raw fragment
-    // list and let the universe run the same deterministic matcher.
-    const { data: fragmentRows } = await supabase.from("fragments").select("*")
-    const guestFragments = (fragmentRows ?? []).map(toUniverseFragment)
+    // list and let the universe run the same deterministic matcher. NEVER
+    // swallow a query error here: an empty list silently erases every star
+    // from the spiral (retry once, then fail loudly).
+    const fragmentRows = await withRetry(async () => {
+      const { data, error } = await supabase.from("fragments").select("*")
+      if (error) throw new Error(`fragments query failed: ${error.message}`)
+      return data ?? []
+    })
+    const guestFragments = fragmentRows.map(toUniverseFragment)
 
     return (
       <CircleDataProvider

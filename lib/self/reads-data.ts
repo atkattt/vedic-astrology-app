@@ -18,6 +18,22 @@ export type FragmentRow = Fragment & {
 
 export type ReadResponse = "agree" | "disagree"
 
+/**
+ * Run a query, retrying once after a short beat on failure. Used for the
+ * queries whose silent failure would render a WRONG universe (no stars, seed
+ * creature) rather than a broken one — transient DB hiccups self-heal, and
+ * anything persistent surfaces as a real error instead of fake-empty data.
+ */
+export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (err) {
+    console.error("[spiral] query failed, retrying once:", err)
+    await new Promise((r) => setTimeout(r, 300))
+    return await fn()
+  }
+}
+
 export type SelfReadsData = {
   chart: Chart | null
   matched: FragmentRow[]
@@ -55,18 +71,26 @@ export async function loadSelfReads(
   supabase: SupabaseClient,
   profileId: string,
 ): Promise<SelfReadsData> {
-  // 1) the user's chart
-  const { data: chartRow } = await supabase
-    .from("charts")
-    .select("planets, ascendant, houses, dashas")
-    .eq("profile_id", profileId)
-    .maybeSingle()
+  // 1) the user's chart. NEVER swallow a query error here: a transient
+  // failure would render an empty universe (no reads, seed creature) that
+  // looks like lost progress. Retry once, then fail loudly.
+  const chart = await withRetry(async () => {
+    const { data, error } = await supabase
+      .from("charts")
+      .select("planets, ascendant, houses, dashas")
+      .eq("profile_id", profileId)
+      .maybeSingle()
+    if (error) throw new Error(`charts query failed: ${error.message}`)
+    return (data as Chart | null) ?? null
+  })
 
-  const chart = (chartRow as Chart | null) ?? null
-
-  // 2) all authored fragments
-  const { data: fragmentRows } = await supabase.from("fragments").select("*")
-  const fragments = (fragmentRows ?? []) as FragmentRow[]
+  // 2) all authored fragments — same rule: a silent empty list here erases
+  // every star from the spiral.
+  const fragments = await withRetry(async () => {
+    const { data, error } = await supabase.from("fragments").select("*")
+    if (error) throw new Error(`fragments query failed: ${error.message}`)
+    return (data ?? []) as FragmentRow[]
+  })
 
   // 3) match chart -> fragments (deterministic, sorted by weight desc)
   const matched = chart ? matchFragments(chart, fragments) : []
