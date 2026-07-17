@@ -186,6 +186,29 @@ function StarIcon({ size, glow }: { size: number; glow?: string }) {
   )
 }
 
+/**
+ * Classic anonymous-avatar silhouette (head + shoulders bust) for people
+ * markers — the others in the universe are unknown faces, not stars. Same
+ * currentColor + drop-shadow-glow contract as StarIcon.
+ */
+function AvatarIcon({ size, glow }: { size: number; glow?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={{ display: "block", filter: glow || undefined }}
+    >
+      {/* head */}
+      <circle cx="12" cy="8.2" r="4.4" />
+      {/* shoulders — a dome clipped flat at the bottom */}
+      <path d="M12 13.6c-4.75 0-8.2 3.06-8.2 7.1 0 .4.32.9.82.9h14.76c.5 0 .82-.5.82-.9 0-4.04-3.45-7.1-8.2-7.1z" />
+    </svg>
+  )
+}
+
 type Glyph = {
   key: number
   x: number
@@ -243,6 +266,22 @@ const PERSON_MAX_T = 1.12
 function personT(i: number, n: number) {
   if (n <= 1) return 0.72
   return PERSON_MIN_T + (PERSON_MAX_T - PERSON_MIN_T) * (i / (n - 1))
+}
+
+/**
+ * Place a person in the DARK void between spiral arm turns — the glowing arm
+ * belongs to reads only. Same angle as their walk-order t, but radius pushed
+ * halfway into the inter-arm gap (arms at a fixed angle are MAX_R/TURNS apart)
+ * with a small deterministic wobble so a row of people doesn't trace a
+ * perfect ghost-spiral of its own.
+ */
+function personPoint(i: number, n: number) {
+  const t = personT(i, n)
+  const theta = t * TURNS * Math.PI * 2 - Math.PI / 2
+  const gap = MAX_R / TURNS
+  const rnd = mulberry32(0xbeef + i * 7919)
+  const r = MAX_R * t + gap * (0.42 + rnd() * 0.16)
+  return { x: r * Math.cos(theta), y: r * Math.sin(theta) }
 }
 
 // Fallback palette for people (used only when colorById has no entry), kept
@@ -935,12 +974,13 @@ export function SpiralUniverse({
     }
   }, [currentReadId])
 
-  // PEOPLE — the others in the spiral, placed ON the arm by their order, each
-  // in their own palette color. Tapping opens the bond read.
+  // PEOPLE — the others in the universe, floating in the dark void BETWEEN
+  // the arm's turns (the glowing arm is reads-only), each in their own
+  // palette color. Tapping opens the bond read.
   const placedPeople = useMemo<PlacedPerson[]>(() => {
     const n = people.length
     return people.map((person, i) => {
-      const { x, y } = spiralPoint(personT(i, n))
+      const { x, y } = personPoint(i, n)
       const read = makePersonRead(person.id, person.name)
       return {
         person,
@@ -1501,8 +1541,9 @@ export function SpiralUniverse({
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
             >
-              {/* A star set inside a black disc outlined in this person's hue —
-                  a node in the spiral. Slightly larger than a read node. */}
+              {/* An anonymous silhouette inside a black disc outlined in this
+                  person's hue — an unknown face adrift in the dark between
+                  the arms. Slightly larger than a read node. */}
               <span
                 className={`flex items-center justify-center rounded-full leading-none transition-[filter] duration-150 group-hover:brightness-150${
                   locked ? "" : " animate-object-pulse"
@@ -1518,9 +1559,8 @@ export function SpiralUniverse({
                   boxShadow: locked ? "none" : `0 0 11px ${pp.color}, 0 0 22px ${pp.color}66`,
                 }}
               >
-                {/* geometric SVG star — exactly centered at any zoom */}
-                <StarIcon
-                  size={13}
+                <AvatarIcon
+                  size={14}
                   glow={
                     locked
                       ? undefined
