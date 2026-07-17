@@ -1439,10 +1439,9 @@ export function SpiralUniverse({
                 {/* Majors render a geometric SVG star (exactly centered at any
                     zoom); minors keep their text sigil. */}
                 {isMajor ? (
-                  <StarIcon
-                    size={isCurrent ? 17 : 14}
-                    glow={toDropShadow(starGlow)}
-                  />
+                  // Same size in every state — current (ringed), answered on
+                  // the spiral, and bare — so answering never shrinks the star.
+                  <StarIcon size={17} glow={toDropShadow(starGlow)} />
                 ) : (
                   r.glyph
                 )}
