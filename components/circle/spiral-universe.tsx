@@ -406,19 +406,6 @@ export function SpiralUniverse({
   // one actually visible while a read is open, so reactions fire on it too.
   const stageCreatureRef = useRef<SelfCreatureHandle>(null)
 
-  // The creature grows from THE JOURNEY ITSELF: one growth point per answered
-  // read. It starts small and minimal at the first star and accretes detail
-  // as the cursor walks the path — identical behavior for guest and
-  // signed-in, regardless of any account-wide engagement metric.
-  const journeyScore = respondedIds.size
-  // Disc size follows the creature's evolution (see discSizeFor). detailCount
-  // mirrors SelfCreature's own accretion rule: one detail per growth point.
-  const creatureStage = scoreToStage(journeyScore)
-  const creatureDetails = Math.max(0, Math.floor(journeyScore))
-  const discSize = discSizeFor(creatureStage, creatureDetails)
-  // Constant ratio (the previous 248/188 proportion) keeps the skeleton at
-  // roughly half the disc at every stage.
-  const creatureSize = Math.round(discSize * (248 / 188))
   useEffect(() => {
     if (!reactMood) return
     const kind =
@@ -502,6 +489,27 @@ export function SpiralUniverse({
       }
     })
   }, [fragments])
+
+  // The creature grows from THE JOURNEY ITSELF: one growth point per answered
+  // read THAT EXISTS IN THE CURRENT SKY. Intersecting with placed reads (not
+  // raw respondedIds.size) matters: persisted client state and old
+  // read_responses rows can reference reads from earlier content/sessions
+  // that no longer appear on the spiral — those must not inflate the
+  // creature, or a fresh journey starts with a grown being.
+  const journeyScore = useMemo(() => {
+    let n = 0
+    for (const s of sections)
+      for (const r of s.reads) if (respondedIds.has(r.read.id)) n++
+    return n
+  }, [sections, respondedIds])
+  // Disc size follows the creature's evolution (see discSizeFor). detailCount
+  // mirrors SelfCreature's own accretion rule: one detail per growth point.
+  const creatureStage = scoreToStage(journeyScore)
+  const creatureDetails = Math.max(0, Math.floor(journeyScore))
+  const discSize = discSizeFor(creatureStage, creatureDetails)
+  // Constant ratio (the previous 248/188 proportion) keeps the skeleton at
+  // roughly half the disc at every stage.
+  const creatureSize = Math.round(discSize * (248 / 188))
 
   // Sections whose reads are ALL answered — the single source of truth for
   // progression AND the full-saturation glow (see the marker renderer).
