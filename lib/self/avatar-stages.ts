@@ -200,35 +200,97 @@ export function toBlinkArt(art: string): string {
  * to edit; the renderer component only draws what these return.
  * ======================================================================== */
 
-/**
- * Character palettes by zone. EDIT THESE freely — add/remove glyphs and the
- * being's vocabulary changes. Each detail picks one glyph from its zone.
- *   - aura:  scattered just OUTSIDE the body (faint sparks)
- *   - body:  texture INSIDE the form
- *   - edge:  whiskers / spines hugging the form's outline
+export type DetailZone = "aura" | "body" | "edge"
+
+/* ---- GROWTH SCHEDULE (diminishing) ----------------------------------------
+ * Points still accumulate as before (read response = 1, answer = 3), but
+ * VISIBLE changes (a new detail OR an upgrade) happen on a widening cadence.
+ * Each row: while the current point is <= upToPoints, the next visible event
+ * is everyPoints later. TUNE FREELY — growthEventCount reads this table.
+ *   default: every point to 5, every 2nd to 15, every 3rd to 30, every 5th on.
  */
-export const DETAIL_PALETTE: Record<DetailZone, string[]> = {
-  aura: ["·", "˙", "°", "*", "✦", "⁘"],
-  body: [":", ";", "~", "=", "≈", "#"],
-  edge: ["/", "\\", "'", "`", "^"],
+export const GROWTH_SCHEDULE: Array<{
+  upToPoints: number
+  everyPoints: number
+}> = [
+  { upToPoints: 5, everyPoints: 1 },
+  { upToPoints: 15, everyPoints: 2 },
+  { upToPoints: 30, everyPoints: 3 },
+  { upToPoints: Number.POSITIVE_INFINITY, everyPoints: 5 },
+]
+
+/** How many visible growth events a raw point score has produced. */
+export function growthEventCount(score: number): number {
+  const s = Math.max(0, Math.floor(score))
+  let events = 0
+  let p = 1
+  while (p <= s) {
+    events++
+    const bracket =
+      GROWTH_SCHEDULE.find((b) => p <= b.upToPoints) ??
+      GROWTH_SCHEDULE[GROWTH_SCHEDULE.length - 1]
+    p += bracket.everyPoints
+  }
+  return events
 }
 
-export type DetailZone = "aura" | "body" | "edge"
+/* ---- MATURITY LADDERS ------------------------------------------------------
+ * Each zone's ladder orders its glyphs from faint/new → matured. An ADD starts
+ * a detail at step 0; an UPGRADE moves an existing detail one step up. A
+ * detail at the top of its ladder can't upgrade further. EDIT FREELY.
+ */
+export const MATURITY_LADDERS: Record<DetailZone, string[]> = {
+  aura: ["·", "˙", "°", "*", "✦"],
+  body: [":", ";", "~", "≈", "#"],
+  edge: ["'", "`", "/", "^"],
+}
+
+/** Chance a growth event UPGRADES an existing detail (vs ADDING a new one). */
+export const UPGRADE_CHANCE = 0.5
+
+/* ---- FLICKER FAMILIES ------------------------------------------------------
+ * Moment-to-moment aliveness, fully separate from growth: each glyph can
+ * flicker between same-weight lookalikes only, so mutation never fakes (or
+ * hides) maturity. Any glyph not listed simply doesn't flicker.
+ */
+export const FLICKER_FAMILIES: Record<string, string[]> = {
+  "·": ["·", "."],
+  "˙": ["˙", "'"],
+  "°": ["°", "˚"],
+  "*": ["*", "+"],
+  "✦": ["✦", "✧"],
+  ":": [":", ";"],
+  ";": [";", ":"],
+  "~": ["~", "-"],
+  "≈": ["≈", "~"],
+  "#": ["#", "%"],
+  "'": ["'", "`"],
+  "`": ["`", "'"],
+  "/": ["/", "\\"],
+  "^": ["^", "ˆ"],
+}
 
 /** How wide a ring of empty space to leave around the being for aura details. */
 export const ACCRETION_PADDING = 2
 
-/**
- * Relative likelihood each new detail lands in a given zone. Tweak to taste:
- * more "body" = denser core, more "aura" = a wider halo.
+/* ---- PLACEMENT RULES -------------------------------------------------------
+ * Adds build the being from the INSIDE OUT: body texture fills first (to a
+ * soft density cap), then edge details, then aura. Details keep a minimum
+ * spacing so the form never crowds; a full zone spills into the next.
  */
-export const ZONE_WEIGHTS: Record<DetailZone, number> = {
-  body: 0.42,
-  aura: 0.4,
-  edge: 0.18,
+export const ZONE_FILL_ORDER: DetailZone[] = ["body", "edge", "aura"]
+
+/** Soft caps: max fraction of a zone's candidate cells that adds may fill. */
+export const ZONE_DENSITY_CAP: Record<DetailZone, number> = {
+  body: 0.4,
+  edge: 0.5,
+  aura: 1,
 }
 
-/** Every Nth detail is mirrored left/right so the being stays composed. */
+/** Minimum Chebyshev distance between any two placed details. */
+export const MIN_DETAIL_SPACING = 2
+
+/** Every Nth ADD is mirrored left/right so the being stays composed. */
 export const SYMMETRY_EVERY = 5
 
 // ---- deterministic hashing + PRNG -----------------------------------------
@@ -359,73 +421,156 @@ export function buildAccretionGrid(
 export type PlacedDetail = {
   row: number
   col: number
+  /** current glyph = MATURITY_LADDERS[zone][level] */
   char: string
   zone: DetailZone
-  /** growth-point index (0-based) that produced it */
+  /** maturity step along the zone's ladder (0 = newborn) */
+  level: number
+  /** growth-EVENT index (0-based) that added it — stable identity */
   index: number
+  /** growth-event index of the most recent upgrade, or null if never */
+  upgradedAt: number | null
 }
 
-function pickZone(roll: number): DetailZone {
-  const total = ZONE_WEIGHTS.body + ZONE_WEIGHTS.aura + ZONE_WEIGHTS.edge
-  let acc = (roll * total)
-  if ((acc -= ZONE_WEIGHTS.body) < 0) return "body"
-  if ((acc -= ZONE_WEIGHTS.aura) < 0) return "aura"
-  return "edge"
+/** Cells a detail may never occupy: horizontally beside eyes or the mouth. */
+function buildFaceExclusion(grid: AccretionGrid): Set<string> {
+  const excluded = new Set<string>()
+  const faceChars = new Set(["o", ">", "<"])
+  for (let r = 0; r < grid.rows; r++) {
+    const line = grid.skeleton[r]
+    for (let c = 0; c < grid.cols; c++) {
+      if (!faceChars.has(line[c])) continue
+      for (const dc of [-1, 1]) {
+        const nc = c + dc
+        if (nc >= 0 && nc < grid.cols && line[nc] === " ")
+          excluded.add(`${r},${nc}`)
+      }
+    }
+  }
+  return excluded
 }
 
 /**
- * Deterministically place `count` details for a user. Details are generated in
- * index order (0..count-1) from seed = hash(seedKey + ":" + index), so the
- * being always regrows identically. Occupied cells are skipped by stable
- * forward-probing. Every SYMMETRY_EVERY-th detail is mirrored left/right.
+ * Deterministically build the being's growth state after `eventCount` visible
+ * growth events. Each event (seeded by hash(seedKey + ":" + index)) either
+ * ADDS a new detail or UPGRADES an existing one a step up its maturity
+ * ladder (~50/50 via UPGRADE_CHANCE); a fully-matured pick falls back to ADD,
+ * and when nothing can upgrade the event adds. Adds fill inside-out
+ * (ZONE_FILL_ORDER + density caps), keep MIN_DETAIL_SPACING between details,
+ * never sit beside eyes/mouth, and every SYMMETRY_EVERY-th add is mirrored.
+ * Same seedKey + same eventCount always reproduces the exact same being —
+ * positions AND upgrade states.
  */
-export function buildDetails(
+export function buildGrowth(
   seedKey: string,
-  count: number,
+  eventCount: number,
   grid: AccretionGrid,
 ): PlacedDetail[] {
   const placed: PlacedDetail[] = []
-  if (count <= 0) return placed
+  if (eventCount <= 0) return placed
 
   const occupied = new Set<string>(grid.skeletonCells)
+  const faceExcluded = buildFaceExclusion(grid)
   const key = (r: number, c: number) => `${r},${c}`
+  const zoneFill: Record<DetailZone, number> = { body: 0, edge: 0, aura: 0 }
+  let addCount = 0
 
-  const takeInZone = (
-    zone: DetailZone,
+  const spacedOk = (r: number, c: number, spacing: number) => {
+    for (const d of placed) {
+      if (
+        Math.max(Math.abs(d.row - r), Math.abs(d.col - c)) < spacing
+      )
+        return false
+    }
+    return true
+  }
+
+  const findSpot = (
     rand: () => number,
-  ): [number, number] | null => {
-    const order: DetailZone[] = [zone, "body", "aura", "edge"]
-    for (const z of order) {
+    spacing: number,
+  ): [number, number, DetailZone] | null => {
+    for (const z of ZONE_FILL_ORDER) {
       const cells = grid.cellsByZone[z]
       if (!cells.length) continue
+      const cap = Math.ceil(cells.length * ZONE_DENSITY_CAP[z])
+      if (zoneFill[z] >= cap) continue // zone at soft capacity → next zone
       const start = Math.floor(rand() * cells.length)
       for (let k = 0; k < cells.length; k++) {
         const [r, c] = cells[(start + k) % cells.length]
-        if (!occupied.has(key(r, c))) return [r, c]
+        const kk = key(r, c)
+        if (occupied.has(kk) || faceExcluded.has(kk)) continue
+        if (!spacedOk(r, c, spacing)) continue
+        return [r, c, z]
       }
     }
     return null
   }
 
-  for (let i = 0; i < count; i++) {
-    const rand = mulberry32(hashString(`${seedKey}:${i}`))
-    const zone = pickZone(rand())
-    const spot = takeInZone(zone, rand)
-    if (!spot) continue
-    const [r, c] = spot
-    const palette = DETAIL_PALETTE[zone]
-    const char = palette[Math.floor(rand() * palette.length)]
+  const add = (i: number, rand: () => number) => {
+    // Try with full spacing, then relax to 1 so late growth still lands.
+    const spot = findSpot(rand, MIN_DETAIL_SPACING) ?? findSpot(rand, 1)
+    if (!spot) return
+    const [r, c, zone] = spot
     occupied.add(key(r, c))
-    placed.push({ row: r, col: c, char, zone, index: i })
+    zoneFill[zone]++
+    placed.push({
+      row: r,
+      col: c,
+      char: MATURITY_LADDERS[zone][0],
+      zone,
+      level: 0,
+      index: i,
+      upgradedAt: null,
+    })
+    addCount++
 
-    // Every Nth detail: mirror it across the vertical axis for composure.
-    if ((i + 1) % SYMMETRY_EVERY === 0) {
+    // Every Nth ADD: mirror it across the vertical axis for composure.
+    if (addCount % SYMMETRY_EVERY === 0) {
       const mc = grid.cols - 1 - c
-      if (mc !== c && !occupied.has(key(r, mc))) {
-        occupied.add(key(r, mc))
-        placed.push({ row: r, col: mc, char, zone, index: i })
+      const mk = key(r, mc)
+      if (mc !== c && !occupied.has(mk) && !faceExcluded.has(mk)) {
+        occupied.add(mk)
+        zoneFill[zone]++
+        placed.push({
+          row: r,
+          col: mc,
+          char: MATURITY_LADDERS[zone][0],
+          zone,
+          level: 0,
+          index: i,
+          upgradedAt: null,
+        })
       }
     }
+  }
+
+  for (let i = 0; i < eventCount; i++) {
+    const rand = mulberry32(hashString(`${seedKey}:${i}`))
+    const wantsUpgrade = rand() < UPGRADE_CHANCE
+
+    if (wantsUpgrade) {
+      // Distinct upgradable identities (mirrored pairs share an index and
+      // mature together so the being stays composed).
+      const upgradable = Array.from(
+        new Set(
+          placed
+            .filter((d) => d.level < MATURITY_LADDERS[d.zone].length - 1)
+            .map((d) => d.index),
+        ),
+      )
+      if (upgradable.length > 0) {
+        const pick = upgradable[Math.floor(rand() * upgradable.length)]
+        for (const d of placed) {
+          if (d.index !== pick) continue
+          d.level++
+          d.char = MATURITY_LADDERS[d.zone][d.level]
+          d.upgradedAt = i
+        }
+        continue
+      }
+      // nothing can mature → fall through to ADD
+    }
+    add(i, rand)
   }
 
   return placed
@@ -439,16 +584,13 @@ export const ZONE_OPACITY: Record<DetailZone, number> = {
 }
 
 /**
- * The 2–3 interchangeable glyphs a placed detail can mutate between — its own
- * character plus the next couple of siblings from its zone palette. Kept
- * deterministic (palette order) so a detail always mutates within the same
- * small family rather than jumping anywhere in the zone.
+ * The interchangeable glyphs a placed detail can flicker between: its own
+ * character plus same-weight lookalikes from FLICKER_FAMILIES. Deliberately
+ * NEVER other ladder steps — moment-to-moment aliveness stays fully separate
+ * from permanent maturity (a flicker can't fake or hide growth).
  */
-export function detailSiblings(char: string, zone: DetailZone): string[] {
-  const pal = DETAIL_PALETTE[zone]
-  const i = pal.indexOf(char)
-  if (i < 0) return [char]
-  return Array.from(
-    new Set([char, pal[(i + 1) % pal.length], pal[(i + 2) % pal.length]]),
-  )
+export function detailSiblings(char: string, _zone: DetailZone): string[] {
+  const fam = FLICKER_FAMILIES[char]
+  if (!fam || fam.length < 2) return [char]
+  return Array.from(new Set([char, ...fam]))
 }

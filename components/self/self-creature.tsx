@@ -17,7 +17,8 @@ import {
   MAX_STAGE,
   scoreToStage,
   buildAccretionGrid,
-  buildDetails,
+  buildGrowth,
+  growthEventCount,
   detailSiblings,
   ZONE_OPACITY,
   type PlacedDetail,
@@ -155,8 +156,10 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
     score != null ? scoreToStage(score) : Math.round(stage ?? 1)
   const clampedStage = Math.max(1, Math.min(MAX_STAGE, effectiveStage))
 
-  // One detail per growth point, no cap.
-  const detailCount = score != null && seed ? Math.max(0, Math.floor(score)) : 0
+  // Visible growth EVENTS (diminishing schedule — see GROWTH_SCHEDULE), not
+  // raw points. Each event either adds a detail or matures an existing one.
+  const detailCount =
+    score != null && seed ? growthEventCount(score) : 0
 
   // The form currently drawn. Lags the prop during an evolution transition.
   const [displayStage, setDisplayStage] = useState(clampedStage)
@@ -298,7 +301,7 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
   // ----- geometry (fixed to the mature stage-5 envelope) ---------------------
   const grid = useMemo(() => buildAccretionGrid(STAGE_5), [])
   const details = useMemo(
-    () => (seed ? buildDetails(seed, detailCount, grid) : []),
+    () => (seed ? buildGrowth(seed, detailCount, grid) : []),
     [seed, detailCount, grid],
   )
   const skelLines = useMemo(
@@ -550,9 +553,16 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
           )}
         </div>
 
-        {/* accreted details — each mutates within its own 2–3 glyph family */}
+        {/* accreted details — flicker within same-weight lookalikes only.
+            Fresh ADDS flicker in; fresh UPGRADES shimmer in place as their
+            glyph swaps one step up its maturity ladder. */}
         {details.map((d: PlacedDetail, i) => {
-          const fresh = !reduceMotion && d.index >= freshFrom
+          const freshAdd = !reduceMotion && d.index >= freshFrom
+          const freshUpgrade =
+            !reduceMotion &&
+            !freshAdd &&
+            d.upgradedAt != null &&
+            d.upgradedAt >= freshFrom
           const sib = detailSiblings(d.char, d.zone)
           const idx = variantState[`d:${d.index}:${d.row}:${d.col}`] ?? 0
           const glyph = sib[idx % sib.length]
@@ -562,11 +572,13 @@ const SelfCreature = forwardRef<SelfCreatureHandle, Props>(function SelfCreature
               style={{
                 ...cellStyle(d.row, d.col),
                 fontSize: `${fontPx * 0.92}px`,
-                opacity: fresh ? undefined : ZONE_OPACITY[d.zone],
+                opacity: freshAdd ? undefined : ZONE_OPACITY[d.zone],
                 filter: `drop-shadow(0 0 3px ${color})`,
-                animation: fresh
+                animation: freshAdd
                   ? `creatureAccrete ${ACCRETE_MS}ms ease forwards`
-                  : "none",
+                  : freshUpgrade
+                    ? `creatureShimmer ${ACCRETE_MS}ms ease`
+                    : "none",
               }}
             >
               {glyph}
@@ -706,6 +718,12 @@ const CREATURE_KEYFRAMES = `
 @keyframes creatureDrift {
   0%, 100% { transform: translate(0, 0); opacity: 0.1; }
   50% { transform: translate(4px, -6px); opacity: 0.35; }
+}
+@keyframes creatureShimmer {
+  0% { filter: brightness(1); }
+  30% { filter: brightness(2.2) drop-shadow(0 0 6px currentColor); }
+  60% { filter: brightness(1.4); }
+  100% { filter: brightness(1); }
 }
 @keyframes creatureAccrete {
   0% { opacity: 0; }

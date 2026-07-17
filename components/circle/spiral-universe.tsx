@@ -6,7 +6,7 @@ import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-cr
 import type { Person, Relationship } from "@/lib/db/schema"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import { makePersonRead, type Read } from "@/lib/spiral/reads"
-import { scoreToStage } from "@/lib/self/avatar-stages"
+import { scoreToStage, growthEventCount } from "@/lib/self/avatar-stages"
 import { UniverseReadPanel, type PanelData } from "@/components/circle/universe-read-panel"
 import { saveRevealRadius } from "@/app/actions/progress"
 import { saveReadResponse } from "@/app/actions/self-reads"
@@ -503,9 +503,10 @@ export function SpiralUniverse({
     return n
   }, [sections, respondedIds])
   // Disc size follows the creature's evolution (see discSizeFor). detailCount
-  // mirrors SelfCreature's own accretion rule: one detail per growth point.
+  // mirrors SelfCreature's rule: VISIBLE growth events on the diminishing
+  // schedule (growthEventCount), not raw points.
   const creatureStage = scoreToStage(journeyScore)
-  const creatureDetails = Math.max(0, Math.floor(journeyScore))
+  const creatureDetails = growthEventCount(journeyScore)
   const discSize = discSizeFor(creatureStage, creatureDetails)
   // Constant ratio (the previous 248/188 proportion) keeps the skeleton at
   // roughly half the disc at every stage.
