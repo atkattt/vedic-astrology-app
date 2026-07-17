@@ -688,7 +688,19 @@ export function SpiralUniverse({
     return () => clearInterval(iv)
   }, [neededRevealR, guest])
 
+  // SEQUENTIAL GATE — the walk is one read at a time. Only the cursor read
+  // (first unanswered in walking order) or an already-answered read (reopen)
+  // may open; unanswered reads further along stay sealed even when visible
+  // inside the fog. Ref-backed because openRead is a stable callback and the
+  // cursor memo lives further down the component.
+  const readGateRef = useRef<{ cursor: string | null; responded: Set<string> }>({
+    cursor: null,
+    responded: new Set(),
+  })
+
   const openRead = useCallback((r: PlacedRead) => {
+    const gate = readGateRef.current
+    if (!gate.responded.has(r.read.id) && r.read.id !== gate.cursor) return
     if (reactTimer.current) clearTimeout(reactTimer.current)
     setPanel({ data: r.panel, read: r.read, fragment: true, mood: r.mood })
     setReactMood("curious") // lean in
@@ -906,6 +918,8 @@ export function SpiralUniverse({
     }
     return null
   }, [reads, respondedIds])
+  // Keep the sequential-open gate in sync (see openRead).
+  readGateRef.current = { cursor: currentReadId, responded: respondedIds }
 
   // When the ring passes to a new read (not on first paint), that star blooms
   // briefly (~800ms) as its ring + color arrive.
@@ -1406,7 +1420,9 @@ export function SpiralUniverse({
                 left: px2(r.x),
                 top: px2(r.y),
                 transform: "translate(-50%, -50%)",
-                cursor: "pointer",
+                // Only the cursor read and answered reads are openable —
+                // sealed future reads shouldn't invite a click.
+                cursor: completed || isCurrent ? "pointer" : "default",
                 transition:
                   "opacity 1s ease, filter 1s ease, transform 1s cubic-bezier(.3,.8,.3,1)",
               }}
