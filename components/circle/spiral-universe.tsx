@@ -270,13 +270,19 @@ function advanceT(t: number, arc: number): number {
   return cur
 }
 
-// PEOPLE live ON the spiral arm too, further out than the reads. The first
-// person added sits innermost; each subsequent one is placed further along.
-const PERSON_MIN_T = 0.58
+// PEOPLE drift in the dark between the strands. The first person added sits
+// innermost — close enough that their star is ON SCREEN in the home framing
+// the moment it's added (radial offset into the inter-strand gap keeps them
+// clear of the read beads at the same t) — and each subsequent one is placed
+// further along, out past the journey's edge.
+// t = 0.5 aims the spiral angle due SOUTH (θ = t·6π − π/2 ≡ π/2), putting the
+// first bond star straight below the creature at r ≈ 280 — inside even a
+// narrow portrait frame, whose height is generous while its width is not.
+const PERSON_MIN_T = 0.5
 const PERSON_MAX_T = 1.12
 
 function personT(i: number, n: number) {
-  if (n <= 1) return 0.72
+  if (n <= 1) return 0.5
   return PERSON_MIN_T + (PERSON_MAX_T - PERSON_MIN_T) * (i / (n - 1))
 }
 
@@ -713,14 +719,7 @@ export function SpiralUniverse({
     }
     return r
   }, [sections, unlockedCount])
-  // PEOPLE unlock against THIS section-driven frontier only — never the
-  // per-answer REVEAL_STEP bumps of revealRadius. Otherwise a single answer
-  // near the base frontier can light up a bond star mid-section, out of the
-  // spiral's order. A person appears only when completed sections have
-  // legitimately pushed the frontier past them.
-  const personUnlockR = neededRevealR
-  const personUnlockRRef = useRef(personUnlockR)
-  personUnlockRRef.current = personUnlockR
+
   // STALE-FRONTIER CLAMP (once, on load): a returning user's persisted radius
   // may date from an older sky layout where much larger radii were legitimate.
   // If it exceeds what the CURRENT layout warrants (placed sections + the
@@ -1362,8 +1361,9 @@ export function SpiralUniverse({
         const r = readsRef.current[idx]
         if (r && r.r <= revealRadiusRef.current) openReadRef.current(r)
       } else if (type === "person") {
+        // Bond stars are never frontier-locked (see the placedPeople render).
         const p = peopleRef.current[idx]
-        if (p && p.r <= personUnlockRRef.current) openPersonRef.current(p)
+        if (p) openPersonRef.current(p)
       }
     }
 
@@ -1687,7 +1687,11 @@ export function SpiralUniverse({
         {/* PEOPLE — placed on the spiral arm, each in their own color. Tap to
             open the bond read. */}
         {placedPeople.map((pp, i) => {
-          const locked = pp.r > personUnlockR
+          // People are the user's OWN circle — they added each one, so a bond
+          // star is never gated behind the read journey's frontier. It appears
+          // lit and tappable the moment it's added (unlike reads, which do
+          // unlock progressively).
+          const locked = false
           return (
             <div
               key={pp.person.id}
