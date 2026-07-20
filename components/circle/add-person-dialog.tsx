@@ -93,7 +93,13 @@ export function AddPersonDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-sm border-border bg-popover"
+        className="max-w-sm"
+        style={{
+          // Dark grey panel — a step lighter than the pure-black sky so the
+          // dialog reads as its own surface floating above it.
+          backgroundColor: "#232323",
+          border: "1px solid rgba(255,255,255,0.16)",
+        }}
         aria-describedby={undefined}
       >
         <DialogHeader>
