@@ -8,34 +8,53 @@ import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import type { Truth, TruthScope } from "@/lib/spiral/reads"
 
-// The circle page's visual language: Geist Pixel, pure-black sky, dim greys,
-// "›" prefixes, ●/○ text toggles and pill outline buttons — no boxed shadcn
-// chrome, no serif type.
-const PIXEL = '"Geist Pixel", sans-serif'
+// The /self page's visual idiom, matched exactly: bg-background sky,
+// #070707 panels with #1a1a1a hairlines (rounded-2xl), tiny uppercase
+// #4a4a4a section labels, 13.5px mono body in dim greys with "›" prefixes,
+// and a single serif light lowercase caption line.
+const MONO = "'Geist Pixel', ui-monospace, monospace"
 
 const TABS: { id: TruthScope; label: string }[] = [
   { id: "about-me", label: "about me" },
   { id: "about-bond", label: "about a bond" },
 ]
 
+// Same surface as /self's locked-chat panel.
 const panelStyle: React.CSSProperties = {
-  borderRadius: 14,
-  border: "1px solid rgba(255,255,255,0.16)",
-  background: "rgba(0,0,0,0.35)",
+  borderRadius: 16,
+  border: "1px solid #1a1a1a",
+  background: "#070707",
   padding: 16,
 }
 
-// The entry actions row: quiet lowercase, dim, letterspaced.
+// Quiet uppercase micro-actions — the same register as /self's tiny labels
+// ("back", section labels, "% toward opening").
 const actionStyle: React.CSSProperties = {
   background: "none",
   border: "none",
   padding: 0,
   cursor: "pointer",
-  fontFamily: PIXEL,
+  fontFamily: MONO,
   fontSize: 10,
   letterSpacing: 2,
-  textTransform: "lowercase",
-  color: "rgba(255,255,255,0.5)",
+  textTransform: "uppercase",
+  color: "#6a6a6a",
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        letterSpacing: 2,
+        textTransform: "uppercase",
+        color: "#4a4a4a",
+        fontFamily: MONO,
+      }}
+    >
+      {children}
+    </span>
+  )
 }
 
 export function SelfView() {
@@ -63,151 +82,148 @@ export function SelfView() {
   }
 
   return (
-    <main
-      className="relative flex min-h-[100dvh] flex-col overflow-hidden"
-      style={{ background: "#000" }}
-    >
+    <main className="relative flex min-h-[100dvh] flex-col bg-background">
       <Starfield count={70} />
 
-      <header className="relative z-20 mx-auto w-full max-w-md px-5 pt-6">
+      {/* Header — identical to /self's */}
+      <header className="relative z-20 flex items-center px-5 pt-6">
         <Link
           href="/circle"
-          className="inline-flex items-center gap-1.5 transition-colors"
-          style={{
-            fontFamily: PIXEL,
-            fontSize: 10,
-            letterSpacing: 3,
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.5)",
-          }}
+          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          spiral
+          back
         </Link>
-        <h1
-          className="mt-5 text-balance"
-          style={{
-            fontFamily: PIXEL,
-            fontWeight: 500,
-            fontSize: 22,
-            letterSpacing: 1.5,
-            color: "#f0f0f0",
-          }}
-        >
-          what you know about yourself
-        </h1>
-        <p
-          className="mt-3 max-w-sm text-pretty leading-relaxed"
-          style={{
-            fontFamily: PIXEL,
-            fontSize: 12.5,
-            letterSpacing: 0.4,
-            color: "#6a6a6a",
-          }}
-        >
-          <span style={{ color: "#555" }}>{"› "}</span>
-          your own words, unprompted. you are always the authority here — the
-          sky listens, it never argues.
-        </p>
       </header>
 
-      <div className="relative z-10 mx-auto w-full max-w-md flex-1 px-5 py-6">
-        {/* Scope toggles — ●/○ text idiom, same as onboarding + add person */}
-        <div className="mb-5 flex gap-5">
-          {TABS.map((t) => {
-            const selected = scope === t.id
-            return (
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col gap-10 px-5 pb-24 pt-6">
+        {/* 1 — Title, in /self's serif caption voice */}
+        <section className="flex flex-col gap-3">
+          <p
+            className="font-serif text-base font-light lowercase text-foreground"
+            style={{ textWrap: "balance" }}
+          >
+            what you know about yourself
+          </p>
+          <p
+            style={{
+              fontSize: 13.5,
+              lineHeight: 1.65,
+              letterSpacing: 0.3,
+              color: "#6a6a6a",
+              fontFamily: MONO,
+            }}
+          >
+            <span style={{ color: "#555" }}>{"› "}</span>
+            your own words, unprompted. you are always the authority here —
+            the sky listens, it never argues.
+          </p>
+        </section>
+
+        {/* 2 — Write one down */}
+        <section className="flex flex-col gap-3">
+          <SectionLabel>write one down</SectionLabel>
+
+          {/* Scope toggles — ●/○ text idiom */}
+          <div className="flex gap-5">
+            {TABS.map((t) => {
+              const selected = scope === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setScope(t.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontFamily: MONO,
+                    fontSize: 10,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    color: selected ? "#f5f5f5" : "#4a4a4a",
+                  }}
+                >
+                  {(selected ? "● " : "○ ") + t.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div style={panelStyle}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              placeholder={
+                scope === "about-me"
+                  ? "something you know to be true about yourself…"
+                  : "something you know to be true about a bond…"
+              }
+              className="w-full resize-none bg-transparent outline-none placeholder:text-[#4a4a4a]"
+              style={{
+                fontFamily: MONO,
+                fontSize: 13.5,
+                letterSpacing: 0.3,
+                lineHeight: 1.65,
+                color: "#e8e4da",
+                caretColor: "#e8e4da",
+              }}
+            />
+            <div
+              className="mt-3 flex items-center justify-between gap-3 pt-3"
+              style={{ borderTop: "1px solid #1a1a1a" }}
+            >
               <button
-                key={t.id}
-                onClick={() => setScope(t.id)}
+                onClick={() => fileRef.current?.click()}
+                className="inline-flex items-center gap-1.5 transition-colors"
+                style={actionStyle}
+              >
+                <Paperclip className="size-3.5" />
+                attach a test
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.txt,.csv,.json,image/*"
+                onChange={handleAttach}
+                className="hidden"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={!text.trim()}
                 style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontFamily: PIXEL,
-                  fontSize: 11,
+                  background: "transparent",
+                  border: `1px solid ${text.trim() ? "#f5f5f5" : "#2a2a2a"}`,
+                  color: text.trim() ? "#f5f5f5" : "#4a4a4a",
+                  fontFamily: MONO,
+                  fontSize: 10,
                   letterSpacing: 2,
                   textTransform: "uppercase",
-                  color: selected ? "#f0f0f0" : "rgba(255,255,255,0.4)",
+                  padding: "9px 18px",
+                  borderRadius: 30,
+                  cursor: text.trim() ? "pointer" : "default",
+                  transition: "border-color .2s, color .2s",
                 }}
               >
-                {(selected ? "● " : "○ ") + t.label}
+                {"add to your spiral ⏎"}
               </button>
-            )
-          })}
-        </div>
-
-        {/* Free-text entry — the primary input */}
-        <div style={panelStyle}>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={4}
-            placeholder={
-              scope === "about-me"
-                ? "something you know to be true about yourself…"
-                : "something you know to be true about a bond…"
-            }
-            className="w-full resize-none bg-transparent outline-none"
-            style={{
-              fontFamily: PIXEL,
-              fontWeight: 500,
-              fontSize: 15,
-              letterSpacing: 0.5,
-              lineHeight: 1.6,
-              color: "#fff",
-              caretColor: "#fff",
-            }}
-          />
-          <div
-            className="mt-3 flex items-center justify-between gap-3 pt-3"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.16)" }}
-          >
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-1.5 transition-colors"
-              style={actionStyle}
-            >
-              <Paperclip className="size-3.5" />
-              attach a test
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.txt,.csv,.json,image/*"
-              onChange={handleAttach}
-              className="hidden"
-            />
-            <button
-              onClick={handleSubmit}
-              disabled={!text.trim()}
-              style={{
-                background: "transparent",
-                border: `1px solid ${text.trim() ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)"}`,
-                color: text.trim() ? "#f0f0f0" : "rgba(255,255,255,0.3)",
-                fontFamily: PIXEL,
-                fontSize: 11,
-                letterSpacing: 2,
-                padding: "9px 18px",
-                borderRadius: 30,
-                cursor: text.trim() ? "pointer" : "default",
-              }}
-            >
-              {"add to your spiral ⏎"}
-            </button>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Kept entries. Saving quietly settles the entry into the list —
+        {/* 3 — Kept entries. Saving quietly settles the entry into the list —
             no sky commentary. Tap (mobile) or hover (desktop) an entry to
             reveal its three quiet actions. */}
         {visible.length > 0 && (
-          <ul className="mt-8 flex flex-col gap-4">
-            {visible.map((t) => (
-              <EntryCard key={t.id} truth={t} />
-            ))}
-          </ul>
+          <section className="flex flex-col gap-3">
+            <SectionLabel>kept</SectionLabel>
+            <ul className="flex flex-col gap-4">
+              {visible.map((t) => (
+                <EntryCard key={t.id} truth={t} />
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </main>
@@ -261,7 +277,7 @@ function EntryCard({ truth }: { truth: Truth }) {
     >
       <div
         className="relative"
-        style={{ ...panelStyle, border: "1px solid rgba(255,255,255,0.3)" }}
+        style={{ ...panelStyle, border: "1px solid #2a2a2a" }}
         onClick={() => !revealed && setRevealed(true)}
       >
         {/* Permanent mark on a sent entry: the tiny creature face, dim, in
@@ -279,16 +295,14 @@ function EntryCard({ truth }: { truth: Truth }) {
               border: "none",
               padding: 0,
               cursor: "pointer",
-              fontFamily: PIXEL,
+              fontFamily: MONO,
               fontSize: 10,
               letterSpacing: 1,
-              color: "rgba(255,255,255,0.28)",
+              color: "#4a4a4a",
             }}
           >
             {markLabel && (
-              <span style={{ color: "rgba(255,255,255,0.4)" }}>
-                your self holds this
-              </span>
+              <span style={{ color: "#6a6a6a" }}>your self holds this</span>
             )}
             {FACE_GLYPH}
           </button>
@@ -303,17 +317,19 @@ function EntryCard({ truth }: { truth: Truth }) {
               autoFocus
               className="w-full resize-none bg-transparent outline-none"
               style={{
-                fontFamily: PIXEL,
-                fontWeight: 500,
-                fontSize: 15,
-                letterSpacing: 0.5,
-                lineHeight: 1.6,
-                color: "#fff",
-                caretColor: "#fff",
+                fontFamily: MONO,
+                fontSize: 13.5,
+                letterSpacing: 0.3,
+                lineHeight: 1.65,
+                color: "#e8e4da",
+                caretColor: "#e8e4da",
               }}
             />
             <div className="mt-2 flex gap-5">
-              <button onClick={saveEdit} style={{ ...actionStyle, color: "#f0f0f0" }}>
+              <button
+                onClick={saveEdit}
+                style={{ ...actionStyle, color: "#f5f5f5" }}
+              >
                 save
               </button>
               <button
@@ -330,13 +346,13 @@ function EntryCard({ truth }: { truth: Truth }) {
         ) : (
           <>
             <p
-              className={`text-pretty leading-relaxed ${sending ? "animate-send-essence" : ""}`}
+              className={`text-pretty ${sending ? "animate-send-essence" : ""}`}
               style={{
-                fontFamily: PIXEL,
-                fontWeight: 500,
-                fontSize: 15,
-                letterSpacing: 0.5,
-                color: "#f0f0f0",
+                fontFamily: MONO,
+                fontSize: 13.5,
+                letterSpacing: 0.3,
+                lineHeight: 1.65,
+                color: "#e8e4da",
                 paddingRight: truth.sentToSelf ? 36 : undefined,
               }}
             >
@@ -347,7 +363,7 @@ function EntryCard({ truth }: { truth: Truth }) {
               <div className="mt-3 flex items-center gap-5">
                 <span
                   style={{
-                    fontFamily: PIXEL,
+                    fontFamily: MONO,
                     fontSize: 11,
                     letterSpacing: 1,
                     color: "#8a8a8a",
@@ -378,7 +394,7 @@ function EntryCard({ truth }: { truth: Truth }) {
                     className="inline-flex items-center gap-1.5"
                     style={{
                       ...actionStyle,
-                      color: sending ? "#f0f0f0" : "#c9c9c9",
+                      color: sending ? "#f5f5f5" : "#8a8a8a",
                     }}
                   >
                     <span aria-hidden="true">{FACE_GLYPH}</span>
