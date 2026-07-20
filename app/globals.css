@@ -255,6 +255,15 @@ html {
     animation: nebula-shimmer 5s ease-in-out infinite;
   }
 
+  /* PERF: while the user is actively panning/pinching/wheel-zooming the
+     universe (the stage carries data-gesture), the twinkle pauses so the GPU
+     spends its budget on the camera transform + blurred fog instead of
+     opacity animations. Resumes the instant the gesture ends — imperceptible,
+     since the eye tracks the moving sky. */
+  [data-gesture='1'] .animate-nebula-shimmer {
+    animation-play-state: paused;
+  }
+
   /* Universe: revealed read/person stars living in the nebula pulse gently —
      a soft scale + opacity swell that makes them read as alive, brighter than
      the fog around them. */
