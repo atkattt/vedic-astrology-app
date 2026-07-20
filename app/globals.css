@@ -243,10 +243,8 @@ html {
     animation: glyph-pulse 3.2s ease-in-out infinite;
   }
 
-  /* what-you-know: the sky takes a beat to respond. reflection + tension
-     blocks start invisible and fade in on their own animation-delay
-     (your words → the sky reflects → tension) — the stagger IS the
-     differentiator between the three voices. */
+  /* what-you-know: a saved entry quietly settles into the list — a soft
+     fade + rise is the whole acknowledgment. */
   @keyframes sky-beat {
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }

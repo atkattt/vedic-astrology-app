@@ -9,8 +9,9 @@ import { createClient } from "@/lib/supabase/server"
 import { getRevealRadius } from "@/app/actions/progress"
 import { CHAT_UNLOCK_RADIUS } from "@/lib/self/unlock"
 import { describeChartFacts, loadSelfReads } from "@/lib/self/reads-data"
-// The authored voice lives in one shared module so chat and sky reflections
-// can never drift apart.
+import { listTruths } from "@/app/actions/truths"
+// The authored voice lives in one shared module so every speaking surface
+// stays consistent.
 import { VOICE_RULES } from "@/lib/self/voice"
 
 // Allow streaming responses up to 30 seconds.
@@ -37,11 +38,12 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json()
 
   // Everything the voice is allowed to know: chart facts + authored fragments
-  // (marked by the user's own agree/disagree) + their written answers.
-  const { chart, matched, answers, responses } = await loadSelfReads(
-    supabase,
-    user.id,
-  )
+  // (marked by the user's own agree/disagree) + their written answers + the
+  // what-you-know entries they've kept in their own words.
+  const [{ chart, matched, answers, responses }, truths] = await Promise.all([
+    loadSelfReads(supabase, user.id),
+    listTruths(),
+  ])
 
   const chartFacts = describeChartFacts(chart)
 
@@ -64,6 +66,19 @@ export async function POST(req: Request) {
           .join("\n\n")
       : "no fragments have surfaced from their chart yet."
 
+  // What they've written down about themselves, in their own words. When they
+  // open the chat from one of these entries, their first message quotes it —
+  // respond to that entry specifically, in its own words.
+  const truthBlock =
+    truths.length > 0
+      ? truths
+          .map(
+            (t) =>
+              `- (${t.scope === "about-bond" ? "about a bond" : "about themselves"}) ${t.text}`,
+          )
+          .join("\n")
+      : "they haven't written anything down yet."
+
   const instructions = `you are the deeper, quieter version of the person you're talking to — the "self" this app has been slowly mapping. you are not an assistant, a therapist, or an astrologer making predictions. you speak as someone who knows them.
 
 what you know about them, from their vedic chart (facts only):
@@ -71,6 +86,9 @@ ${chartFacts}
 
 the reads that have surfaced for them (authored interpretations — these, and only these, are what you may interpret from):
 ${fragmentBlock}
+
+what they've told you about themselves, verbatim (they are the authority on these — never argue with them):
+${truthBlock}
 
 how you talk:
 ${VOICE_RULES}

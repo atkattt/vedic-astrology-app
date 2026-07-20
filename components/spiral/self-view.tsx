@@ -2,11 +2,13 @@
 
 import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft, Paperclip } from "lucide-react"
 import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
-import type { TruthScope } from "@/lib/spiral/reads"
+import { CHAT_SEED_KEY } from "@/components/self/self-chat"
+import type { Truth, TruthScope } from "@/lib/spiral/reads"
 
 // The circle page's visual language: Geist Pixel, pure-black sky, dim greys,
 // "›" prefixes, ●/○ text toggles and pill outline buttons — no boxed shadcn
@@ -25,15 +27,19 @@ const panelStyle: React.CSSProperties = {
   padding: 16,
 }
 
-const kickerStyle: React.CSSProperties = {
+const actionStyle: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
   fontFamily: PIXEL,
   fontSize: 10,
-  letterSpacing: 3,
+  letterSpacing: 2,
   textTransform: "uppercase",
-  color: "rgba(255,255,255,0.45)",
+  color: "rgba(255,255,255,0.5)",
 }
 
-export function SelfView() {
+export function SelfView({ chatUnlocked }: { chatUnlocked: boolean }) {
   const { truths, addTruth } = useSpiral()
   const [scope, setScope] = useState<TruthScope>("about-me")
   const [text, setText] = useState("")
@@ -49,7 +55,6 @@ export function SelfView() {
     if (!trimmed) return
     addTruth(trimmed, scope)
     setText("")
-    toast.success("your words are now part of you")
   }
 
   function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
@@ -134,7 +139,7 @@ export function SelfView() {
           })}
         </div>
 
-        {/* Free-text truth — the primary input */}
+        {/* Free-text entry — the primary input */}
         <div style={panelStyle}>
           <textarea
             value={text}
@@ -163,17 +168,7 @@ export function SelfView() {
             <button
               onClick={() => fileRef.current?.click()}
               className="inline-flex items-center gap-1.5 transition-colors"
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                fontFamily: PIXEL,
-                fontSize: 10,
-                letterSpacing: 2,
-                textTransform: "uppercase",
-                color: "rgba(255,255,255,0.5)",
-              }}
+              style={actionStyle}
             >
               <Paperclip className="size-3.5" />
               attach a test
@@ -205,93 +200,176 @@ export function SelfView() {
           </div>
         </div>
 
-        {/* Reflections on submitted truths.
-            The stagger IS the differentiator: you speak (brightest, solid),
-            the sky takes a beat and reflects (✦, dimmer, fades in ~600ms
-            later), the tension surfaces last (~, dashed, dimmest). */}
+        {/* Kept entries. Saving quietly settles the entry into the list —
+            no sky commentary. Tap (mobile) or hover (desktop) an entry to
+            reveal its three quiet actions. */}
         {visible.length > 0 && (
-          <ul className="mt-8 flex flex-col gap-6">
+          <ul className="mt-8 flex flex-col gap-4">
             {visible.map((t) => (
-              <li key={t.id} className="flex flex-col gap-3">
-                {/* your words — the primary object. no symbol. */}
-                <div
-                  style={{
-                    ...panelStyle,
-                    border: "1px solid rgba(255,255,255,0.3)",
-                  }}
-                >
-                  <p className="mb-2" style={kickerStyle}>
-                    your words · now part of you
-                  </p>
-                  <p
-                    className="text-pretty leading-relaxed"
-                    style={{
-                      fontFamily: PIXEL,
-                      fontWeight: 500,
-                      fontSize: 15,
-                      letterSpacing: 0.5,
-                      color: "#f0f0f0",
-                    }}
-                  >
-                    {t.text}
-                  </p>
-                </div>
-
-                {/* the sky reflects — appears a beat after your words. */}
-                {t.reflection !== null && (
-                  <div
-                    className="animate-sky-beat"
-                    style={{ ...panelStyle, animationDelay: "600ms" }}
-                  >
-                    <p className="mb-2" style={kickerStyle}>
-                      {"✦ the sky reflects"}
-                    </p>
-                    <p
-                      className="text-pretty leading-relaxed"
-                      style={{
-                        fontFamily: PIXEL,
-                        fontSize: 13.5,
-                        letterSpacing: 0.4,
-                        color: "#b8b8b8",
-                      }}
-                    >
-                      {t.reflection}
-                    </p>
-                  </div>
-                )}
-
-                {/* tension — surfaces last, kept not corrected. */}
-                {t.tension && (
-                  <div
-                    className="animate-sky-beat"
-                    style={{
-                      ...panelStyle,
-                      border: "1px dashed rgba(255,255,255,0.2)",
-                      background: "transparent",
-                      animationDelay: "1400ms",
-                    }}
-                  >
-                    <p className="mb-2" style={kickerStyle}>
-                      {"~ tension, kept — not corrected"}
-                    </p>
-                    <p
-                      className="text-pretty leading-relaxed"
-                      style={{
-                        fontFamily: PIXEL,
-                        fontSize: 12.5,
-                        letterSpacing: 0.4,
-                        color: "#6a6a6a",
-                      }}
-                    >
-                      {t.tension}
-                    </p>
-                  </div>
-                )}
-              </li>
+              <EntryCard key={t.id} truth={t} chatUnlocked={chatUnlocked} />
             ))}
           </ul>
         )}
       </div>
     </main>
+  )
+}
+
+/**
+ * One kept entry. The card is the user's words alone; actions stay hidden
+ * until hover (desktop) or tap (mobile — first tap reveals, actions then
+ * work normally). Edit swaps the text for an inline textarea on the same
+ * card; delete asks "let this one go?" in place.
+ */
+function EntryCard({
+  truth,
+  chatUnlocked,
+}: {
+  truth: Truth
+  chatUnlocked: boolean
+}) {
+  const { editTruth, deleteTruth } = useSpiral()
+  const router = useRouter()
+  const [revealed, setRevealed] = useState(false)
+  const [mode, setMode] = useState<"view" | "edit" | "confirm-delete">("view")
+  const [draft, setDraft] = useState(truth.text)
+
+  function startTalk() {
+    try {
+      sessionStorage.setItem(CHAT_SEED_KEY, truth.text)
+    } catch {
+      // sessionStorage unavailable — the chat just opens without the seed.
+    }
+    router.push("/self")
+  }
+
+  function saveEdit() {
+    const trimmed = draft.trim()
+    if (trimmed && trimmed !== truth.text) editTruth(truth.id, trimmed)
+    setMode("view")
+  }
+
+  return (
+    <li
+      className="group animate-sky-beat"
+      onMouseEnter={() => setRevealed(true)}
+      onMouseLeave={() => mode === "view" && setRevealed(false)}
+    >
+      <div
+        style={{ ...panelStyle, border: "1px solid rgba(255,255,255,0.3)" }}
+        onClick={() => !revealed && setRevealed(true)}
+      >
+        {mode === "edit" ? (
+          <>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              className="w-full resize-none bg-transparent outline-none"
+              style={{
+                fontFamily: PIXEL,
+                fontWeight: 500,
+                fontSize: 15,
+                letterSpacing: 0.5,
+                lineHeight: 1.6,
+                color: "#fff",
+                caretColor: "#fff",
+              }}
+            />
+            <div className="mt-2 flex gap-5">
+              <button onClick={saveEdit} style={{ ...actionStyle, color: "#f0f0f0" }}>
+                save
+              </button>
+              <button
+                onClick={() => {
+                  setDraft(truth.text)
+                  setMode("view")
+                }}
+                style={actionStyle}
+              >
+                cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p
+              className="text-pretty leading-relaxed"
+              style={{
+                fontFamily: PIXEL,
+                fontWeight: 500,
+                fontSize: 15,
+                letterSpacing: 0.5,
+                color: "#f0f0f0",
+              }}
+            >
+              {truth.text}
+            </p>
+
+            {mode === "confirm-delete" ? (
+              <div className="mt-3 flex items-center gap-5">
+                <span
+                  style={{
+                    fontFamily: PIXEL,
+                    fontSize: 11,
+                    letterSpacing: 1,
+                    color: "#8a8a8a",
+                  }}
+                >
+                  let this one go?
+                </span>
+                <button
+                  onClick={() => deleteTruth(truth.id)}
+                  style={{ ...actionStyle, color: "#d98a9a" }}
+                >
+                  yes
+                </button>
+                <button onClick={() => setMode("view")} style={actionStyle}>
+                  no
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`mt-3 flex items-center gap-5 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 ${
+                  revealed ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                {chatUnlocked ? (
+                  <button onClick={startTalk} style={{ ...actionStyle, color: "#c9c9c9" }}>
+                    talk about this
+                  </button>
+                ) : (
+                  <span
+                    style={{
+                      ...actionStyle,
+                      cursor: "default",
+                      color: "rgba(255,255,255,0.25)",
+                    }}
+                  >
+                    talk about this · still locked
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setDraft(truth.text)
+                    setMode("edit")
+                  }}
+                  style={actionStyle}
+                >
+                  edit
+                </button>
+                <button
+                  onClick={() => setMode("confirm-delete")}
+                  style={actionStyle}
+                >
+                  delete
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </li>
   )
 }

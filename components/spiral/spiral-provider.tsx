@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react"
@@ -15,7 +16,12 @@ import {
   type Truth,
   type TruthScope,
 } from "@/lib/spiral/reads"
-import { THIN_ACK, isThinEntry } from "@/lib/self/voice"
+import {
+  addTruthEntry,
+  deleteTruthEntry,
+  listTruths,
+  updateTruthEntry,
+} from "@/app/actions/truths"
 
 type SpiralState = {
   // Active "about you" reads waiting to be acted on.
@@ -29,6 +35,8 @@ type SpiralState = {
   restore: (id: string) => void
   hasActed: (id: string) => boolean
   addTruth: (text: string, scope: TruthScope) => Truth
+  editTruth: (id: string, text: string) => void
+  deleteTruth: (id: string) => void
   // Live count of reflection acts (kept + released). This is what the SAVE
   // button in History commits, feeding growth to the self creature.
   reflectionPoints: number
@@ -99,65 +107,57 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
     return reflectionPoints
   }, [reflectionPoints])
 
+  // Hydrate saved entries for signed-in users. Guests get an empty list and
+  // their in-session entries simply stay client-side.
+  useEffect(() => {
+    let cancelled = false
+    void listTruths().then((rows) => {
+      if (cancelled || rows.length === 0) return
+      setTruths((local) => {
+        // Keep any locally-added entries that raced ahead of hydration.
+        const seen = new Set(rows.map((r) => r.id))
+        return [...local.filter((t) => !seen.has(t.id)), ...rows]
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Saving quietly adds the entry to the list — no reflections, no tensions,
+  // no generation. The settle-in animation is the whole acknowledgment.
   const addTruth = useCallback((text: string, scope: TruthScope) => {
-    const id = `truth-${Date.now()}-${truthSeq++}`
-
-    // SUBSTANCE GATE — thin entries get the quiet "kept." immediately and
-    // never a tension. no model call, no performed depth.
-    if (isThinEntry(text)) {
-      const truth: Truth = {
-        id,
-        text,
-        scope,
-        createdAt: Date.now(),
-        reflection: THIN_ACK,
-      }
-      setTruths((t) => [truth, ...t])
-      return truth
-    }
-
-    // Substantial entry: store it now with the reflection pending, then
-    // generate FROM this entry's text and attach the result BY THIS id —
-    // a reflection can never end up on someone else's words.
-    const truth: Truth = {
-      id,
-      text,
-      scope,
-      createdAt: Date.now(),
-      reflection: null,
-    }
+    const localId = `truth-${Date.now()}-${truthSeq++}`
+    const truth: Truth = { id: localId, text, scope, createdAt: Date.now() }
     setTruths((t) => [truth, ...t])
 
-    void (async () => {
-      try {
-        const res = await fetch("/api/truth-reflect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, scope }),
-        })
-        const data = res.ok
-          ? ((await res.json()) as { reflection?: string; tension?: string })
-          : {}
+    // Persist for signed-in users; swap the optimistic id for the DB row id
+    // so edit/delete target the real self_entries row.
+    void addTruthEntry(text, scope).then((res) => {
+      if (res.ok) {
         setTruths((all) =>
-          all.map((t) =>
-            t.id === id
-              ? {
-                  ...t,
-                  reflection: data.reflection ?? THIN_ACK,
-                  tension: data.tension,
-                }
-              : t,
-          ),
-        )
-      } catch {
-        // Offline or aborted — fail quiet, in voice.
-        setTruths((all) =>
-          all.map((t) => (t.id === id ? { ...t, reflection: THIN_ACK } : t)),
+          all.map((t) => (t.id === localId ? { ...t, id: res.data.id } : t)),
         )
       }
-    })()
+      // Not signed in / offline: the entry stays client-side, quietly.
+    })
 
     return truth
+  }, [])
+
+  const editTruth = useCallback((id: string, text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setTruths((all) =>
+      all.map((t) => (t.id === id ? { ...t, text: trimmed } : t)),
+    )
+    // DB rows have uuid ids; locally-only entries keep the "truth-" prefix.
+    if (!id.startsWith("truth-")) void updateTruthEntry(id, trimmed)
+  }, [])
+
+  const deleteTruth = useCallback((id: string) => {
+    setTruths((all) => all.filter((t) => t.id !== id))
+    if (!id.startsWith("truth-")) void deleteTruthEntry(id)
   }, [])
 
   const value = useMemo<SpiralState>(
@@ -172,6 +172,8 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
       restore,
       hasActed,
       addTruth,
+      editTruth,
+      deleteTruth,
       reflectionPoints,
       savedReflectionPoints,
       hasUnsavedReflection,
@@ -187,6 +189,8 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
       restore,
       hasActed,
       addTruth,
+      editTruth,
+      deleteTruth,
       reflectionPoints,
       savedReflectionPoints,
       hasUnsavedReflection,

@@ -31,18 +31,14 @@ export type DisagreedRead = Read & {
 
 export type TruthScope = "about-me" | "about-bond"
 
+// A what-you-know entry: the user's own words, kept without commentary.
+// The page is purely write, keep, revisit, take-to-conversation — the sky
+// never talks back here (no reflections, no tensions).
 export type Truth = {
   id: string
   text: string
   scope: TruthScope
   createdAt: number
-  // Generated FROM this entry's text at save time (see /api/truth-reflect),
-  // stored on the entry itself. null while the sky is still composing it.
-  reflection: string | null
-  // When a stated truth genuinely holds two things that sit differently, the
-  // sky names it and keeps both — the user is always the authority on
-  // themselves. This is never "corrected". Thin entries never get one.
-  tension?: string
 }
 
 // --- Seed reads about the user (the "About you" spiral) ---------------------
@@ -97,5 +93,4 @@ export function makeBondRead(relationshipId: number, otherName: string): Read {
   }
 }
 
-// Reflections on self-submitted truths are generated from the entry's own
-// text at save time — see /api/truth-reflect. No canned templates live here.
+
