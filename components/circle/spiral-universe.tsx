@@ -239,12 +239,13 @@ type Glyph = {
 // star, its minis, and so on (section order: ascendant → moon → sun → knot →
 // nodes → chapter; see lib/spiral/sections.ts). No clusters — the sequence IS
 // the path, and the ringed cursor walks it one read at a time.
-// Where each strand's FIRST major star sits. Both strands share this start,
-// half a turn apart — so section 1's star and section 2's star both open
-// close to the moon at the center, and the journey works outward from the
-// heart of the spiral. Kept just outside the largest creature disc (~120px
-// radius at full accretion): r = MAX_R × t ≈ 106 world units.
-const READ_T_START = 0.22
+// Where each strand's FIRST major star sits. Strand A (section 1) keeps the
+// original comfortable distance; strand B (section 2) opens closer to the
+// moon at the center — just outside the largest creature disc (~120px radius
+// at full accretion: r = MAX_R × 0.22 ≈ 106 world units) — so the second
+// major star greets the visitor near the heart of the spiral.
+const READ_T_START_A = 0.3
+const READ_T_START_B = 0.22
 const MAJOR_WEIGHT = 7
 // Arc length (world units) between consecutive reads in the sequence — even
 // spacing, comfortably clear of the widest badge (31px).
@@ -532,7 +533,7 @@ export function SpiralUniverse({
     // cursor. This packs the walk into roughly HALF the radius the single-
     // strand layout needed, so most of the initial spiral space fills up
     // before the sky ever has to grow outward.
-    const cursors = [READ_T_START, READ_T_START]
+    const cursors = [READ_T_START_A, READ_T_START_B]
     const started = [false, false]
     return present.map((key, idx) => {
       // Weight sorts; the heaviest weight>=7 read is THE major (heaviest
@@ -650,7 +651,7 @@ export function SpiralUniverse({
   const initialTEnd = useMemo(() => {
     // Strands carry their own cursors, so the drawn extent must cover the
     // FARTHEST held section across both strands, not just the last one.
-    let endT = READ_T_START
+    let endT = READ_T_START_A
     for (let i = 0; i < Math.min(HOLD_SECTIONS, sections.length); i++) {
       endT = Math.max(endT, sections[i].endT)
     }
