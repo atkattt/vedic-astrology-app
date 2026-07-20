@@ -1449,13 +1449,14 @@ export function SpiralUniverse({
                   top: px2(g.y),
                   width: glow,
                   height: glow,
-                  // Peak alpha is LOW: blur used to smear a glyph's ink across
-                  // this whole area, so the equivalent gradient must be faint
-                  // at the center too or the fog turns to heavy blobs.
+                  // Peak alpha is VERY low: blur used to smear a glyph's thin
+                  // ink strokes across this whole area, so the equivalent
+                  // gradient must be a whisper or the fog washes out the
+                  // crisp glyphs on top of it.
                   background:
-                    "radial-gradient(closest-side, rgba(189,214,238,0.26), rgba(189,214,238,0.08) 55%, transparent)",
+                    "radial-gradient(closest-side, rgba(189,214,238,0.11), rgba(189,214,238,0.035) 55%, transparent)",
                   transform: "translate(-50%, -50%)",
-                  opacity: lit ? Math.min(1, g.max * 3.4) * ext : 0,
+                  opacity: lit ? Math.min(1, g.max * 2.4) * ext : 0,
                   transition: "opacity 1.2s ease",
                   transitionDelay: `${Math.max(spread, crawlDelay(g.t))}s`,
                 }}
