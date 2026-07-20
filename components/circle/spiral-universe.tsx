@@ -275,14 +275,17 @@ function advanceT(t: number, arc: number): number {
 // the moment it's added (radial offset into the inter-strand gap keeps them
 // clear of the read beads at the same t) — and each subsequent one is placed
 // further along, out past the journey's edge.
-// t = 0.5 aims the spiral angle due SOUTH (θ = t·6π − π/2 ≡ π/2), putting the
-// first bond star straight below the creature at r ≈ 280 — inside even a
-// narrow portrait frame, whose height is generous while its width is not.
-const PERSON_MIN_T = 0.5
+// t = 1/3 aims the spiral angle due NORTH (θ = t·6π − π/2 ≡ −π/2), putting
+// the first bond star straight above the creature at r ≈ 200 — one strand
+// turn closer to the center than the old due-south spot (r ≈ 280), while the
+// vertical direction keeps it inside a narrow portrait frame. The radial
+// offset in personPoint drops it in the dark pocket midway between the
+// strand crossings at r = 160 and r = 240.
+const PERSON_MIN_T = 1 / 3
 const PERSON_MAX_T = 1.12
 
 function personT(i: number, n: number) {
-  if (n <= 1) return 0.5
+  if (n <= 1) return 1 / 3
   return PERSON_MIN_T + (PERSON_MAX_T - PERSON_MIN_T) * (i / (n - 1))
 }
 
