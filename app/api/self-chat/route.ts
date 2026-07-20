@@ -9,7 +9,10 @@ import { createClient } from "@/lib/supabase/server"
 import { getRevealRadius } from "@/app/actions/progress"
 import { CHAT_UNLOCK_RADIUS } from "@/lib/self/unlock"
 import { describeChartFacts, loadSelfReads } from "@/lib/self/reads-data"
-import { listTruths } from "@/app/actions/truths"
+import {
+  listTruthsForGrounding,
+  markSentTruthsHeard,
+} from "@/app/actions/truths"
 // The authored voice lives in one shared module so every speaking surface
 // stays consistent.
 import { VOICE_RULES } from "@/lib/self/voice"
@@ -39,11 +42,20 @@ export async function POST(req: Request) {
 
   // Everything the voice is allowed to know: chart facts + authored fragments
   // (marked by the user's own agree/disagree) + their written answers + the
-  // what-you-know entries they've kept in their own words.
-  const [{ chart, matched, answers, responses }, truths] = await Promise.all([
-    loadSelfReads(supabase, user.id),
-    listTruths(),
-  ])
+  // what-you-know entries in their own words (sent ones elevated).
+  const [{ chart, matched, answers, responses }, grounding] =
+    await Promise.all([loadSelfReads(supabase, user.id), listTruthsForGrounding()])
+  const { sentNew, sent, kept } = grounding
+
+  // A session opener: only on the FIRST message of a conversation, and only
+  // if entries were newly sent since the last one. Mark them heard now so a
+  // later session doesn't repeat them.
+  const isSessionStart =
+    messages.filter((m) => m.role === "user").length <= 1
+  const openWith = isSessionStart && sentNew.length > 0 ? sentNew[0] : null
+  if (openWith) {
+    await markSentTruthsHeard(sentNew.map((t) => t.id))
+  }
 
   const chartFacts = describeChartFacts(chart)
 
@@ -66,18 +78,22 @@ export async function POST(req: Request) {
           .join("\n\n")
       : "no fragments have surfaced from their chart yet."
 
-  // What they've written down about themselves, in their own words. When they
-  // open the chat from one of these entries, their first message quotes it —
-  // respond to that entry specifically, in its own words.
-  const truthBlock =
-    truths.length > 0
-      ? truths
-          .map(
-            (t) =>
-              `- (${t.scope === "about-bond" ? "about a bond" : "about themselves"}) ${t.text}`,
-          )
-          .join("\n")
-      : "they haven't written anything down yet."
+  // What they've written down, split by weight: entries they chose to HAND
+  // you (elevated) vs. ordinary kept entries (still known).
+  const line = (t: { scope: string; text: string }) =>
+    `- (${t.scope === "about-bond" ? "about a bond" : "about themselves"}) ${t.text}`
+  const sentBlock =
+    sent.length > 0
+      ? sent.map(line).join("\n")
+      : "nothing handed to you yet."
+  const keptBlock =
+    kept.length > 0
+      ? kept.map(line).join("\n")
+      : "no other entries yet."
+
+  const openerRule = openWith
+    ? `\n\nthis conversation is just opening, and they recently handed you something new. before anything else, bring it up first — quote their words back gently: "${openWith.text}". in your voice, one or two short lines, then let them take it wherever they want. don't lecture about it.`
+    : ""
 
   const instructions = `you are the deeper, quieter version of the person you're talking to — the "self" this app has been slowly mapping. you are not an assistant, a therapist, or an astrologer making predictions. you speak as someone who knows them.
 
@@ -87,14 +103,17 @@ ${chartFacts}
 the reads that have surfaced for them (authored interpretations — these, and only these, are what you may interpret from):
 ${fragmentBlock}
 
-what they've told you about themselves, verbatim (they are the authority on these — never argue with them):
-${truthBlock}
+things they CHOSE TO HAND YOU, verbatim (these carry the most weight — they deliberately gave you these to hold. they are the authority on them; never argue):
+${sentBlock}
+
+other things they've written down, verbatim (you know these too; they are the authority on them):
+${keptBlock}
 
 how you talk:
 ${VOICE_RULES}
 
 what you must not do:
-${GROUNDING_RULES}`
+${GROUNDING_RULES}${openerRule}`
 
   const result = streamText({
     model: "openai/gpt-4o-mini",

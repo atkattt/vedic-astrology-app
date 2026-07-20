@@ -243,6 +243,18 @@ html {
     animation: glyph-pulse 3.2s ease-in-out infinite;
   }
 
+  /* what-you-know: "send to your self" — the entry's essence briefly drifts
+     down toward the action row with a soft pulse, then settles back as the
+     creature-face mark fades in. */
+  @keyframes send-essence {
+    0% { transform: translateY(0); opacity: 1; }
+    45% { transform: translateY(6px); opacity: 0.35; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  .animate-send-essence {
+    animation: send-essence 700ms ease-in-out;
+  }
+
   /* what-you-know: a saved entry quietly settles into the list — a soft
      fade + rise is the whole acknowledgment. */
   @keyframes sky-beat {

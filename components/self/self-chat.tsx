@@ -7,14 +7,12 @@ import { DefaultChatTransport } from "ai"
 const MONO =
   "'Geist Pixel', ui-monospace, monospace"
 
-// what-you-know's "talk about this" leaves the entry here; the chat opens
-// with it quoted as your first line and the self responding to it.
-export const CHAT_SEED_KEY = "self-chat-seed"
-
 /**
  * The unlocked "talk to your self" conversation. A quiet terminal-style thread:
  * the self's replies are typed grey behind a `›` prompt; your own lines are
- * brighter and right-of-prompt. Grounded server-side in the real chart.
+ * brighter and right-of-prompt. Grounded server-side in the real chart plus
+ * what-you-know entries — the ones "sent to your self" carry extra weight,
+ * and a newly sent one gets brought up when a session opens.
  */
 export function SelfChat() {
   const { messages, sendMessage, status, error } = useChat({
@@ -24,24 +22,6 @@ export function SelfChat() {
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const busy = status === "submitted" || status === "streaming"
-
-  // If an entry was carried over from what-you-know, open with it quoted.
-  const seededRef = useRef(false)
-  useEffect(() => {
-    if (seededRef.current) return
-    seededRef.current = true
-    try {
-      const seed = sessionStorage.getItem(CHAT_SEED_KEY)
-      if (seed) {
-        sessionStorage.removeItem(CHAT_SEED_KEY)
-        sendMessage({
-          text: `i wrote this down about myself: "${seed}" — i want to talk about it.`,
-        })
-      }
-    } catch {
-      // sessionStorage unavailable — open the chat empty as usual.
-    }
-  }, [sendMessage])
 
   // Keep the newest line in view as it streams.
   useEffect(() => {

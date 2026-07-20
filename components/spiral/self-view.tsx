@@ -2,12 +2,10 @@
 
 import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft, Paperclip } from "lucide-react"
 import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
-import { CHAT_SEED_KEY } from "@/components/self/self-chat"
 import type { Truth, TruthScope } from "@/lib/spiral/reads"
 
 // The circle page's visual language: Geist Pixel, pure-black sky, dim greys,
@@ -27,6 +25,7 @@ const panelStyle: React.CSSProperties = {
   padding: 16,
 }
 
+// The entry actions row: quiet lowercase, dim, letterspaced.
 const actionStyle: React.CSSProperties = {
   background: "none",
   border: "none",
@@ -35,11 +34,11 @@ const actionStyle: React.CSSProperties = {
   fontFamily: PIXEL,
   fontSize: 10,
   letterSpacing: 2,
-  textTransform: "uppercase",
+  textTransform: "lowercase",
   color: "rgba(255,255,255,0.5)",
 }
 
-export function SelfView({ chatUnlocked }: { chatUnlocked: boolean }) {
+export function SelfView() {
   const { truths, addTruth } = useSpiral()
   const [scope, setScope] = useState<TruthScope>("about-me")
   const [text, setText] = useState("")
@@ -206,7 +205,7 @@ export function SelfView({ chatUnlocked }: { chatUnlocked: boolean }) {
         {visible.length > 0 && (
           <ul className="mt-8 flex flex-col gap-4">
             {visible.map((t) => (
-              <EntryCard key={t.id} truth={t} chatUnlocked={chatUnlocked} />
+              <EntryCard key={t.id} truth={t} />
             ))}
           </ul>
         )}
@@ -215,32 +214,37 @@ export function SelfView({ chatUnlocked }: { chatUnlocked: boolean }) {
   )
 }
 
+// The creature's minimal face, as a tiny inline glyph — its eyes ("o o" at
+// full size) reduced to two dots. Used as the send action's icon and as the
+// permanent dim mark a sent entry wears.
+const FACE_GLYPH = "[..]"
+
 /**
  * One kept entry. The card is the user's words alone; actions stay hidden
  * until hover (desktop) or tap (mobile — first tap reveals, actions then
- * work normally). Edit swaps the text for an inline textarea on the same
- * card; delete asks "let this one go?" in place.
+ * work normally). "send to your self" hands the entry to the self — the
+ * text briefly drifts toward the action, then the entry stays, wearing a
+ * small dim creature-face mark. Edit swaps the text for an inline textarea
+ * on the same card; delete asks "let this one go?" in place.
  */
-function EntryCard({
-  truth,
-  chatUnlocked,
-}: {
-  truth: Truth
-  chatUnlocked: boolean
-}) {
-  const { editTruth, deleteTruth } = useSpiral()
-  const router = useRouter()
+function EntryCard({ truth }: { truth: Truth }) {
+  const { editTruth, deleteTruth, sendTruth } = useSpiral()
   const [revealed, setRevealed] = useState(false)
   const [mode, setMode] = useState<"view" | "edit" | "confirm-delete">("view")
   const [draft, setDraft] = useState(truth.text)
+  // "sending" plays the essence-travel animation before the mark settles in.
+  const [sending, setSending] = useState(false)
+  const [markLabel, setMarkLabel] = useState(false)
 
-  function startTalk() {
-    try {
-      sessionStorage.setItem(CHAT_SEED_KEY, truth.text)
-    } catch {
-      // sessionStorage unavailable — the chat just opens without the seed.
-    }
-    router.push("/self")
+  function startSend() {
+    if (truth.sentToSelf || sending) return
+    setSending(true)
+    // Let the drift + pulse play, then commit — the mark fades in with the
+    // state change.
+    setTimeout(() => {
+      sendTruth(truth.id)
+      setSending(false)
+    }, 700)
   }
 
   function saveEdit() {
@@ -256,9 +260,40 @@ function EntryCard({
       onMouseLeave={() => mode === "view" && setRevealed(false)}
     >
       <div
+        className="relative"
         style={{ ...panelStyle, border: "1px solid rgba(255,255,255,0.3)" }}
         onClick={() => !revealed && setRevealed(true)}
       >
+        {/* Permanent mark on a sent entry: the tiny creature face, dim, in
+            the corner. Tap it to see what it means. */}
+        {truth.sentToSelf && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setMarkLabel((v) => !v)
+            }}
+            aria-label="your self holds this"
+            className="absolute right-3 top-2.5 flex items-center gap-2"
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: PIXEL,
+              fontSize: 10,
+              letterSpacing: 1,
+              color: "rgba(255,255,255,0.28)",
+            }}
+          >
+            {markLabel && (
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>
+                your self holds this
+              </span>
+            )}
+            {FACE_GLYPH}
+          </button>
+        )}
+
         {mode === "edit" ? (
           <>
             <textarea
@@ -295,13 +330,14 @@ function EntryCard({
         ) : (
           <>
             <p
-              className="text-pretty leading-relaxed"
+              className={`text-pretty leading-relaxed ${sending ? "animate-send-essence" : ""}`}
               style={{
                 fontFamily: PIXEL,
                 fontWeight: 500,
                 fontSize: 15,
                 letterSpacing: 0.5,
                 color: "#f0f0f0",
+                paddingRight: truth.sentToSelf ? 36 : undefined,
               }}
             >
               {truth.text}
@@ -335,20 +371,19 @@ function EntryCard({
                   revealed ? "opacity-100" : "opacity-0"
                 }`}
               >
-                {chatUnlocked ? (
-                  <button onClick={startTalk} style={{ ...actionStyle, color: "#c9c9c9" }}>
-                    talk about this
-                  </button>
-                ) : (
-                  <span
+                {!truth.sentToSelf && (
+                  <button
+                    onClick={startSend}
+                    disabled={sending}
+                    className="inline-flex items-center gap-1.5"
                     style={{
                       ...actionStyle,
-                      cursor: "default",
-                      color: "rgba(255,255,255,0.25)",
+                      color: sending ? "#f0f0f0" : "#c9c9c9",
                     }}
                   >
-                    talk about this · still locked
-                  </span>
+                    <span aria-hidden="true">{FACE_GLYPH}</span>
+                    send to your self
+                  </button>
                 )}
                 <button
                   onClick={() => {

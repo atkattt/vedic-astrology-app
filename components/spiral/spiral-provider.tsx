@@ -20,6 +20,7 @@ import {
   addTruthEntry,
   deleteTruthEntry,
   listTruths,
+  markTruthSent,
   updateTruthEntry,
 } from "@/app/actions/truths"
 
@@ -37,6 +38,7 @@ type SpiralState = {
   addTruth: (text: string, scope: TruthScope) => Truth
   editTruth: (id: string, text: string) => void
   deleteTruth: (id: string) => void
+  sendTruth: (id: string) => void
   // Live count of reflection acts (kept + released). This is what the SAVE
   // button in History commits, feeding growth to the self creature.
   reflectionPoints: number
@@ -156,8 +158,20 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const deleteTruth = useCallback((id: string) => {
+    // Deleting a sent entry also removes it from the self's grounding —
+    // the chat reads entries live from self_entries, so a hard delete is all
+    // it takes.
     setTruths((all) => all.filter((t) => t.id !== id))
     if (!id.startsWith("truth-")) void deleteTruthEntry(id)
+  }, [])
+
+  // Hand an entry to the self. The entry stays in the list, permanently
+  // wearing the small creature-face mark; the self chat elevates it.
+  const sendTruth = useCallback((id: string) => {
+    setTruths((all) =>
+      all.map((t) => (t.id === id ? { ...t, sentToSelf: true } : t)),
+    )
+    if (!id.startsWith("truth-")) void markTruthSent(id)
   }, [])
 
   const value = useMemo<SpiralState>(
@@ -174,6 +188,7 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
       addTruth,
       editTruth,
       deleteTruth,
+      sendTruth,
       reflectionPoints,
       savedReflectionPoints,
       hasUnsavedReflection,
@@ -191,6 +206,7 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
       addTruth,
       editTruth,
       deleteTruth,
+      sendTruth,
       reflectionPoints,
       savedReflectionPoints,
       hasUnsavedReflection,

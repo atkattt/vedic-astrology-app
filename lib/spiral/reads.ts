@@ -32,13 +32,17 @@ export type DisagreedRead = Read & {
 export type TruthScope = "about-me" | "about-bond"
 
 // A what-you-know entry: the user's own words, kept without commentary.
-// The page is purely write, keep, revisit, take-to-conversation — the sky
-// never talks back here (no reflections, no tensions).
+// The sky never talks back here (no reflections, no tensions).
 export type Truth = {
   id: string
   text: string
   scope: TruthScope
   createdAt: number
+  // "send to your self": the user chose to hand this entry to the self.
+  // The entry stays in the list wearing a small dim creature-face mark, and
+  // the self chat treats it as elevated grounding. Persisted in the row's
+  // kind ("truth-about-me-sent") so it survives without a schema change.
+  sentToSelf?: boolean
 }
 
 // --- Seed reads about the user (the "About you" spiral) ---------------------
