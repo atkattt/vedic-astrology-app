@@ -129,8 +129,10 @@ const NEBULA_CHARS = [
 // Cool moonlit-fog tones (pale blue-white → dim slate) chosen per glyph.
 const NEBULA_TONES = ["#cdd8e4", "#b3c2d2", "#9cadc0", "#8496ab", "#6f8299"]
 
-function spiralPoint(t: number) {
-  const theta = t * TURNS * Math.PI * 2 - Math.PI / 2
+// The galaxy has TWO interleaved strands (the fog draws both, half a turn
+// apart). Reads bead along BOTH: `phase` selects the strand (0 or π).
+function spiralPoint(t: number, phase = 0) {
+  const theta = t * TURNS * Math.PI * 2 - Math.PI / 2 + phase
   const r = MAX_R * t
   return { x: r * Math.cos(theta), y: r * Math.sin(theta) }
 }
@@ -273,16 +275,18 @@ function personT(i: number, n: number) {
 }
 
 /**
- * Place a person in the DARK void between spiral arm turns — the glowing arm
- * belongs to reads only. Same angle as their walk-order t, but radius pushed
- * halfway into the inter-arm gap (arms at a fixed angle are MAX_R/TURNS apart)
- * with a small deterministic wobble so a row of people doesn't trace a
- * perfect ghost-spiral of its own.
+ * Place a person in the DARK void between spiral strands — the glowing
+ * strands belong to reads only. Same angle as their walk-order t, but radius
+ * pushed halfway into the inter-strand gap. With BOTH strands carrying reads
+ * (half a turn apart), successive strand crossings at a fixed angle are
+ * MAX_R/(2·TURNS) apart, so the midpoint of THAT gap is the dark pocket.
+ * A small deterministic wobble keeps a row of people from tracing a perfect
+ * ghost-spiral of its own.
  */
 function personPoint(i: number, n: number) {
   const t = personT(i, n)
   const theta = t * TURNS * Math.PI * 2 - Math.PI / 2
-  const gap = MAX_R / TURNS
+  const gap = MAX_R / (TURNS * 2)
   const rnd = mulberry32(0xbeef + i * 7919)
   const r = MAX_R * t + gap * (0.42 + rnd() * 0.16)
   return { x: r * Math.cos(theta), y: r * Math.sin(theta) }
@@ -518,7 +522,13 @@ export function SpiralUniverse({
     }
     const present = SECTION_ORDER.filter((s) => groups.has(s))
 
-    let t = READ_T_START
+    // BOTH STRANDS: sections alternate between the two spiral strands
+    // (even → strand 0, odd → strand π), each strand keeping its own arc
+    // cursor. This packs the walk into roughly HALF the radius the single-
+    // strand layout needed, so most of the initial spiral space fills up
+    // before the sky ever has to grow outward.
+    const cursors = [READ_T_START, READ_T_START]
+    const started = [false, false]
     return present.map((key, idx) => {
       // Weight sorts; the heaviest weight>=7 read is THE major (heaviest
       // overall stands in when none reaches the threshold), the rest follow
@@ -531,10 +541,14 @@ export function SpiralUniverse({
       const ordered = [majorFrag, ...frags.filter((f) => f !== majorFrag)]
       const color = SECTION_COLORS[key]
 
-      if (idx > 0) t = advanceT(t, SECTION_ARC_GAP)
+      const strand = idx % 2
+      const phase = strand === 0 ? 0 : Math.PI
+      let t = cursors[strand]
+      if (started[strand]) t = advanceT(t, SECTION_ARC_GAP)
+      started[strand] = true
       const reads = ordered.map((f, j) => {
         if (j > 0) t = advanceT(t, READ_ARC_GAP)
-        const pt = spiralPoint(t)
+        const pt = spiralPoint(t, phase)
         return {
           label: f.title,
           x: pt.x,
@@ -556,6 +570,7 @@ export function SpiralUniverse({
           sectionIdx: idx,
         }
       })
+      cursors[strand] = t
       return {
         key,
         idx,
@@ -620,17 +635,25 @@ export function SpiralUniverse({
     return n
   }, [sections, fullyAnswered])
 
-  // SPIRAL EXTENSION — the drawn spiral initially only reaches far enough to
-  // hold the first 3 sections (+ a sparse fading tail implying more). When
-  // section 3 FULLY completes the spiral GROWS: fog glyphs draw in
-  // progressively outward (the ~2s luminous crawl below) to hold sections 4-6.
+  // SPIRAL EXTENSION — with sections beaded across BOTH strands, the initial
+  // spiral holds ~80% of the whole journey (HOLD_SECTIONS of 6) before the
+  // sky ever grows. The drawn spiral reaches far enough for those held
+  // sections (+ a sparse fading tail implying more); only when the last held
+  // section FULLY completes does the spiral GROW: fog glyphs draw in
+  // progressively outward (the ~2s luminous crawl below) for what remains.
+  const HOLD_SECTIONS = 5
   const initialTEnd = useMemo(() => {
-    const holdIdx = Math.min(2, sections.length - 1)
-    const endT = sections[holdIdx]?.endT ?? READ_T_START
+    // Strands carry their own cursors, so the drawn extent must cover the
+    // FARTHEST held section across both strands, not just the last one.
+    let endT = READ_T_START
+    for (let i = 0; i < Math.min(HOLD_SECTIONS, sections.length); i++) {
+      endT = Math.max(endT, sections[i].endT)
+    }
     return Math.min(GLYPH_T_END, advanceT(endT, SPIRAL_TAIL_ARC))
   }, [sections])
   const spiralExtended =
-    sections.length <= 3 || (sections.length > 3 && unlockedCount > 3)
+    sections.length <= HOLD_SECTIONS ||
+    (sections.length > HOLD_SECTIONS && unlockedCount > HOLD_SECTIONS)
   const visibleTEnd = spiralExtended ? GLYPH_T_END : initialTEnd
 
   // Live growth: when spiralExtended flips during the session (not on a
@@ -869,13 +892,14 @@ export function SpiralUniverse({
     )
   }, [panelOpen, moodActive, activeMood.tone])
 
-  // World-space centers of every read/person marker, on the spiral arm. The
-  // nebula carves a small clear disc around each so a marker's star sits IN the
-  // spiral cleanly, never stacked on top of a fog glyph.
+  // World-space centers of every read/person marker. The nebula carves a
+  // small clear disc around each so a marker's badge sits in the sky cleanly,
+  // never stacked on top of a fog glyph. People clear at their ACTUAL
+  // in-the-void position (personPoint), matching where they render.
   const markerCenters = useMemo<{ x: number; y: number }[]>(() => {
     const pts = reads.map((r) => ({ x: r.x, y: r.y }))
     const n = people.length
-    for (let i = 0; i < n; i++) pts.push(spiralPoint(personT(i, n)))
+    for (let i = 0; i < n; i++) pts.push(personPoint(i, n))
     return pts
   }, [reads, people.length])
 
