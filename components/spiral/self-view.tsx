@@ -3,17 +3,35 @@
 import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ArrowLeft, Paperclip, Sparkles } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { ArrowLeft, Paperclip } from "lucide-react"
 import { Starfield } from "@/components/starfield"
-import { Button } from "@/components/ui/button"
 import { useSpiral } from "@/components/spiral/spiral-provider"
 import type { TruthScope } from "@/lib/spiral/reads"
 
+// The circle page's visual language: Geist Pixel, pure-black sky, dim greys,
+// "›" prefixes, ●/○ text toggles and pill outline buttons — no boxed shadcn
+// chrome, no serif type.
+const PIXEL = '"Geist Pixel", sans-serif'
+
 const TABS: { id: TruthScope; label: string }[] = [
-  { id: "about-me", label: "About me" },
-  { id: "about-bond", label: "About a bond" },
+  { id: "about-me", label: "about me" },
+  { id: "about-bond", label: "about a bond" },
 ]
+
+const panelStyle: React.CSSProperties = {
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.16)",
+  background: "rgba(0,0,0,0.35)",
+  padding: 16,
+}
+
+const kickerStyle: React.CSSProperties = {
+  fontFamily: PIXEL,
+  fontSize: 10,
+  letterSpacing: 3,
+  textTransform: "uppercase",
+  color: "rgba(255,255,255,0.45)",
+}
 
 export function SelfView() {
   const { truths, addTruth } = useSpiral()
@@ -31,75 +49,134 @@ export function SelfView() {
     if (!trimmed) return
     addTruth(trimmed, scope)
     setText("")
-    toast.success("Your words are now part of you")
+    toast.success("your words are now part of you")
   }
 
   function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) toast(`Attached ${file.name} — we'll read it in later`)
+    if (file) toast(`attached ${file.name} — we'll read it in later`)
     e.target.value = ""
   }
 
   return (
-    <main className="relative flex min-h-[100dvh] flex-col overflow-hidden">
+    <main
+      className="relative flex min-h-[100dvh] flex-col overflow-hidden"
+      style={{ background: "#000" }}
+    >
       <Starfield count={70} />
 
       <header className="relative z-20 mx-auto w-full max-w-md px-5 pt-6">
         <Link
           href="/circle"
-          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 transition-colors"
+          style={{
+            fontFamily: PIXEL,
+            fontSize: 10,
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.5)",
+          }}
         >
           <ArrowLeft className="size-3.5" />
-          Spiral
+          spiral
         </Link>
-        <h1 className="mt-4 text-balance font-serif text-3xl font-light md:text-4xl">
-          What you know about yourself
+        <h1
+          className="mt-5 text-balance"
+          style={{
+            fontFamily: PIXEL,
+            fontWeight: 500,
+            fontSize: 22,
+            letterSpacing: 1.5,
+            color: "#f0f0f0",
+          }}
+        >
+          what you know about yourself
         </h1>
-        <p className="mt-2 max-w-sm text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground md:max-w-md md:text-base">
-          Your own words, unprompted. You are always the authority here — the
+        <p
+          className="mt-3 max-w-sm text-pretty leading-relaxed"
+          style={{
+            fontFamily: PIXEL,
+            fontSize: 12.5,
+            letterSpacing: 0.4,
+            color: "#6a6a6a",
+          }}
+        >
+          <span style={{ color: "#555" }}>{"› "}</span>
+          your own words, unprompted. you are always the authority here — the
           sky listens, it never argues.
         </p>
       </header>
 
       <div className="relative z-10 mx-auto w-full max-w-md flex-1 px-5 py-6">
-        {/* Scope tabs */}
-        <div className="mb-4 flex gap-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setScope(t.id)}
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors",
-                scope === t.id
-                  ? "border-foreground/40 bg-secondary text-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
+        {/* Scope toggles — ●/○ text idiom, same as onboarding + add person */}
+        <div className="mb-5 flex gap-5">
+          {TABS.map((t) => {
+            const selected = scope === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setScope(t.id)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: PIXEL,
+                  fontSize: 11,
+                  letterSpacing: 2,
+                  textTransform: "uppercase",
+                  color: selected ? "#f0f0f0" : "rgba(255,255,255,0.4)",
+                }}
+              >
+                {(selected ? "● " : "○ ") + t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Free-text truth — the primary input */}
-        <div className="rounded-2xl border border-border bg-popover/70 p-4 backdrop-blur-sm">
+        <div style={panelStyle}>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
             placeholder={
               scope === "about-me"
-                ? "Something you know to be true about yourself…"
-                : "Something you know to be true about a bond…"
+                ? "something you know to be true about yourself…"
+                : "something you know to be true about a bond…"
             }
-            className="w-full resize-none bg-transparent font-serif text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60"
+            className="w-full resize-none bg-transparent outline-none"
+            style={{
+              fontFamily: PIXEL,
+              fontWeight: 500,
+              fontSize: 15,
+              letterSpacing: 0.5,
+              lineHeight: 1.6,
+              color: "#fff",
+              caretColor: "#fff",
+            }}
           />
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+          <div
+            className="mt-3 flex items-center justify-between gap-3 pt-3"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.16)" }}
+          >
             <button
               onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1.5 transition-colors"
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontFamily: PIXEL,
+                fontSize: 10,
+                letterSpacing: 2,
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.5)",
+              }}
             >
               <Paperclip className="size-3.5" />
-              Attach a test
+              attach a test
             </button>
             <input
               ref={fileRef}
@@ -108,13 +185,23 @@ export function SelfView() {
               onChange={handleAttach}
               className="hidden"
             />
-            <Button
+            <button
               onClick={handleSubmit}
               disabled={!text.trim()}
-              className="rounded-full px-6 font-mono text-xs uppercase tracking-widest"
+              style={{
+                background: "transparent",
+                border: `1px solid ${text.trim() ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)"}`,
+                color: text.trim() ? "#f0f0f0" : "rgba(255,255,255,0.3)",
+                fontFamily: PIXEL,
+                fontSize: 11,
+                letterSpacing: 2,
+                padding: "9px 18px",
+                borderRadius: 30,
+                cursor: text.trim() ? "pointer" : "default",
+              }}
             >
-              Add to your spiral
-            </Button>
+              {"add to your spiral ⏎"}
+            </button>
           </div>
         </div>
 
@@ -123,31 +210,66 @@ export function SelfView() {
           <ul className="mt-8 flex flex-col gap-6">
             {visible.map((t) => (
               <li key={t.id} className="flex flex-col gap-3">
-                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-primary/80">
-                    Your words · now part of you
+                <div
+                  style={{
+                    ...panelStyle,
+                    border: "1px solid rgba(255,255,255,0.3)",
+                  }}
+                >
+                  <p className="mb-2" style={kickerStyle}>
+                    your words · now part of you
                   </p>
-                  <p className="text-pretty font-serif text-lg font-light leading-relaxed text-foreground">
+                  <p
+                    className="text-pretty leading-relaxed"
+                    style={{
+                      fontFamily: PIXEL,
+                      fontWeight: 500,
+                      fontSize: 15,
+                      letterSpacing: 0.5,
+                      color: "#f0f0f0",
+                    }}
+                  >
                     {t.text}
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-popover/70 p-4 backdrop-blur-sm">
-                  <p className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                    <Sparkles className="size-3" />
-                    The sky reflects
+                <div style={panelStyle}>
+                  <p className="mb-2" style={kickerStyle}>
+                    {"✦ the sky reflects"}
                   </p>
-                  <p className="text-pretty font-serif text-base italic leading-relaxed text-foreground/90">
+                  <p
+                    className="text-pretty leading-relaxed"
+                    style={{
+                      fontFamily: PIXEL,
+                      fontSize: 13.5,
+                      letterSpacing: 0.4,
+                      color: "#b8b8b8",
+                    }}
+                  >
                     {t.reflection}
                   </p>
                 </div>
 
                 {t.tension && (
-                  <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4">
-                    <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                      Tension, kept — not corrected
+                  <div
+                    style={{
+                      ...panelStyle,
+                      border: "1px dashed rgba(255,255,255,0.2)",
+                      background: "transparent",
+                    }}
+                  >
+                    <p className="mb-2" style={kickerStyle}>
+                      tension, kept — not corrected
                     </p>
-                    <p className="text-pretty font-serif text-sm italic leading-relaxed text-muted-foreground">
+                    <p
+                      className="text-pretty leading-relaxed"
+                      style={{
+                        fontFamily: PIXEL,
+                        fontSize: 12.5,
+                        letterSpacing: 0.4,
+                        color: "#6a6a6a",
+                      }}
+                    >
                       {t.tension}
                     </p>
                   </div>
