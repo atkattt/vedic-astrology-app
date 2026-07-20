@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useCallback, useRef, useState, useTransition } from "react"
 import { useCircleData } from "@/components/circle/circle-data-provider"
 import {
   Dialog,
@@ -45,6 +45,29 @@ const inputStyle: React.CSSProperties = {
   colorScheme: "dark",
 }
 
+// Same masked "HH : MM" formatter the onboarding terminal uses.
+function formatTime(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 4) // HHMM
+  let out = ""
+  for (let i = 0; i < d.length; i++) {
+    out += d[i]
+    if (i === 1) out += " : "
+  }
+  return out
+}
+
+// A geocoded place candidate offered while typing the birth city
+// (mirrors the onboarding typeahead: /api/geocode?suggest=1).
+type PlaceSuggestion = {
+  label: string
+  name: string
+  admin1: string | null
+  country: string | null
+  lat: number
+  lng: number
+  timezone: string
+}
+
 export function AddPersonDialog({
   open,
   onOpenChange,
@@ -55,8 +78,16 @@ export function AddPersonDialog({
   const [name, setName] = useState("")
   const [birthDate, setBirthDate] = useState("")
   const [birthTime, setBirthTime] = useState("")
+  const [meridiem, setMeridiem] = useState<"AM" | "PM">("AM")
   const [timeUnknown, setTimeUnknown] = useState(false)
   const [birthPlace, setBirthPlace] = useState("")
+  // Place typeahead — picking a real geocoded place keeps entries canonical
+  // ("New York, New York, United States"), same as onboarding.
+  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([])
+  const [highlightIdx, setHighlightIdx] = useState(-1)
+  const [pickedPlace, setPickedPlace] = useState<PlaceSuggestion | null>(null)
+  const suggestAbortRef = useRef<AbortController | null>(null)
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isPending, startTransition] = useTransition()
   const { addPerson } = useCircleData()
 
@@ -64,22 +95,73 @@ export function AddPersonDialog({
     setName("")
     setBirthDate("")
     setBirthTime("")
+    setMeridiem("AM")
     setTimeUnknown(false)
     setBirthPlace("")
+    setPlaceSuggestions([])
+    setHighlightIdx(-1)
+    setPickedPlace(null)
+  }
+
+  // Debounced typeahead fetch, identical behavior to onboarding.
+  const fetchSuggestions = useCallback((query: string) => {
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current)
+    const q = query.trim()
+    if (q.length < 2) {
+      setPlaceSuggestions([])
+      setHighlightIdx(-1)
+      return
+    }
+    suggestTimerRef.current = setTimeout(async () => {
+      suggestAbortRef.current?.abort()
+      const ctrl = new AbortController()
+      suggestAbortRef.current = ctrl
+      try {
+        const res = await fetch(
+          `/api/geocode?suggest=1&q=${encodeURIComponent(q)}`,
+          { signal: ctrl.signal },
+        )
+        if (!res.ok) return
+        const data = (await res.json()) as { suggestions?: PlaceSuggestion[] }
+        if (ctrl.signal.aborted) return
+        setPlaceSuggestions(data.suggestions ?? [])
+        setHighlightIdx(data.suggestions?.length ? 0 : -1)
+      } catch {
+        // aborted or offline — keep whatever list is showing
+      }
+    }, 250)
+  }, [])
+
+  function pickPlace(s: PlaceSuggestion) {
+    setPickedPlace(s)
+    setBirthPlace(s.label)
+    setPlaceSuggestions([])
+    setHighlightIdx(-1)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
 
+    // If they typed but never picked, adopt the highlighted candidate so the
+    // stored place is always canonical when suggestions were available.
+    const place = pickedPlace
+      ? pickedPlace.label
+      : (placeSuggestions[highlightIdx >= 0 ? highlightIdx : 0]?.label ??
+        birthPlace)
+
+    const composedTime = birthTime.trim()
+      ? `${birthTime.trim()} ${meridiem}`
+      : ""
+
     startTransition(async () => {
       try {
         await addPerson({
           name,
           birthDate: birthDate || null,
-          birthTime: timeUnknown ? null : birthTime || null,
+          birthTime: timeUnknown ? null : composedTime || null,
           birthTimeUnknown: timeUnknown,
-          birthPlace: birthPlace || null,
+          birthPlace: place || null,
         })
         toast(`${name.trim()} has joined your sky`)
         reset()
@@ -154,15 +236,43 @@ export function AddPersonDialog({
               birth time
             </label>
             {!timeUnknown && (
-              <div style={fieldWrapStyle}>
-                <input
-                  id="p-time"
-                  type="time"
-                  value={birthTime}
-                  onChange={(e) => setBirthTime(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
+              <>
+                <div style={fieldWrapStyle}>
+                  <input
+                    id="p-time"
+                    inputMode="numeric"
+                    value={birthTime}
+                    onChange={(e) => setBirthTime(formatTime(e.target.value))}
+                    placeholder="08 : 30"
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+                  {(["AM", "PM"] as const).map((m) => {
+                    const selected = meridiem === m
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMeridiem(m)}
+                        style={{
+                          background: selected ? "#fff" : "transparent",
+                          border: `1px solid ${selected ? "#fff" : "rgba(255,255,255,0.5)"}`,
+                          color: selected ? "#000" : "#f0f0f0",
+                          fontFamily: PIXEL,
+                          fontSize: 11,
+                          letterSpacing: 2,
+                          padding: "8px 16px",
+                          borderRadius: 30,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {m}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
             )}
             <button
               type="button"
@@ -192,11 +302,93 @@ export function AddPersonDialog({
               <input
                 id="p-place"
                 value={birthPlace}
-                onChange={(e) => setBirthPlace(e.target.value)}
+                onChange={(e) => {
+                  setBirthPlace(e.target.value)
+                  // Typing again invalidates any earlier pick.
+                  setPickedPlace(null)
+                  fetchSuggestions(e.target.value)
+                }}
+                onKeyDown={(e) => {
+                  if (placeSuggestions.length === 0) return
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault()
+                    setHighlightIdx((i) => (i + 1) % placeSuggestions.length)
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault()
+                    setHighlightIdx(
+                      (i) =>
+                        (i - 1 + placeSuggestions.length) %
+                        placeSuggestions.length,
+                    )
+                  } else if (e.key === "Enter") {
+                    if (e.nativeEvent.isComposing || e.keyCode === 229) return
+                    e.preventDefault()
+                    const s =
+                      placeSuggestions[highlightIdx >= 0 ? highlightIdx : 0]
+                    if (s) pickPlace(s)
+                  }
+                }}
                 placeholder="city"
+                autoComplete="off"
                 style={inputStyle}
               />
             </div>
+            {placeSuggestions.length > 0 && !pickedPlace && (
+              <div
+                role="listbox"
+                aria-label="place suggestions"
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  background: "rgba(0,0,0,0.35)",
+                }}
+              >
+                {placeSuggestions.map((s, i) => (
+                  <button
+                    key={`${s.lat},${s.lng}`}
+                    type="button"
+                    role="option"
+                    aria-selected={i === highlightIdx}
+                    onMouseEnter={() => setHighlightIdx(i)}
+                    onClick={() => pickPlace(s)}
+                    style={{
+                      textAlign: "left",
+                      background:
+                        i === highlightIdx
+                          ? "rgba(255,255,255,0.92)"
+                          : "transparent",
+                      color: i === highlightIdx ? "#000" : "#f0f0f0",
+                      border: "none",
+                      fontFamily: PIXEL,
+                      fontWeight: 500,
+                      fontSize: 13,
+                      letterSpacing: 0.4,
+                      padding: "10px 12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {pickedPlace && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontFamily: PIXEL,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  color: "#e0e0e0",
+                }}
+              >
+                {"● " + pickedPlace.label}
+              </div>
+            )}
           </div>
 
           <button
