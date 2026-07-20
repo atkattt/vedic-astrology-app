@@ -248,7 +248,7 @@ const READ_T_START_A = 0.3
 const READ_T_START_B = 0.22
 const MAJOR_WEIGHT = 7
 // Arc length (world units) between consecutive reads in the sequence — even
-// spacing, comfortably clear of the widest badge (31px).
+// spacing, comfortably clear of the widest badge (24px minor).
 const READ_ARC_GAP = 46
 // Extra arc breathing room between one section's last read and the next
 // section's star, so sections read as distinct runs along the path.
@@ -1075,12 +1075,12 @@ export function SpiralUniverse({
         x2 = cx2
         y2 = cy2
       } else {
-        // Stop at the edge of the star's ring (ring ≈ 31px ∅ + breathing room,
+        // Stop at the edge of the star's ring (ring ≈ 21px ∅ + breathing room,
         // scaled with the camera) so the thread touches, never crosses.
         const dx = sx - x1
         const dy = sy - y1
         const d = Math.hypot(dx, dy) || 1
-        const stop = 15.5 * scale + 9
+        const stop = 10.5 * scale + 9
         x2 = sx - (dx / d) * stop
         y2 = sy - (dy / d) * stop
       }
@@ -1651,11 +1651,10 @@ export function SpiralUniverse({
                   blooming ? " animate-current-bloom" : ""
                 }`}
                 style={{
-                  // Major: the ringed CURRENT star's glyph fills ~60-65% of
-                  // the circle (20px in a 31px ring); bare stars proportional.
+                  // Major: 21px ring with a 12px star icon (~60% fill).
                   // Minor: a smaller badge around the fragment's sigil.
-                  width: isMajor ? 31 : 24,
-                  height: isMajor ? 31 : 24,
+                  width: isMajor ? 21 : 24,
+                  height: isMajor ? 21 : 24,
                   backgroundColor: isCurrent ? "#050505" : "transparent",
                   border: isCurrent
                     ? `1.5px solid ${r.color}`
@@ -1676,7 +1675,7 @@ export function SpiralUniverse({
                 {isMajor ? (
                   // Same size in every state — current (ringed), answered on
                   // the spiral, and bare — so answering never shrinks the star.
-                  <StarIcon size={17} glow={toDropShadow(starGlow)} />
+                  <StarIcon size={12} glow={toDropShadow(starGlow)} />
                 ) : (
                   r.glyph
                 )}
@@ -1731,10 +1730,10 @@ export function SpiralUniverse({
                   locked ? "" : " animate-object-pulse"
                 }`}
                 style={{
-                  // Same footprint as a major star (31px ring, 17px icon) so
+                  // Same footprint as a major star (21px ring, 12px icon) so
                   // people and stars read as equal citizens of the universe.
-                  width: 31,
-                  height: 31,
+                  width: 21,
+                  height: 21,
                   backgroundColor: "#050505",
                   border: `1.5px solid ${locked ? "#4a4e56" : pp.color}`,
                   color: locked ? "#4a4e56" : pp.color,
@@ -1745,7 +1744,7 @@ export function SpiralUniverse({
                 }}
               >
                 <AvatarIcon
-                  size={17}
+                  size={12}
                   glow={
                     locked
                       ? undefined
