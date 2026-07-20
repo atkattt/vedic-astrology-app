@@ -239,7 +239,12 @@ type Glyph = {
 // star, its minis, and so on (section order: ascendant → moon → sun → knot →
 // nodes → chapter; see lib/spiral/sections.ts). No clusters — the sequence IS
 // the path, and the ringed cursor walks it one read at a time.
-const READ_T_START = 0.3
+// Where each strand's FIRST major star sits. Both strands share this start,
+// half a turn apart — so section 1's star and section 2's star both open
+// close to the moon at the center, and the journey works outward from the
+// heart of the spiral. Kept just outside the largest creature disc (~120px
+// radius at full accretion): r = MAX_R × t ≈ 106 world units.
+const READ_T_START = 0.22
 const MAJOR_WEIGHT = 7
 // Arc length (world units) between consecutive reads in the sequence — even
 // spacing, comfortably clear of the widest badge (31px).
