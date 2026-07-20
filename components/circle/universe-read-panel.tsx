@@ -125,8 +125,11 @@ export function UniverseReadPanel({
         className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-[440px]"
         style={{
           background: "#070707",
-          border: `1px solid ${accent}`,
-          borderBottom: "none",
+          // Explicit sides (not the `border` shorthand) so React doesn't see
+          // a shorthand/longhand conflict with the missing bottom edge.
+          borderTop: `1px solid ${accent}`,
+          borderLeft: `1px solid ${accent}`,
+          borderRight: `1px solid ${accent}`,
           borderRadius: "20px 20px 0 0",
           // A soft bloom of the marker's color along the panel's top edge.
           boxShadow: `0 -1px 24px ${accent}40`,

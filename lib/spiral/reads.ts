@@ -12,6 +12,10 @@ export type Read = {
   category: ReadCategory
   // For bond/person reads, the human this read is about.
   subjectName?: string
+  // The chart section this read belongs to (a SectionKey from
+  // lib/spiral/sections). Stamped when the spiral builds the read, so other
+  // surfaces (history) can carry the SAME section accent as its star.
+  section?: string
 }
 
 export const REASON_TAGS = [

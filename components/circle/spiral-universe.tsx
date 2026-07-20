@@ -577,7 +577,13 @@ export function SpiralUniverse({
             accent: color,
             symbol: symbolFor(f),
           },
-          read: { id: f.id, category: "about-you" as const, text: f.body },
+          read: {
+            id: f.id,
+            category: "about-you" as const,
+            text: f.body,
+            // carried so history can tint each read with its section accent
+            section: key,
+          },
           mood: moodForRead(f.tone, f.life_domain),
           kind: j === 0 ? ("major" as const) : ("minor" as const),
           glyph: symbolFor(f),
