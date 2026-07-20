@@ -1762,10 +1762,12 @@ export function SpiralUniverse({
         >
           <p
             ref={coachTextRef}
-            className="absolute left-1/2 top-10 -translate-x-1/2 text-center text-[10px] lowercase tracking-[0.22em] text-balance"
+            className="absolute left-1/2 top-10 -translate-x-1/2 text-center text-[10px] uppercase leading-relaxed tracking-[0.22em]"
             style={{ fontFamily: monoFont, color: "rgba(255,255,255,0.62)" }}
           >
-            start here. this one&apos;s about you.
+            START HERE
+            <br />
+            THIS ONE&apos;S ABOUT YOU
           </p>
           <svg className="absolute inset-0 h-full w-full overflow-visible">
             <line
