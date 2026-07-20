@@ -36,9 +36,12 @@ export type Truth = {
   text: string
   scope: TruthScope
   createdAt: number
-  reflection: string
-  // When a stated truth rubs against an existing read, we keep both — the
-  // user is always the authority on themselves. This is never "corrected".
+  // Generated FROM this entry's text at save time (see /api/truth-reflect),
+  // stored on the entry itself. null while the sky is still composing it.
+  reflection: string | null
+  // When a stated truth genuinely holds two things that sit differently, the
+  // sky names it and keeps both — the user is always the authority on
+  // themselves. This is never "corrected". Thin entries never get one.
   tension?: string
 }
 
@@ -94,29 +97,5 @@ export function makeBondRead(relationshipId: number, otherName: string): Read {
   }
 }
 
-// --- Reflection on a self-submitted truth (placeholder blended voice) -------
-
-const REFLECTIONS = [
-  "What you've named sits alongside a quieter pull toward needing things to be certain before you'll trust them. Both can be true at once.",
-  "Said plainly, this is a kind of devotion. The scaffold underneath suggests it costs you more than you let it show.",
-  "This reads as something you arrived at, not something handed to you. The pattern beneath it agrees — slowly, and on your terms.",
-  "There's steadiness in how you put this. Underneath runs a thread that wants to be moved as much as it wants to be safe.",
-]
-
-const TENSIONS = [
-  "This rubs against an earlier read — that you keep the door open after deciding to leave. We're not resolving the two. You're the authority here; both stay.",
-  "This sits in tension with the idea that you'd rather be useful than known. We're keeping both, uncorrected. Your word is the one that holds.",
-  "An older read said rest feels earned, not given. What you've just claimed pushes back on that. We let the friction stand.",
-]
-
-export function reflectOnTruth(text: string, scope: TruthScope): {
-  reflection: string
-  tension?: string
-} {
-  let h = 0
-  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0
-  const reflection = REFLECTIONS[h % REFLECTIONS.length]
-  // About half the time, surface a kept tension.
-  const tension = h % 2 === 0 ? TENSIONS[h % TENSIONS.length] : undefined
-  return { reflection, tension }
-}
+// Reflections on self-submitted truths are generated from the entry's own
+// text at save time — see /api/truth-reflect. No canned templates live here.

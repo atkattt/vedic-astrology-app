@@ -9,12 +9,12 @@ import { createClient } from "@/lib/supabase/server"
 import { getRevealRadius } from "@/app/actions/progress"
 import { CHAT_UNLOCK_RADIUS } from "@/lib/self/unlock"
 import { describeChartFacts, loadSelfReads } from "@/lib/self/reads-data"
+// The authored voice lives in one shared module so chat and sky reflections
+// can never drift apart.
+import { VOICE_RULES } from "@/lib/self/voice"
 
 // Allow streaming responses up to 30 seconds.
 export const maxDuration = 30
-
-// The voice + grounding rules are authored, not model-invented. Kept verbatim.
-const VOICE_RULES = `talks like a close friend who happens to know your chart. warm, direct, a little playful. short sentences. no lecture-y words. asks questions you'd answer out loud. never predicts doom. hard stuff said with care. uses "you" a lot. talks about real life not abstractions. no "you're not X, you're Y" reframes: don't name the insecurity, just describe accurately. ALL LOWERCASE always. show emotion by separating words with periods. like. this. sparingly. avoid long dashes. light emoticons ( :) <3 ) rarely.`
 
 const GROUNDING_RULES = `never invent chart placements or interpretations beyond the provided fragments and chart data. if asked about astrology beyond them, stay honest about not reading that from their chart and bring it back to what you know about them. treat disagreed fragments as "you told me this didn't fit" and ask rather than reassert. this is reflection, not fortune telling: no medical, legal, or financial predictions.`
 

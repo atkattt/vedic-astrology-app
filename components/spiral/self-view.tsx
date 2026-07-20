@@ -205,11 +205,15 @@ export function SelfView() {
           </div>
         </div>
 
-        {/* Reflections on submitted truths */}
+        {/* Reflections on submitted truths.
+            The stagger IS the differentiator: you speak (brightest, solid),
+            the sky takes a beat and reflects (✦, dimmer, fades in ~600ms
+            later), the tension surfaces last (~, dashed, dimmest). */}
         {visible.length > 0 && (
           <ul className="mt-8 flex flex-col gap-6">
             {visible.map((t) => (
               <li key={t.id} className="flex flex-col gap-3">
+                {/* your words — the primary object. no symbol. */}
                 <div
                   style={{
                     ...panelStyle,
@@ -233,33 +237,42 @@ export function SelfView() {
                   </p>
                 </div>
 
-                <div style={panelStyle}>
-                  <p className="mb-2" style={kickerStyle}>
-                    {"✦ the sky reflects"}
-                  </p>
-                  <p
-                    className="text-pretty leading-relaxed"
-                    style={{
-                      fontFamily: PIXEL,
-                      fontSize: 13.5,
-                      letterSpacing: 0.4,
-                      color: "#b8b8b8",
-                    }}
+                {/* the sky reflects — appears a beat after your words. */}
+                {t.reflection !== null && (
+                  <div
+                    className="animate-sky-beat"
+                    style={{ ...panelStyle, animationDelay: "600ms" }}
                   >
-                    {t.reflection}
-                  </p>
-                </div>
+                    <p className="mb-2" style={kickerStyle}>
+                      {"✦ the sky reflects"}
+                    </p>
+                    <p
+                      className="text-pretty leading-relaxed"
+                      style={{
+                        fontFamily: PIXEL,
+                        fontSize: 13.5,
+                        letterSpacing: 0.4,
+                        color: "#b8b8b8",
+                      }}
+                    >
+                      {t.reflection}
+                    </p>
+                  </div>
+                )}
 
+                {/* tension — surfaces last, kept not corrected. */}
                 {t.tension && (
                   <div
+                    className="animate-sky-beat"
                     style={{
                       ...panelStyle,
                       border: "1px dashed rgba(255,255,255,0.2)",
                       background: "transparent",
+                      animationDelay: "1400ms",
                     }}
                   >
                     <p className="mb-2" style={kickerStyle}>
-                      tension, kept — not corrected
+                      {"~ tension, kept — not corrected"}
                     </p>
                     <p
                       className="text-pretty leading-relaxed"

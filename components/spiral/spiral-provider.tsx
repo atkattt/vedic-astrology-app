@@ -9,13 +9,13 @@ import {
 } from "react"
 import {
   SEED_SELF_READS,
-  reflectOnTruth,
   type DisagreedRead,
   type Read,
   type ReasonTag,
   type Truth,
   type TruthScope,
 } from "@/lib/spiral/reads"
+import { THIN_ACK, isThinEntry } from "@/lib/self/voice"
 
 type SpiralState = {
   // Active "about you" reads waiting to be acted on.
@@ -100,16 +100,63 @@ export function SpiralProvider({ children }: { children: React.ReactNode }) {
   }, [reflectionPoints])
 
   const addTruth = useCallback((text: string, scope: TruthScope) => {
-    const { reflection, tension } = reflectOnTruth(text, scope)
+    const id = `truth-${Date.now()}-${truthSeq++}`
+
+    // SUBSTANCE GATE — thin entries get the quiet "kept." immediately and
+    // never a tension. no model call, no performed depth.
+    if (isThinEntry(text)) {
+      const truth: Truth = {
+        id,
+        text,
+        scope,
+        createdAt: Date.now(),
+        reflection: THIN_ACK,
+      }
+      setTruths((t) => [truth, ...t])
+      return truth
+    }
+
+    // Substantial entry: store it now with the reflection pending, then
+    // generate FROM this entry's text and attach the result BY THIS id —
+    // a reflection can never end up on someone else's words.
     const truth: Truth = {
-      id: `truth-${Date.now()}-${truthSeq++}`,
+      id,
       text,
       scope,
       createdAt: Date.now(),
-      reflection,
-      tension,
+      reflection: null,
     }
     setTruths((t) => [truth, ...t])
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/truth-reflect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, scope }),
+        })
+        const data = res.ok
+          ? ((await res.json()) as { reflection?: string; tension?: string })
+          : {}
+        setTruths((all) =>
+          all.map((t) =>
+            t.id === id
+              ? {
+                  ...t,
+                  reflection: data.reflection ?? THIN_ACK,
+                  tension: data.tension,
+                }
+              : t,
+          ),
+        )
+      } catch {
+        // Offline or aborted — fail quiet, in voice.
+        setTruths((all) =>
+          all.map((t) => (t.id === id ? { ...t, reflection: THIN_ACK } : t)),
+        )
+      }
+    })()
+
     return truth
   }, [])
 

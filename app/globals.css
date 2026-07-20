@@ -243,6 +243,19 @@ html {
     animation: glyph-pulse 3.2s ease-in-out infinite;
   }
 
+  /* what-you-know: the sky takes a beat to respond. reflection + tension
+     blocks start invisible and fade in on their own animation-delay
+     (your words → the sky reflects → tension) — the stagger IS the
+     differentiator between the three voices. */
+  @keyframes sky-beat {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-sky-beat {
+    opacity: 0;
+    animation: sky-beat 600ms ease-out forwards;
+  }
+
   /* Universe nebula: a slow, gentle per-glyph opacity shimmer. Amplitude is
      subtle (never fully dims) so the moonlit fog breathes rather than blinks.
      Peak opacity per glyph comes from --glyph-max; duration is staggered
