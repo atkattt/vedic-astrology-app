@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, Lock } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import SelfCreature, { type SelfCreatureHandle } from "@/components/self/self-creature"
 import { Starfield } from "@/components/starfield"
 import { useSpiral } from "@/components/spiral/spiral-provider"
@@ -130,12 +131,67 @@ export function SelfSpaceView({
               }}
             >
               <span style={{ color: "#555" }}>{"› "}</span>
-              sign in to watch your chart assemble itself.
+              <GoogleSignInLink />
+              {" to watch your chart assemble itself."}
             </p>
           )}
         </section>
       </div>
     </main>
+  )
+}
+
+/**
+ * "sign in" as an inline text link that launches Google OAuth directly —
+ * same iframe-aware flow as the auth form (Google blocks its page inside
+ * iframes, so in the v0 preview it opens in a new tab).
+ */
+function GoogleSignInLink() {
+  const [busy, setBusy] = useState(false)
+
+  async function handleGoogle() {
+    if (busy) return
+    setBusy(true)
+    const supabase = createClient()
+    const inIframe = window.self !== window.top
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/self`,
+        skipBrowserRedirect: inIframe,
+      },
+    })
+    if (error) {
+      setBusy(false)
+      return
+    }
+    if (inIframe && data?.url) {
+      window.open(data.url, "_blank", "noopener,noreferrer")
+      setBusy(false)
+    }
+    // Outside an iframe the browser navigates away to Google.
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleGoogle}
+      disabled={busy}
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        font: "inherit",
+        fontFamily: MONO,
+        letterSpacing: "inherit",
+        color: "#c9c9c9",
+        textDecoration: "underline",
+        textUnderlineOffset: 3,
+        cursor: busy ? "wait" : "pointer",
+      }}
+    >
+      {busy ? "one moment…" : "sign in"}
+    </button>
   )
 }
 
