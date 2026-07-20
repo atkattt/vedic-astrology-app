@@ -266,6 +266,16 @@ html {
     animation: object-pulse 3.6s ease-in-out infinite;
   }
 
+  /* Universe: the first-read coach thread breathes very slowly —
+     opacity 0.5 → 0.9 — part of the sky's language, not a UI arrow. */
+  @keyframes coach-thread {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.9; }
+  }
+  .animate-coach-thread {
+    animation: coach-thread 4.8s ease-in-out infinite;
+  }
+
   /* Threshold: slow hypnotic spin for the loading spiral glyph */
   @keyframes spin-slow {
     from { transform: rotate(0deg); }

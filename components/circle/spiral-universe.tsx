@@ -960,6 +960,105 @@ export function SpiralUniverse({
   // Keep the sequential-open gate in sync (see openRead).
   readGateRef.current = { cursor: currentReadId, responded: respondedIds }
 
+  // FIRST-READ COACH MARK — a quiet line of sky-language shown only to a
+  // visitor who has never answered anything: "start here. this one's about
+  // you." with a thin thread down to the current ringed star. Eligibility is
+  // decided ONCE (zero responses at mount); the moment the first answer
+  // lands it fades out (~400ms) and never returns.
+  // Latch eligibility only once the sky actually has reads — a guest's reads
+  // arrive after hydration (chart parsed from storage), so deciding on the
+  // very first render would always see an empty sky and never show the mark.
+  const coachEligibleRef = useRef<boolean | null>(null)
+  if (coachEligibleRef.current === null && reads.length > 0) {
+    coachEligibleRef.current = respondedIds.size === 0
+  }
+  const [coachPhase, setCoachPhase] = useState<"hidden" | "in" | "out" | "gone">("hidden")
+  const coachTextRef = useRef<HTMLParagraphElement | null>(null)
+  const coachLineRef = useRef<SVGLineElement | null>(null)
+  const coachStarRef = useRef<{ x: number; y: number } | null>(null)
+  {
+    const cur = reads.find((r) => r.read.id === currentReadId)
+    coachStarRef.current = cur ? { x: cur.x, y: cur.y } : null
+  }
+
+  // Fade in ~1s after the sky first settles. Keyed on the sky having reads
+  // (not bare mount) because guests get their reads a render after hydration.
+  const skyHasReads = reads.length > 0
+  useEffect(() => {
+    if (!skyHasReads || !coachEligibleRef.current) return
+    const t = setTimeout(() => {
+      setCoachPhase((p) => (p === "hidden" ? "in" : p))
+    }, 1600)
+    return () => clearTimeout(t)
+  }, [skyHasReads])
+
+  // The first saved answer dismisses it, permanently.
+  useEffect(() => {
+    if (respondedIds.size === 0) return
+    setCoachPhase((p) => {
+      if (p === "gone" || p === "out") return p
+      return p === "hidden" ? "gone" : "out"
+    })
+  }, [respondedIds])
+  useEffect(() => {
+    if (coachPhase !== "out") return
+    const t = setTimeout(() => setCoachPhase("gone"), 450)
+    return () => clearTimeout(t)
+  }, [coachPhase])
+
+  // Thread geometry — tracked every frame while visible by reading the
+  // universe layer's LIVE computed transform, so the line follows the star
+  // exactly through pans, pinches, AND eased camera animations. If the star
+  // drifts off-screen the endpoint clamps to the frame edge, still pointing
+  // toward it.
+  useEffect(() => {
+    if (coachPhase !== "in" && coachPhase !== "out") return
+    let raf = 0
+    const tick = () => {
+      raf = requestAnimationFrame(tick)
+      const stage = stageRef.current
+      const universe = universeRef.current
+      const line = coachLineRef.current
+      const text = coachTextRef.current
+      const star = coachStarRef.current
+      if (!stage || !universe || !line || !text || !star) return
+      const m = new DOMMatrixReadOnly(getComputedStyle(universe).transform)
+      const scale = m.a || 1
+      // Screen position of the star (universe transform is translate+scale).
+      const sx = m.a * star.x + m.e
+      const sy = m.d * star.y + m.f
+      const sr = stage.getBoundingClientRect()
+      const tr = text.getBoundingClientRect()
+      const x1 = tr.left + tr.width / 2 - sr.left
+      const y1 = tr.bottom - sr.top + 6
+      const MARGIN = 12
+      const cx2 = Math.min(Math.max(sx, MARGIN), sr.width - MARGIN)
+      const cy2 = Math.min(Math.max(sy, MARGIN), sr.height - MARGIN)
+      let x2: number
+      let y2: number
+      if (cx2 !== sx || cy2 !== sy) {
+        // Star is off-frame: clamp to the edge, aimed at it.
+        x2 = cx2
+        y2 = cy2
+      } else {
+        // Stop at the edge of the star's ring (ring ≈ 31px ∅ + breathing room,
+        // scaled with the camera) so the thread touches, never crosses.
+        const dx = sx - x1
+        const dy = sy - y1
+        const d = Math.hypot(dx, dy) || 1
+        const stop = 15.5 * scale + 9
+        x2 = sx - (dx / d) * stop
+        y2 = sy - (dy / d) * stop
+      }
+      line.setAttribute("x1", x1.toFixed(1))
+      line.setAttribute("y1", y1.toFixed(1))
+      line.setAttribute("x2", x2.toFixed(1))
+      line.setAttribute("y2", y2.toFixed(1))
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [coachPhase])
+
   // When the ring passes to a new read (not on first paint), that star blooms
   // briefly (~800ms) as its ring + color arrive.
   const prevCurrentRef = useRef<string | null>(null)
@@ -1646,6 +1745,42 @@ export function SpiralUniverse({
           transition: "opacity 300ms ease",
         }}
       />
+
+      {/* ===== First-read coach mark =====
+          Screen-space, pointer-transparent overlay: the invitation line at the
+          top of the frame and a thin thread down to the current star's ring.
+          Geometry is written imperatively each frame (see the coach rAF
+          effect) so it tracks the star through pan/zoom/eased camera moves. */}
+      {coachPhase !== "gone" && coachEligibleRef.current && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-20"
+          style={{
+            opacity: coachPhase === "in" ? 1 : 0,
+            transition: `opacity ${coachPhase === "out" ? 400 : 1000}ms ease`,
+          }}
+        >
+          <p
+            ref={coachTextRef}
+            className="absolute left-1/2 top-10 -translate-x-1/2 text-center text-[10px] lowercase tracking-[0.22em] text-balance"
+            style={{ fontFamily: monoFont, color: "rgba(255,255,255,0.62)" }}
+          >
+            start here. this one&apos;s about you.
+          </p>
+          <svg className="absolute inset-0 h-full w-full overflow-visible">
+            <line
+              ref={coachLineRef}
+              x1={0}
+              y1={0}
+              x2={0}
+              y2={0}
+              stroke="rgba(255,255,255,0.62)"
+              strokeWidth={1}
+              className="animate-coach-thread"
+            />
+          </svg>
+        </div>
+      )}
 
       {/* ===== HUD ===== */}
       {/* Bottom dock: one fixed slot shared by the hint text (at home) and the
