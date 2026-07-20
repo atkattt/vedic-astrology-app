@@ -1648,22 +1648,9 @@ export function SpiralUniverse({
       />
 
       {/* ===== HUD ===== */}
-      {/* Top hint: white, fades out as soon as the camera leaves home. */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col items-center gap-1 transition-opacity duration-500"
-        style={{ opacity: isHome ? 1 : 0 }}
-      >
-        <p
-          className="text-center text-[10px] uppercase tracking-[0.3em] text-balance"
-          style={{ fontFamily: monoFont, color: "#fff" }}
-        >
-          pinch to zoom · swipe to explore
-        </p>
-      </div>
-
       {/* Bottom dock: one fixed slot shared by the hint text (at home) and the
-          return-home button (when away), so the button appears in the exact
-          position the text occupied. */}
+          take-me-back button (when zoomed/panned away), so the button appears
+          in the exact position the text occupied. */}
       <div
         className="absolute bottom-4 left-1/2 z-20 flex h-12 -translate-x-1/2 items-center justify-center"
         style={{ marginRight: "-22px" }}
@@ -1673,17 +1660,17 @@ export function SpiralUniverse({
             className="pointer-events-none max-w-64 text-center text-[10px] lowercase leading-relaxed tracking-widest text-balance"
             style={{ fontFamily: monoFont, color: "#fff" }}
           >
-            if you get lost, a button will appear here to take you back
+            pinch and drag to explore
           </p>
         ) : (
-          /* Return-home: a tiny ghost of the creature's face + "you", shown
-             only when the camera has left the home composition. Tapping glides
-             the camera back to scale 1, centered (~700ms). */
+          /* Take-me-back: shown only when the camera has left the home
+             composition. Tapping glides the camera back to scale 1,
+             centered (~700ms). */
           <button
             type="button"
             onClick={goHome}
-            aria-label="Return to you"
-            className="flex h-12 flex-col items-center justify-center rounded-lg px-3 animate-in fade-in duration-300"
+            aria-label="Take me back"
+            className="flex h-12 items-center justify-center rounded-lg px-4 animate-in fade-in duration-300"
             style={{
               fontFamily: monoFont,
               backgroundColor: "#0d0d0d",
@@ -1691,8 +1678,9 @@ export function SpiralUniverse({
               color: "#fff",
             }}
           >
-            <span className="text-[11px] leading-none">{"[..]"}</span>
-            <span className="mt-1 text-[9px] lowercase leading-none tracking-widest">you</span>
+            <span className="text-[10px] lowercase leading-none tracking-widest">
+              take me back
+            </span>
           </button>
         )}
       </div>
