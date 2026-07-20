@@ -133,7 +133,7 @@ export function HistoryView() {
             className="text-pretty font-serif text-base font-light lowercase text-foreground"
             style={{ textWrap: "balance" }}
           >
-            a portrait drawn in what you claimed and what you let go
+            your history
           </p>
           <p
             style={{
