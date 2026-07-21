@@ -8,7 +8,6 @@ import type { UniverseFragment } from "@/lib/spiral/universe-reads"
 import { CircleView } from "@/components/circle/circle-view"
 import { CircleDataProvider } from "@/components/circle/circle-data-provider"
 import { BirthChartBootstrap } from "@/components/birth-chart-bootstrap"
-import { DEMO_PEOPLE, DEMO_RELATIONSHIPS } from "@/lib/circle/demo"
 
 // Starting frontier for fresh / guest universes (mirrors BASE_REVEAL_RADIUS).
 const BASE_REVEAL_RADIUS = 240
@@ -100,12 +99,10 @@ export default async function CirclePage() {
     })
     const guestFragments = fragmentRows.map(toUniverseFragment)
 
+    // Guests start with an empty constellation — no one appears on the
+    // spiral until they add someone themselves (same as a fresh account).
     return (
-      <CircleDataProvider
-        guest
-        initialPeople={DEMO_PEOPLE}
-        initialRelationships={DEMO_RELATIONSHIPS}
-      >
+      <CircleDataProvider guest initialPeople={[]} initialRelationships={[]}>
         <CircleView
           userName="Wanderer"
           initialRevealRadius={BASE_REVEAL_RADIUS}
